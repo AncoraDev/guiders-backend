@@ -26,10 +26,7 @@ import { OptionalAuthGuard } from 'src/context/shared/infrastructure/guards/opti
 import { RequiredRoles } from 'src/context/shared/infrastructure/guards/role.guard';
 
 import { ChatListResponseDto } from '../../application/dtos/chat-response.dto';
-import {
-  GetChatsQueryDto,
-  ChatSortDto,
-} from '../../application/dtos/chat-query.dto';
+import { GetChatsQueryDto } from '../../application/dtos/chat-query.dto';
 import { GetChatsWithFiltersQuery } from '../../application/queries/get-chats-with-filters.query';
 import {
   ApiAuthErrors,
@@ -157,22 +154,10 @@ export class CommercialChatsV2Controller {
       this.logger.debug(`Query params: ${JSON.stringify(queryParams)}`);
       this.logger.debug(`User roles: ${JSON.stringify(userRoles)}`);
 
-      // Parsear sort si viene como string JSON
-      let sortOptions = queryParams.sort;
-      if (typeof queryParams.sort === 'string') {
-        try {
-          sortOptions = JSON.parse(queryParams.sort) as ChatSortDto;
-        } catch (error) {
-          this.logger.warn(
-            `Error al parsear sort: ${error}. Usando valor por defecto.`,
-          );
-          sortOptions = undefined;
-        }
-      }
-
       // Construir filtros con assignedCommercialId
+      // (filters/sort ya llegan parseados vía Transform en GetChatsQueryDto)
       const filters = {
-        ...queryParams.filters,
+        ...(queryParams.filters ?? {}),
         assignedCommercialId: commercialId,
       };
 
@@ -180,7 +165,7 @@ export class CommercialChatsV2Controller {
         userId: commercialId,
         userRoles: ['admin'],
         filters,
-        sort: sortOptions,
+        sort: queryParams.sort,
         cursor: queryParams.cursor,
         limit: queryParams.limit || 50,
       });

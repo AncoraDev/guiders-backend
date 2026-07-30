@@ -1,31 +1,31 @@
 // Script de inicialización de MongoDB para crear usuario de aplicación
 // Se ejecuta automáticamente cuando el contenedor se inicia por primera vez
 
-print('====== INICIANDO CONFIGURACIÓN DE MONGODB ======');
+console.log('====== INICIANDO CONFIGURACIÓN DE MONGODB ======');
 
 // Detectar el entorno
 const environment = process.env.NODE_ENV || 'development';
-print(`Entorno detectado: ${environment}`);
+console.log(`Entorno detectado: ${environment}`);
 
 // Obtener variables de entorno con valores por defecto según el entorno
 const username = process.env.MONGODB_USERNAME || (environment === 'production' ? 'guiders_admin' : 'admin');
 const password = process.env.MONGODB_PASSWORD || (environment === 'production' ? 'password' : 'admin');
 const database = process.env.MONGODB_DATABASE || (environment === 'production' ? 'guiders_production' : 'guiders');
 
-print(`Configurando base de datos: ${database}`);
-print(`Creando usuario: ${username}`);
-print(`Entorno: ${environment}`);
+console.log(`Configurando base de datos: ${database}`);
+console.log(`Creando usuario: ${username}`);
+console.log(`Entorno: ${environment}`);
 
 // Verificar que las variables críticas estén definidas
 if (!process.env.MONGODB_USERNAME || !process.env.MONGODB_PASSWORD) {
-  print(`⚠️  ADVERTENCIA: Variables de entorno no definidas, usando valores por defecto`);
-  print(`   MONGODB_USERNAME: ${process.env.MONGODB_USERNAME ? 'DEFINIDA' : 'NO DEFINIDA'}`);
-  print(`   MONGODB_PASSWORD: ${process.env.MONGODB_PASSWORD ? 'DEFINIDA' : 'NO DEFINIDA'}`);
-  print(`   MONGODB_DATABASE: ${process.env.MONGODB_DATABASE ? 'DEFINIDA' : 'NO DEFINIDA'}`);
+  console.log(`⚠️  ADVERTENCIA: Variables de entorno no definidas, usando valores por defecto`);
+  console.log(`   MONGODB_USERNAME: ${process.env.MONGODB_USERNAME ? 'DEFINIDA' : 'NO DEFINIDA'}`);
+  console.log(`   MONGODB_PASSWORD: ${process.env.MONGODB_PASSWORD ? 'DEFINIDA' : 'NO DEFINIDA'}`);
+  console.log(`   MONGODB_DATABASE: ${process.env.MONGODB_DATABASE ? 'DEFINIDA' : 'NO DEFINIDA'}`);
 }
 
 // Cambiar a la base de datos de la aplicación
-db = db.getSiblingDB(database);
+// db = db.getSiblingDB(database); // Note: This is MongoDB shell specific, not Node.js
 
 // Crear el usuario con permisos de lectura y escritura
 try {

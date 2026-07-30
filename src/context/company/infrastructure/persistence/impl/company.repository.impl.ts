@@ -17,6 +17,7 @@ import {
   CompanyNotFoundError,
 } from '../../../domain/errors/company.error';
 import { CompanyMapper } from './company.mapper';
+import { domainLookupCandidates } from 'src/context/shared/domain/domain-matching.util';
 
 // Implementación TypeORM del repositorio de Company
 @Injectable()
@@ -181,20 +182,24 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
     }
   }
 
-  // Busca una empresa por dominio
+  // Busca una empresa por dominio (acepta host con o sin puerto / www)
   async findByDomain(domain: string): Promise<Result<Company, DomainError>> {
     try {
-      const entity = await this.companyRepo
-        .createQueryBuilder('companies')
-        .leftJoinAndSelect('companies.sites', 'sites')
-        .where('sites.domain = :domain', { domain })
-        .getOne();
+      const candidates = domainLookupCandidates(domain);
 
-      if (!entity) {
-        return err(new CompanyNotFoundError());
+      for (const candidate of candidates) {
+        const entity = await this.companyRepo
+          .createQueryBuilder('companies')
+          .leftJoinAndSelect('companies.sites', 'sites')
+          .where('sites.domain = :domain', { domain: candidate })
+          .getOne();
+
+        if (entity) {
+          return ok(CompanyMapper.toDomain(entity));
+        }
       }
 
-      return ok(CompanyMapper.toDomain(entity));
+      return err(new CompanyNotFoundError());
     } catch (error) {
       return err(
         new CompanyPersistenceError(

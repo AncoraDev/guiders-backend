@@ -21,24 +21,39 @@ describe('ChatQueueConfigServiceImpl', () => {
   });
 
   describe('Configuración por defecto', () => {
-    it('debe estar desactivado por defecto', () => {
-      expect(service.isQueueModeEnabled()).toBe(false);
+    it('debe estar activado por defecto (claim-based Atención)', () => {
+      expect(service.isQueueModeEnabled()).toBe(true);
     });
 
     it('debe retornar configuración por defecto', () => {
       const config = service.getConfig();
 
-      expect(config.queueModeEnabled).toBe(false);
+      expect(config.queueModeEnabled).toBe(true);
       expect(config.maxQueueWaitTimeSeconds).toBe(300); // 5 minutos por defecto según implementación
       expect(config.maxQueueSizePerDepartment).toBe(50); // Valor por defecto según implementación
       expect(config.notifyCommercialsOnNewChats).toBe(true);
     });
+
+    it('debe poder desactivarse con CHAT_QUEUE_MODE_ENABLED=false', () => {
+      process.env.CHAT_QUEUE_MODE_ENABLED = 'false';
+      const disabled = new ChatQueueConfigServiceImpl();
+      expect(disabled.isQueueModeEnabled()).toBe(false);
+      delete process.env.CHAT_QUEUE_MODE_ENABLED;
+    });
   });
 
   describe('shouldUseQueue', () => {
-    it('debe retornar false cuando modo cola está desactivado', () => {
+    it('debe retornar true por defecto cuando modo cola está activado', () => {
       const shouldUse = service.shouldUseQueue('chat-123', 'NORMAL');
+      expect(shouldUse).toBe(true);
+    });
+
+    it('debe retornar false cuando modo cola está desactivado', () => {
+      process.env.CHAT_QUEUE_MODE_ENABLED = 'false';
+      const disabled = new ChatQueueConfigServiceImpl();
+      const shouldUse = disabled.shouldUseQueue('chat-123', 'NORMAL');
       expect(shouldUse).toBe(false);
+      delete process.env.CHAT_QUEUE_MODE_ENABLED;
     });
 
     it('debe retornar false para chats URGENT incluso si modo cola estuviera activado', () => {

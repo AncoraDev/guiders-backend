@@ -47,12 +47,14 @@ export class GetPendingQueueQueryHandler
         `Obteniendo cola de chats pendientes. Departamento: ${query.department}, Límite: ${query.limit}`,
       );
 
-      // Verificar si el modo cola está activado
+      // Siempre listar PENDING: el espacio operativo "Atención" necesita ver
+      // chats sin asignar aunque el modo cola (creación/auto-assign) esté off.
+      // El flag CHAT_QUEUE_MODE_ENABLED solo afecta creación (shouldUseQueue),
+      // no el listado de la cola.
       if (!this.queueConfigService.isQueueModeEnabled()) {
-        this.logger.log(
-          'Modo cola desactivado. Retornando lista vacía para mantener compatibilidad',
+        this.logger.debug(
+          'Modo cola desactivado para creación; listando PENDING existentes igualmente',
         );
-        return ok([]);
       }
 
       // Obtener chats pendientes del repositorio

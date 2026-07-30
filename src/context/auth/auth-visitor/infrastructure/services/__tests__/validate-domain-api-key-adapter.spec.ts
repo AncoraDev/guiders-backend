@@ -170,6 +170,32 @@ describe('ValidateDomainApiKeyAdapter', () => {
       // Assert
       expect(result).toBe(false);
     });
+
+    it('debe validar cuando el dominio proporcionado incluye puerto y el almacenado no', async () => {
+      const apiKeyValue = new VisitorAccountApiKey('test-api-key');
+      const mockApiKey = createMockApiKey('127.0.0.1');
+      apiKeyRepository.getApiKeyByApiKey.mockResolvedValue(mockApiKey);
+
+      const result = await adapter.validate({
+        apiKey: apiKeyValue,
+        domain: '127.0.0.1:8083',
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('debe validar cuando el dominio almacenado incluye puerto y el proporcionado no', async () => {
+      const apiKeyValue = new VisitorAccountApiKey('test-api-key');
+      const mockApiKey = createMockApiKey('127.0.0.1:8083');
+      apiKeyRepository.getApiKeyByApiKey.mockResolvedValue(mockApiKey);
+
+      const result = await adapter.validate({
+        apiKey: apiKeyValue,
+        domain: '127.0.0.1',
+      });
+
+      expect(result).toBe(true);
+    });
   });
 
   describe('normalizeDomain', () => {
@@ -185,6 +211,13 @@ describe('ValidateDomainApiKeyAdapter', () => {
       // Act & Assert usando reflection para acceder al método privado
       const normalizedDomain = (adapter as any).normalizeDomain('rmotion.es');
       expect(normalizedDomain).toBe('rmotion.es');
+    });
+
+    it('debe eliminar el puerto numérico', () => {
+      const normalizedDomain = (adapter as any).normalizeDomain(
+        '127.0.0.1:8083',
+      );
+      expect(normalizedDomain).toBe('127.0.0.1');
     });
 
     it('debe manejar correctamente dominios con www. en el medio', () => {

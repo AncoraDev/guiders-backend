@@ -10,7 +10,19 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+
+/** Parsea query params que llegan como JSON string (p. ej. filters={...}). */
+function parseJsonQueryParam({ value }: { value: unknown }): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
 
 /**
  * DTO para filtros de búsqueda de chats
@@ -175,19 +187,23 @@ export class PaginationDto {
  */
 export class GetChatsQueryDto extends PaginationDto {
   @ApiProperty({
-    description: 'Filtros de búsqueda',
+    description:
+      'Filtros de búsqueda (objeto o JSON string en query: filters={"status":["ASSIGNED"]})',
     type: ChatFiltersDto,
     required: false,
   })
   @IsOptional()
+  @Transform(parseJsonQueryParam)
   filters?: ChatFiltersDto;
 
   @ApiProperty({
-    description: 'Opciones de ordenamiento',
+    description:
+      'Opciones de ordenamiento (objeto o JSON string: sort={"field":"createdAt","direction":"DESC"})',
     type: ChatSortDto,
     required: false,
   })
   @IsOptional()
+  @Transform(parseJsonQueryParam)
   sort?: ChatSortDto;
 }
 

@@ -7,6 +7,7 @@ import {
   CompanyRepository,
   COMPANY_REPOSITORY,
 } from '../../domain/company.repository';
+import { domainsMatch } from '../../../shared/domain/domain-matching.util';
 
 @QueryHandler(ResolveSiteByHostQuery)
 export class ResolveSiteByHostQueryHandler
@@ -39,11 +40,11 @@ export class ResolveSiteByHostQueryHandler
       const company = companyResult.value;
       const companyPrimitives = company.toPrimitives();
 
-      // Buscar qué sitio específico maneja este dominio
+      // Buscar qué sitio específico maneja este dominio (www/puerto ignorados)
       const matchingSite = companyPrimitives.sites.find(
         (site) =>
-          site.canonicalDomain === query.host ||
-          site.domainAliases.includes(query.host),
+          domainsMatch(site.canonicalDomain, query.host) ||
+          site.domainAliases.some((alias) => domainsMatch(alias, query.host)),
       );
 
       if (!matchingSite) {

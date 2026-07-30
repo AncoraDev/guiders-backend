@@ -23,6 +23,8 @@ export interface EventQueryOptions {
   sortOrder?: 'ASC' | 'DESC';
   dateFrom?: Date;
   dateTo?: Date;
+  /** Filtrar por tipo de evento (p. ej. PAGE_VIEW) */
+  eventType?: string;
 }
 
 /**

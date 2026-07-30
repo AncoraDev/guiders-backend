@@ -38,6 +38,10 @@ import {
   CommercialRepository,
   COMMERCIAL_REPOSITORY,
 } from '../../../commercial/domain/commercial.repository';
+import {
+  domainsMatch,
+  normalizeDomainForMatching,
+} from '../../../shared/domain/domain-matching.util';
 import { BffSessionAuthService } from '../../../shared/infrastructure/services/bff-session-auth.service';
 
 @CommandHandler(IdentifyVisitorCommand)
@@ -158,8 +162,8 @@ export class IdentifyVisitorCommandHandler
     command: IdentifyVisitorCommand,
   ): Promise<IdentifyVisitorResponseDto> {
     try {
-      // Normalizar dominio: eliminar prefijo 'www.' si existe
-      const normalizedDomain = command.domain.replace(/^www\./i, '');
+      // Normalizar dominio: ignorar www. y puerto (host:port ≡ host)
+      const normalizedDomain = normalizeDomainForMatching(command.domain);
 
       this.logger.log(
         `Identificando visitante: fingerprint=${command.fingerprint}, domain=${command.domain}${command.domain !== normalizedDomain ? ` (normalizado a: ${normalizedDomain})` : ''}`,
@@ -209,8 +213,10 @@ export class IdentifyVisitorCommandHandler
 
       const targetSite = sitePrimitives.find(
         (site) =>
-          site.canonicalDomain === normalizedDomain ||
-          site.domainAliases.includes(normalizedDomain),
+          domainsMatch(site.canonicalDomain, normalizedDomain) ||
+          site.domainAliases.some((alias) =>
+            domainsMatch(alias, normalizedDomain),
+          ),
       );
 
       if (!targetSite) {

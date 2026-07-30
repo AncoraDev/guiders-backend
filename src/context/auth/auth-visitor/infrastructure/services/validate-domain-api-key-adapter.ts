@@ -6,6 +6,10 @@ import {
   ApiKeyRepository,
 } from 'src/context/auth/api-key/domain/repository/api-key.repository';
 import { ConfigService } from '@nestjs/config';
+import {
+  domainsMatch,
+  normalizeDomainForMatching,
+} from 'src/context/shared/domain/domain-matching.util';
 
 @Injectable()
 export class ValidateDomainApiKeyAdapter implements ValidateDomainApiKey {
@@ -24,22 +28,22 @@ export class ValidateDomainApiKeyAdapter implements ValidateDomainApiKey {
       return false;
     }
 
-    // Normalizar dominios eliminando el prefijo www. para comparación
-    const normalizedStoredDomain = this.normalizeDomain(
+    // Ignorar www. y puerto: example.com:8083 ≡ example.com
+    const normalizedStoredDomain = normalizeDomainForMatching(
       apiKey.domain.getValue(),
     );
-    const normalizedProvidedDomain = this.normalizeDomain(params.domain);
+    const normalizedProvidedDomain = normalizeDomainForMatching(params.domain);
 
     this.logger.log('Stored domain (normalized): ' + normalizedStoredDomain);
     this.logger.log(
       'Provided domain (normalized): ' + normalizedProvidedDomain,
     );
 
-    return normalizedStoredDomain === normalizedProvidedDomain;
+    return domainsMatch(apiKey.domain.getValue(), params.domain);
   }
 
+  /** @deprecated Usar normalizeDomainForMatching — se mantiene por tests legacy */
   private normalizeDomain(domain: string): string {
-    // Eliminar prefijo www. si existe para permitir comparación flexible
-    return domain.startsWith('www.') ? domain.substring(4) : domain;
+    return normalizeDomainForMatching(domain);
   }
 }

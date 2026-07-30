@@ -79,7 +79,7 @@ export class GetChatPresenceQueryHandler
         lastActivity: visitorLastActivity.value.toISOString(),
       });
 
-      // Obtener presencia del comercial (si está asignado)
+      // Obtener presencia del comercial asignado
       if (chatPrimitives.assignedCommercialId) {
         const commercialId = new CommercialId(
           chatPrimitives.assignedCommercialId,
@@ -103,6 +103,38 @@ export class GetChatPresenceQueryHandler
           isTyping: commercialTyping,
           lastActivity: commercialLastActivity.value.toISOString(),
         });
+      } else {
+        // Chat PENDING sin asignar: incluir comerciales disponibles del tenant.
+        // Sin esto el widget del visitante marca "Desconectado" aunque haya
+        // agentes online en Console (falso negativo histórico → "haz refresh").
+        const available =
+          await this.commercialConnectionService.getAvailableCommercials(
+            chatPrimitives.companyId,
+          );
+
+        for (const commercialId of available) {
+          const commercialStatus =
+            await this.commercialConnectionService.getConnectionStatus(
+              commercialId,
+            );
+          const commercialTyping =
+            await this.commercialConnectionService.isTyping(
+              commercialId,
+              query.chatId,
+            );
+          const commercialLastActivity =
+            await this.commercialConnectionService.getLastActivity(
+              commercialId,
+            );
+
+          participants.push({
+            userId: commercialId.value,
+            userType: 'commercial',
+            connectionStatus: commercialStatus.value,
+            isTyping: commercialTyping,
+            lastActivity: commercialLastActivity.value.toISOString(),
+          });
+        }
       }
 
       return {

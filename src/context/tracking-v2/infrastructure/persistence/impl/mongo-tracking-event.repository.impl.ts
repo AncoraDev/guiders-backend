@@ -190,6 +190,9 @@ export class MongoTrackingEventRepositoryImpl
   ): Promise<Result<PaginatedEventsResult, DomainError>> {
     try {
       const filter: any = { visitorId: visitorId.getValue() };
+      if (options?.eventType) {
+        filter.eventType = options.eventType;
+      }
       return await this.executeQuery(filter, options);
     } catch (error) {
       return err(

@@ -104,12 +104,19 @@ export class GetChatsWithFiltersQueryHandler
         `Construyendo filtros base para roles: ${JSON.stringify(userRoles)}`,
       );
 
-      // Filtros según el rol del usuario
-      // Si tiene rol de commercial (y no es admin/superadmin), solo ve sus chats asignados
+      // Comercial: ve sus chats asignados. Si pide explícitamente solo PENDING,
+      // no aplicar filtro de assignee (usa la cola de sin asignar).
       const isAdmin = userRoles.some((role) =>
         ['admin', 'superadmin', 'supervisor'].includes(role),
       );
-      if (userRoles.includes('commercial') && !isAdmin) {
+      const requestingOnlyPending =
+        Array.isArray(filters?.status) &&
+        filters.status.length > 0 &&
+        filters.status.every(
+          (s) => String(s).toUpperCase() === 'PENDING',
+        );
+
+      if (userRoles.includes('commercial') && !isAdmin && !requestingOnlyPending) {
         // Los comerciales solo ven chats asignados a ellos o disponibles para ellos
         criteriaFilters.push(
           new Filter<Chat>('assignedCommercialId', Operator.EQUALS, userId),
@@ -117,7 +124,10 @@ export class GetChatsWithFiltersQueryHandler
         this.logger.log(
           `Filtro agregado para comercial: assignedCommercialId = ${userId}`,
         );
-        // TODO: Agregar OR para chats disponibles
+      } else if (requestingOnlyPending) {
+        this.logger.log(
+          'Comercial solicitando solo PENDING: omitiendo filtro assignedCommercialId',
+        );
       }
 
       // Aplicar filtros adicionales si existen

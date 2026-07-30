@@ -5,14 +5,15 @@ import {
 } from '../../domain/services/chat-queue-config.service';
 
 /**
- * Implementación del servicio de configuración del modo cola
- * Por defecto está desactivado para mantener comportamiento actual
+ * Implementación del servicio de configuración del modo cola.
+ * Por defecto ACTIVADO: los chats de visitantes quedan PENDING hasta que
+ * un comercial los reclama (flujo Atención). Desactivar con
+ * CHAT_QUEUE_MODE_ENABLED=false para auto-asignación inmediata.
  */
 @Injectable()
 export class ChatQueueConfigServiceImpl implements ChatQueueConfigService {
   private readonly config: ChatQueueConfig = {
-    // IMPORTANTE: Por defecto desactivado para mantener comportamiento actual
-    queueModeEnabled: process.env.CHAT_QUEUE_MODE_ENABLED === 'true' || false,
+    queueModeEnabled: process.env.CHAT_QUEUE_MODE_ENABLED !== 'false',
     maxQueueWaitTimeSeconds: parseInt(
       process.env.CHAT_QUEUE_MAX_WAIT_SECONDS || '300',
       10,

@@ -941,32 +941,28 @@ export class ChatV2Controller {
         );
       }
 
-      // Convertir chats de dominio a DTOs
+      // Convertir chats de dominio a DTOs vía toPrimitives (Optional-safe)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const chats = result?.value || [];
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      return chats.map((chat: any) => ({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        id: chat.id.getValue(),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        status: chat.status.value,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        priority: chat.priority.value,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        visitorId: chat.visitorId.getValue(),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        assignedCommercialId: chat.assignedCommercialId?.getValue(),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        totalMessages: chat.totalMessages,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        createdAt: chat.createdAt,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        updatedAt: chat.updatedAt,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        visitorInfo: chat.visitorInfo.toPrimitives(),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        metadata: chat.metadata?.toPrimitives(),
-      }));
+      return chats.map((chat: { toPrimitives: () => Record<string, unknown> }) => {
+        const p = chat.toPrimitives();
+        return {
+          id: p.id,
+          status: p.status,
+          priority: p.priority,
+          visitorId: p.visitorId,
+          assignedCommercialId: p.assignedCommercialId,
+          totalMessages: p.totalMessages,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          visitorInfo: p.visitorInfo,
+          metadata: p.metadata,
+          companyId: p.companyId,
+          lastMessagePreview: p.lastMessageContent,
+          lastMessageDate: p.lastMessageDate,
+        };
+      });
     } catch (error) {
       this.logger.error('Error al obtener cola de chats pendientes:', error);
       throw new HttpException(

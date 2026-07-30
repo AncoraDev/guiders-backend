@@ -8,6 +8,7 @@ import {
   HttpCode,
   Req,
   Param,
+  Query,
   UseGuards,
   BadRequestException,
   NotFoundException,
@@ -49,6 +50,8 @@ import { GetVisitorCurrentPageQuery } from '../../application/queries/get-visito
 import { GetVisitorCurrentPageResponseDto } from '../../application/dtos/get-visitor-current-page-response.dto';
 import { GetVisitorActivityQuery } from '../../application/queries/get-visitor-activity.query';
 import { GetVisitorActivityResponseDto } from '../../application/dtos/get-visitor-activity-response.dto';
+import { GetVisitorPageHistoryQuery } from '../../application/queries/get-visitor-page-history.query';
+import { GetVisitorPageHistoryResponseDto } from '../../application/dtos/get-visitor-page-history-response.dto';
 import { GetVisitorSiteQuery } from '../../application/queries/get-visitor-site.query';
 import { GetVisitorSiteResponseDto } from '../../application/dtos/get-visitor-site-response.dto';
 import {
@@ -491,6 +494,43 @@ export class VisitorV2Controller {
       GetVisitorActivityQuery,
       GetVisitorActivityResponseDto
     >(query);
+  }
+
+  @Get(':visitorId/page-history')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Historial de navegación del visitante',
+    description:
+      'Lista de páginas visitadas (eventos PAGE_VIEW), más reciente primero. ' +
+      'Incluye URL/path, título si existe, timestamp e índice cronológico.',
+  })
+  @ApiParam({
+    name: 'visitorId',
+    description: 'ID único del visitante (UUID)',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Historial de páginas obtenido',
+    type: GetVisitorPageHistoryResponseDto,
+  })
+  @ApiNotFoundError(
+    'Visitante',
+    'Visitante no encontrado con el ID proporcionado',
+  )
+  async getVisitorPageHistory(
+    @Param('visitorId') visitorId: string,
+    @Query('limit') limit?: string,
+  ): Promise<GetVisitorPageHistoryResponseDto> {
+    this.logger.log(`Obteniendo historial de páginas: ${visitorId}`);
+    const parsed = limit ? Number.parseInt(limit, 10) : 50;
+    return this.queryBus.execute(
+      new GetVisitorPageHistoryQuery(
+        visitorId,
+        Number.isFinite(parsed) ? parsed : 50,
+      ),
+    );
   }
 
   @Get(':visitorId/site')
