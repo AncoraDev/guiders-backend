@@ -11,4 +11,5 @@ export interface UserAccountRepository {
   ): Promise<UserAccount | null>;
   save(userAccount: UserAccount): Promise<void>;
   findByCompanyId(companyId: UserAccountCompanyId): Promise<UserAccount[]>;
+  delete(id: string): Promise<void>;
 }

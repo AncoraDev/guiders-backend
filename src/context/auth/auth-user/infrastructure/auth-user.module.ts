@@ -44,6 +44,11 @@ import { UpdateCommercialAvatarOnUserAvatarUpdatedEventHandler } from '../applic
 import { UpdateCommercialNameOnUserNameUpdatedEventHandler } from '../application/events/update-commercial-name-on-user-name-updated-event.handler';
 import { CommercialModule } from 'src/context/commercial/commercial.module';
 import { BffSessionAuthService } from 'src/context/shared/infrastructure/services/bff-session-auth.service';
+import { KeycloakAdminService } from './services/keycloak-admin.service';
+import { CreateCompanyUserCommandHandler } from '../application/commands/create-company-user-command.handler';
+import { UpdateCompanyUserCommandHandler } from '../application/commands/update-company-user-command.handler';
+import { SetCompanyUserActiveCommandHandler } from '../application/commands/set-company-user-active-command.handler';
+import { DeleteCompanyUserCommandHandler } from '../application/commands/delete-company-user-command.handler';
 
 @Module({
   imports: [
@@ -90,6 +95,7 @@ import { BffSessionAuthService } from 'src/context/shared/infrastructure/service
     UserLoginUseCase,
     RefreshTokenUseCase,
     TokenVerifyService,
+    KeycloakAdminService,
     // handlers
     FindOneUserByIdQueryHandler,
     FindUserByIdQueryHandler,
@@ -106,6 +112,10 @@ import { BffSessionAuthService } from 'src/context/shared/infrastructure/service
     UpdateUserAvatarCommandHandler,
     UpdateCommercialAvatarOnUserAvatarUpdatedEventHandler,
     UpdateCommercialNameOnUserNameUpdatedEventHandler,
+    CreateCompanyUserCommandHandler,
+    UpdateCompanyUserCommandHandler,
+    SetCompanyUserActiveCommandHandler,
+    DeleteCompanyUserCommandHandler,
     // Servicios necesarios para DualAuthGuard
     BffSessionAuthService,
   ],

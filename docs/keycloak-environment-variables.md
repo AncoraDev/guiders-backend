@@ -12,6 +12,17 @@ Para validación de tokens JWT en las estrategias de autenticación:
 - `KEYCLOAK_JWKS_URI`: URL del endpoint JWKS de Keycloak  
 - `KEYCLOAK_AUDIENCE`: Audiencia del token JWT (siempre `account`)
 
+## Variables de Keycloak Admin API (CRUD usuarios Console)
+
+Usadas por `KeycloakAdminService` para alta/edición/desactivación/borrado de usuarios de compañía:
+
+- `KEYCLOAK_URL`: URL base de Keycloak (ej. `http://localhost:8080`)
+- `KEYCLOAK_REALM`: Realm (por defecto `guiders`)
+- `KEYCLOAK_ADMIN_USERNAME` (o `KEYCLOAK_ADMIN`): usuario admin del realm master
+- `KEYCLOAK_ADMIN_PASSWORD`: contraseña del admin
+
+También se usa `OIDC_CONSOLE_CLIENT_ID` como `client_id` en `execute-actions-email` (definir contraseña).
+
 ## Variables BFF (Clientes OIDC)
 
 ### Cliente Console
@@ -33,6 +44,12 @@ Para validación de tokens JWT en las estrategias de autenticación:
 KEYCLOAK_ISSUER=http://localhost:8080/realms/guiders
 KEYCLOAK_JWKS_URI=http://localhost:8080/realms/guiders/protocol/openid-connect/certs
 KEYCLOAK_AUDIENCE=account
+
+# Keycloak Admin API (CRUD usuarios)
+KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_REALM=guiders
+KEYCLOAK_ADMIN_USERNAME=admin
+KEYCLOAK_ADMIN_PASSWORD=admin123
 
 # BFF - Clientes OIDC
 OIDC_ISSUER=http://localhost:8080/realms/guiders

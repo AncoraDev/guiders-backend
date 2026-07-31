@@ -73,4 +73,17 @@ export class UserAccountService implements UserAccountRepository {
     }
     return;
   }
+
+  async delete(id: string): Promise<void> {
+    if (!id) {
+      this.logger.error('ID is required for delete');
+      return;
+    }
+    try {
+      await this.entityManager.delete(UserAccountEntity, { id });
+    } catch (error) {
+      this.logger.error('Error deleting user account', error);
+      throw error;
+    }
+  }
 }

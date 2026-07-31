@@ -35,11 +35,18 @@ export class CreateInviteOnUserAccountCreatedEventHandler
   ) {}
 
   async handle(event: UserAccountCreatedEvent): Promise<void> {
-    const { id, email, password } = event.attributes.user;
+    const { id, email, password, keycloakId } = event.attributes.user;
     // Si el usuario ya tiene contraseña, no crear invitación
     if (password) {
       this.logger.log(
         `El usuario ${email} ya tiene contraseña, no se crea invitación.`,
+      );
+      return;
+    }
+    // Usuarios SSO (Keycloak): la contraseña se define vía execute-actions-email
+    if (keycloakId) {
+      this.logger.log(
+        `El usuario ${email} está vinculado a Keycloak, no se crea invitación local.`,
       );
       return;
     }

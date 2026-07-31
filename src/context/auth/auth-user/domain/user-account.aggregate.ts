@@ -362,4 +362,61 @@ export class UserAccount extends AggregateRoot {
 
     return updatedUser;
   }
+
+  public updateRoles(roles: UserAccountRoles): UserAccount {
+    return new UserAccount(
+      this._id,
+      this._email,
+      this._name,
+      this._password,
+      this._createdAt,
+      UserAccountUpdatedAt.create(new Date()),
+      this._lastLoginAt,
+      roles,
+      this._companyId,
+      this._isActive,
+      this._keycloakId,
+      this._avatarUrl,
+    );
+  }
+
+  public activate(): UserAccount {
+    if (this._isActive.value) {
+      return this;
+    }
+    return new UserAccount(
+      this._id,
+      this._email,
+      this._name,
+      this._password,
+      this._createdAt,
+      UserAccountUpdatedAt.create(new Date()),
+      this._lastLoginAt,
+      this._roles,
+      this._companyId,
+      new UserAccountIsActive(true),
+      this._keycloakId,
+      this._avatarUrl,
+    );
+  }
+
+  public deactivate(): UserAccount {
+    if (!this._isActive.value) {
+      return this;
+    }
+    return new UserAccount(
+      this._id,
+      this._email,
+      this._name,
+      this._password,
+      this._createdAt,
+      UserAccountUpdatedAt.create(new Date()),
+      this._lastLoginAt,
+      this._roles,
+      this._companyId,
+      new UserAccountIsActive(false),
+      this._keycloakId,
+      this._avatarUrl,
+    );
+  }
 }

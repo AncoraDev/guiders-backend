@@ -77,6 +77,25 @@ import {
 } from '../../application/dtos/verify-role-mapping.dto';
 import { FindUserByKeycloakIdQuery } from '../../application/queries/find-user-by-keycloak-id.query';
 import { LinkUserWithKeycloakCommand } from '../../application/commands/link-user-with-keycloak.command';
+import { CreateCompanyUserCommand } from '../../application/commands/create-company-user.command';
+import { UpdateCompanyUserCommand } from '../../application/commands/update-company-user.command';
+import { SetCompanyUserActiveCommand } from '../../application/commands/set-company-user-active.command';
+import { DeleteCompanyUserCommand } from '../../application/commands/delete-company-user.command';
+import {
+  CreateCompanyUserRequestDto,
+  UpdateCompanyUserRequestDto,
+  SetCompanyUserActiveRequestDto,
+  CompanyUserMutationResponseDto,
+} from '../../application/dtos/company-user-crud.dto';
+import { Result } from 'src/context/shared/domain/result';
+import { DomainError } from 'src/context/shared/domain/domain.error';
+import {
+  CannotModifySelfError,
+  CompanyUserEmailExistsError,
+  CompanyUserNotFoundError,
+  InvalidCompanyUserRolesError,
+} from '../../application/errors/company-user.errors';
+import { KeycloakAdminError } from '../services/keycloak-admin.service';
 
 @ApiTags('Autenticación de Usuarios')
 @ApiAuthErrors()
@@ -348,7 +367,8 @@ export class AuthUserController {
   @Get('company-users')
   @ApiOperation({
     summary: 'Listar usuarios de la compañía',
-    description: 'Devuelve los usuarios asociados a la compañía del token JWT',
+    description:
+      'Devuelve los usuarios asociados a la compañía del token JWT / sesión BFF',
   })
   @ApiBearerAuth()
   @ApiResponse({
@@ -357,7 +377,7 @@ export class AuthUserController {
     type: UserListResponseDto,
   })
   @Roles(['admin'])
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(DualAuthGuard, RolesGuard)
   async listCompanyUsers(@Req() req: any): Promise<UserListResponseDto> {
     // Extrae el companyId del payload del token (req.user)
     const companyId = (req as { user?: { companyId?: string } }).user
@@ -382,6 +402,184 @@ export class AuthUserController {
         lastLoginAt: u.lastLoginAt ?? null,
       })),
     };
+  }
+
+  @Post('company-users')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Crear usuario de la compañía',
+    description:
+      'Crea el usuario en Keycloak, envía email para definir contraseña y persiste en BD',
+  })
+  @ApiBearerAuth()
+  @ApiBody({ type: CreateCompanyUserRequestDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Usuario creado',
+    type: CompanyUserMutationResponseDto,
+  })
+  @Roles(['admin'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async createCompanyUser(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: CreateCompanyUserRequestDto,
+  ): Promise<CompanyUserMutationResponseDto> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new HttpException('No companyId in token', HttpStatus.UNAUTHORIZED);
+    }
+    if (!body?.name?.trim() || !body?.email?.trim()) {
+      throw new HttpException(
+        'name y email son obligatorios',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const result: Result<{ userId: string }, DomainError> =
+      await this.commandBus.execute(
+        new CreateCompanyUserCommand(
+          companyId,
+          body.name,
+          body.email,
+          body.roles ?? [],
+        ),
+      );
+
+    if (result.isErr()) {
+      throw this.mapCompanyUserError(result.error);
+    }
+    return { userId: result.unwrap().userId };
+  }
+
+  @Patch('company-users/:userId')
+  @ApiOperation({
+    summary: 'Actualizar usuario de la compañía',
+    description: 'Actualiza nombre y/o roles (BD + Keycloak)',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'userId', description: 'ID del usuario en Guiders' })
+  @ApiBody({ type: UpdateCompanyUserRequestDto })
+  @ApiResponse({ status: 200, description: 'Usuario actualizado' })
+  @Roles(['admin'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async updateCompanyUser(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+    @Body() body: UpdateCompanyUserRequestDto,
+  ): Promise<{ ok: true }> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new HttpException('No companyId in token', HttpStatus.UNAUTHORIZED);
+    }
+
+    const result: Result<void, DomainError> = await this.commandBus.execute(
+      new UpdateCompanyUserCommand(
+        companyId,
+        userId,
+        body?.name,
+        body?.roles,
+      ),
+    );
+
+    if (result.isErr()) {
+      throw this.mapCompanyUserError(result.error);
+    }
+    return { ok: true };
+  }
+
+  @Patch('company-users/:userId/active')
+  @ApiOperation({
+    summary: 'Activar o desactivar usuario de la compañía',
+    description: 'Actualiza isActive en BD y enabled en Keycloak',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'userId', description: 'ID del usuario en Guiders' })
+  @ApiBody({ type: SetCompanyUserActiveRequestDto })
+  @ApiResponse({ status: 200, description: 'Estado actualizado' })
+  @Roles(['admin'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async setCompanyUserActive(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+    @Body() body: SetCompanyUserActiveRequestDto,
+  ): Promise<{ ok: true }> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new HttpException('No companyId in token', HttpStatus.UNAUTHORIZED);
+    }
+    if (typeof body?.isActive !== 'boolean') {
+      throw new HttpException(
+        'isActive debe ser boolean',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const actorId = req.user?.id ?? '';
+    const result: Result<void, DomainError> = await this.commandBus.execute(
+      new SetCompanyUserActiveCommand(
+        companyId,
+        userId,
+        actorId,
+        actorId,
+        body.isActive,
+      ),
+    );
+
+    if (result.isErr()) {
+      throw this.mapCompanyUserError(result.error);
+    }
+    return { ok: true };
+  }
+
+  @Delete('company-users/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Eliminar usuario de la compañía',
+    description: 'Borrado duro en Keycloak y en BD Guiders',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'userId', description: 'ID del usuario en Guiders' })
+  @ApiResponse({ status: 204, description: 'Usuario eliminado' })
+  @Roles(['admin'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async deleteCompanyUser(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+  ): Promise<void> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new HttpException('No companyId in token', HttpStatus.UNAUTHORIZED);
+    }
+
+    const actorId = req.user?.id ?? '';
+    const result: Result<void, DomainError> = await this.commandBus.execute(
+      new DeleteCompanyUserCommand(companyId, userId, actorId, actorId),
+    );
+
+    if (result.isErr()) {
+      throw this.mapCompanyUserError(result.error);
+    }
+  }
+
+  private mapCompanyUserError(error: DomainError): HttpException {
+    if (error instanceof CompanyUserNotFoundError) {
+      return new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
+    if (
+      error instanceof CompanyUserEmailExistsError ||
+      error instanceof InvalidCompanyUserRolesError ||
+      error instanceof CannotModifySelfError
+    ) {
+      return new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+    if (error instanceof KeycloakAdminError) {
+      return new HttpException(error.message, HttpStatus.BAD_GATEWAY);
+    }
+    if (error instanceof ValidationError) {
+      return new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+    this.logger.error(`Error company-users: ${error.message}`);
+    return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   @Get('me')
