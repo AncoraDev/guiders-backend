@@ -450,6 +450,6 @@ bufferService.updateThrottlingConfig('SCROLL', {
 
 ## Referencias
 
-- [Guía de Frontend](../../../docs/TRACKING_V2_FRONTEND_GUIDE.md)
+- [Guía de Frontend](../../../docs/tracking/TRACKING_V2_FRONTEND_GUIDE.md)
 - [MongoDB Bulk Write Docs](https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite/)
 - [NestJS CQRS](https://docs.nestjs.com/recipes/cqrs)

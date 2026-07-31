@@ -305,8 +305,8 @@ gh secret set PROD_CONSENT_VERSION -b"v1.5.0"
 ## 📞 Soporte
 
 **¿Necesitas ayuda?**
-- Consulta: `docs/GITHUB_SECRETS_CONSENT_VERSION.md` (guía técnica completa)
-- Consulta: `docs/CONSENT_VERSION_MANAGEMENT.md` (gestión de versiones)
+- Consulta: `../consent/GITHUB_SECRETS_CONSENT_VERSION.md` (guía técnica completa)
+- Consulta: `../consent/CONSENT_VERSION_MANAGEMENT.md` (gestión de versiones)
 - Contacta: Equipo de Backend
 
 ---

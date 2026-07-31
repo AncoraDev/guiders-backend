@@ -632,8 +632,8 @@ export class AuthService {
 
 ## 🔗 Enlaces Útiles
 
-- **Documentación BFF**: `/docs/bff-httponly-cookies-guide.md`
-- **Plan de Implementación**: `/docs/bff-implementation-plan.md`
+- **Documentación BFF**: `./bff-httponly-cookies-guide.md`
+- **Plan de Implementación**: `./bff-implementation-plan.md`
 - **API Endpoints**: `http://localhost:3000/docs` (Swagger)
 - **Estado de Health Check**: `http://localhost:3000/api/health`
 

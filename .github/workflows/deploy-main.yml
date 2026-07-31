@@ -503,7 +503,7 @@ jobs:
           SSH_PASSWORD: ${{ secrets.PROD_SSH_PASSWORD }}
         run: |
           echo "Creando directorio de producción..."
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} "mkdir -p /var/www/guiders-backend/"
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} "mkdir -p /var/www/guiders-backend/docker /var/www/guiders-backend/scripts"
           echo "Directorio creado exitosamente"
 
       - name: 3. Upload main files
@@ -511,7 +511,8 @@ jobs:
           SSH_PASSWORD: ${{ secrets.PROD_SSH_PASSWORD }}
         run: |
           echo "Subiendo archivos principales..."
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-production.tar.gz .env.production docker-compose.yml ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-production.tar.gz .env.production ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no docker/docker-compose.yml ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/docker/
           echo "Archivos principales subidos"
 
       - name: 4. Upload scripts and utilities
@@ -519,8 +520,8 @@ jobs:
           SSH_PASSWORD: ${{ secrets.PROD_SSH_PASSWORD }}
         run: |
           echo "Subiendo scripts y utilidades..."
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} "mkdir -p /var/www/guiders-backend/scripts/"
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no scripts/mongo-init.js bin/test-mongodb-connection.js bin/verify-mongo-express.js ecosystem.config.js ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no scripts/mongo-init.js ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/scripts/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no bin/test-mongodb-connection.js bin/verify-mongo-express.js ecosystem.config.js ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/var/www/guiders-backend/
           echo "Scripts subidos exitosamente"
 
       - name: 5. Extract and prepare application
@@ -570,7 +571,7 @@ jobs:
             cd /var/www/guiders-backend/
 
             echo "Iniciando servicios de base de datos..."
-            docker compose -f docker-compose.yml --env-file .env.production up -d --remove-orphans
+            docker compose -f docker/docker-compose.yml --env-file .env.production up -d --remove-orphans
 
             echo "Servicios Docker iniciados"
           '

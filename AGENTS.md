@@ -2,6 +2,9 @@
 
 NestJS v11 backend with DDD+CQRS architecture, multi-persistence (PostgreSQL + MongoDB), and real-time WebSocket communication.
 
+📚 **Documentation index**: [`docs/README.md`](docs/README.md)  
+🐳 **Docker**: [`docker/README.md`](docker/README.md) — `npm run docker:up`
+
 ## Build, Lint & Test Commands
 
 ```bash

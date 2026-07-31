@@ -1084,7 +1084,7 @@ Expires: 0
 
 - **Swagger Documentation**: `http://localhost:3000/api/docs`
 - **WebSocket Events**: Ver documentación de real-time para eventos de mensajes
-- **Autenticación BFF**: Ver `docs/bff-frontend-usage.md` para autenticación con cookies
+- **Autenticación BFF**: Ver `../auth-bff/bff-frontend-usage.md` para autenticación con cookies
 
 ---
 

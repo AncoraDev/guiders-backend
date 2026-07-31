@@ -1,6 +1,6 @@
 # Docker Compose para Staging
 
-Este archivo `docker-compose-staging.yml` está específicamente diseñado para el entorno de staging de Guiders Backend.
+Este archivo `docker/docker-compose-staging.yml` está específicamente diseñado para el entorno de staging de Guiders Backend.
 
 ## Diferencias con Producción
 
@@ -65,22 +65,22 @@ MONGO_EXPRESS_PASSWORD=staging123
 
 ### Iniciar solo servicios básicos
 ```bash
-docker compose -f docker-compose-staging.yml up -d
+docker compose -f docker/docker-compose-staging.yml up -d
 ```
 
 ### Iniciar con herramientas de desarrollo
 ```bash
-docker compose -f docker-compose-staging.yml --profile tools up -d
+docker compose -f docker/docker-compose-staging.yml --profile tools up -d
 ```
 
 ### Ver logs de un servicio específico
 ```bash
-docker compose -f docker-compose-staging.yml logs -f postgres-staging
+docker compose -f docker/docker-compose-staging.yml logs -f postgres-staging
 ```
 
 ### Verificar estado de salud
 ```bash
-docker compose -f docker-compose-staging.yml ps
+docker compose -f docker/docker-compose-staging.yml ps
 ```
 
 ### Acceder a las herramientas web

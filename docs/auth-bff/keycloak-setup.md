@@ -25,13 +25,13 @@ KEYCLOAK_DB_NAME=keycloak
 Para iniciar Keycloak junto con todos los servicios:
 
 ```bash
-docker-compose up -d
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 Para iniciar solo Keycloak y su base de datos:
 
 ```bash
-docker-compose up -d keycloak-postgres keycloak
+docker compose -f docker/docker-compose.yml up -d keycloak-postgres keycloak
 ```
 
 ## Acceso a la Consola de Administración
@@ -111,8 +111,8 @@ Para integrar Keycloak con el backend, necesitarás:
 
 ### Keycloak no inicia
 
-1. Verifica que PostgreSQL esté corriendo: `docker-compose ps keycloak-postgres`
-2. Revisa los logs: `docker-compose logs keycloak`
+1. Verifica que PostgreSQL esté corriendo: `docker compose -f docker/docker-compose.yml ps keycloak-postgres`
+2. Revisa los logs: `docker compose -f docker/docker-compose.yml logs keycloak`
 3. Asegúrate de que el puerto 8080 esté disponible
 
 ### Error de conexión a la base de datos
@@ -126,7 +126,7 @@ Para integrar Keycloak con el backend, necesitarás:
 Si Keycloak consume mucha memoria en desarrollo, puedes limitar el heap:
 
 ```yaml
-# En docker-compose.yml, en el servicio keycloak
+# En docker/docker-compose.yml, en el servicio keycloak
 environment:
   JAVA_OPTS: "-Xms512m -Xmx1024m"
 ```
@@ -135,14 +135,14 @@ environment:
 
 ```bash
 # Ver logs de Keycloak
-docker-compose logs -f keycloak
+docker compose -f docker/docker-compose.yml logs -f keycloak
 
 # Reiniciar Keycloak
-docker-compose restart keycloak
+docker compose -f docker/docker-compose.yml restart keycloak
 
 # Parar solo Keycloak
-docker-compose stop keycloak
+docker compose -f docker/docker-compose.yml stop keycloak
 
 # Limpiar datos de Keycloak (cuidado: elimina todos los datos)
-docker-compose down -v
+docker compose -f docker/docker-compose.yml down -v
 ```

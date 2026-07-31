@@ -5,7 +5,7 @@
 **Clasificación:** Confidencial
 **Metodología:** Análisis estático (SAST) desde cero — sin sesgo del informe V1
 **Alcance:** NestJS v11, DDD+CQRS, MongoDB, PostgreSQL, WebSockets, Keycloak, Docker, GitHub Actions
-**Informe previo:** `docs/SECURITY_AUDIT_2026.md` (V1, 98 hallazgos, abril 2026)
+**Informe previo:** `./SECURITY_AUDIT_2026.md` (V1, 98 hallazgos, abril 2026)
 
 ---
 
@@ -289,7 +289,7 @@ this.logger.log(`DATABASE_PASSWORD: ${DATABASE_PASSWORD}`);
 
 ## Parte II — APIs HTTP y Exposición de Datos (36 hallazgos)
 
-> **Informe detallado:** `docs/SECURITY_AUDIT_2025_API.md` contiene la especificación completa con evidencias, CVSS y CWE. Resumen aquí.
+> **Informe detallado:** `./SECURITY_AUDIT_2025_API.md` contiene la especificación completa con evidencias, CVSS y CWE. Resumen aquí.
 
 ### API-001 [🔴 CRÍTICA] `OpenSearchController` expuesto en producción sin auth — NUEVO
 
@@ -662,7 +662,7 @@ const password = process.env.MONGODB_PASSWORD
 
 ## Parte VI — Persistencia y Aislamiento Multi-Tenant (21 hallazgos)
 
-> **Informe detallado:** `docs/SECURITY_AUDIT_2026_DATA_ISOLATION.md` contiene matrices completas de schemas y repos.
+> **Informe detallado:** `./SECURITY_AUDIT_2026_DATA_ISOLATION.md` contiene matrices completas de schemas y repos.
 
 ### DATA-001 [🔴 CRÍTICA] `ChatSchema` carece de `companyId`/`tenantId` — PERSISTE desde V1
 
@@ -1029,9 +1029,9 @@ Los hallazgos de este informe se traducen en los siguientes epics, agrupados por
 - NIST SP 800-63B (Authentication)
 - GDPR Art. 5, 25, 32
 - Informes fuente integrados en este V2:
-  - `docs/SECURITY_AUDIT_2026.md` (V1, baseline de comparación)
-  - `docs/SECURITY_AUDIT_2025_API.md` (Parte II detallada)
-  - `docs/SECURITY_AUDIT_2026_DATA_ISOLATION.md` (Parte VI detallada)
+  - `./SECURITY_AUDIT_2026.md` (V1, baseline de comparación)
+  - `./SECURITY_AUDIT_2025_API.md` (Parte II detallada)
+  - `./SECURITY_AUDIT_2026_DATA_ISOLATION.md` (Parte VI detallada)
   - `SECURITY_AUDIT_REPORT.md` (Parte IV detallada)
 
 ---

@@ -543,7 +543,7 @@ jobs:
           SSH_PASSWORD: ${{ secrets.STAGING_SSH_PASSWORD }}
         run: |
           echo "📁 Creando directorio de staging..."
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} "mkdir -p /var/www/guiders-backend-staging/"
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} "mkdir -p /var/www/guiders-backend-staging/docker /var/www/guiders-backend-staging/scripts"
           echo "✅ Directorio creado exitosamente"
 
       - name: 3. Upload main files
@@ -551,7 +551,8 @@ jobs:
           SSH_PASSWORD: ${{ secrets.STAGING_SSH_PASSWORD }}
         run: |
           echo "📤 Subiendo archivos principales..."
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-staging.tar.gz .env.staging docker-compose-staging.yml ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-staging.tar.gz .env.staging ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no docker/docker-compose-staging.yml ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/docker/
           echo "✅ Archivos principales subidos"
 
       - name: 4. Upload scripts and utilities
@@ -559,8 +560,8 @@ jobs:
           SSH_PASSWORD: ${{ secrets.STAGING_SSH_PASSWORD }}
         run: |
           echo "📤 Subiendo scripts y utilidades..."
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} "mkdir -p /var/www/guiders-backend-staging/scripts/"
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no scripts/mongo-init.js bin/test-mongodb-connection.js bin/verify-mongo-express.js ecosystem.staging.config.js ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no scripts/mongo-init.js ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/scripts/
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no bin/test-mongodb-connection.js bin/verify-mongo-express.js ecosystem.staging.config.js ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/var/www/guiders-backend-staging/
           echo "✅ Scripts subidos exitosamente"
 
       - name: 5. Extract and prepare application
@@ -610,7 +611,7 @@ jobs:
             cd /var/www/guiders-backend-staging/
             
             echo "🐳 Iniciando servicios de base de datos..."
-            docker compose -f docker-compose-staging.yml --env-file .env.staging up -d --remove-orphans
+            docker compose -f docker/docker-compose-staging.yml --env-file .env.staging up -d --remove-orphans
             
             echo "✅ Servicios Docker iniciados"
           '

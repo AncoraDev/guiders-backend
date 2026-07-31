@@ -107,8 +107,8 @@ jobs:
       - name: Start backend E2E stack
         working-directory: _backend
         run: |
-          docker compose -f docker-compose.e2e.yml build --no-cache backend-e2e
-          docker compose -f docker-compose.e2e.yml up -d
+          docker compose -f docker/docker-compose.e2e.yml build --no-cache backend-e2e
+          docker compose -f docker/docker-compose.e2e.yml up -d
 
       - name: Wait for backend to be healthy
         run: |
@@ -149,10 +149,10 @@ jobs:
       - name: Teardown backend E2E stack
         if: always()
         run: |
-          if [ -f "_backend/docker-compose.e2e.yml" ]; then
-            docker compose -f _backend/docker-compose.e2e.yml down -v --remove-orphans
+          if [ -f "_backend/docker/docker-compose.e2e.yml" ]; then
+            docker compose -f _backend/docker/docker-compose.e2e.yml down -v --remove-orphans
           else
-            echo "⚠️  _backend/docker-compose.e2e.yml no encontrado — nada que destruir"
+            echo "⚠️  _backend/docker/docker-compose.e2e.yml no encontrado — nada que destruir"
           fi
 ```
 
@@ -302,7 +302,7 @@ and that it has not expired. Fine-grained tokens expire after the date you set
 
 This should not happen on GitHub-hosted runners because each job gets a fresh
 virtual machine. On self-hosted runners, stop any conflicting service or change the
-port in `docker-compose.e2e.yml` and update `E2E_API_URL` in the workflow accordingly.
+port in `docker/docker-compose.e2e.yml` and update `E2E_API_URL` in the workflow accordingly.
 
 ---
 

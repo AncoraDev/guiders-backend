@@ -1,3 +1,6 @@
+# Build desde la raíz del repo:
+#   docker build -f docker/Dockerfile -t guiders-backend .
+#
 # --------------------------
 # Stage 1: Build
 # --------------------------

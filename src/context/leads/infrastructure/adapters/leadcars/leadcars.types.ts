@@ -1,6 +1,6 @@
 /**
  * Tipos específicos para la integración con LeadCars API v2.5
- * Documentación oficial: docs/leadcar/LeadCars_API_V2_5.pdf
+ * Documentación oficial: docs/integrations/leadcar/LeadCars_API_V2_5.pdf
  */
 
 /**

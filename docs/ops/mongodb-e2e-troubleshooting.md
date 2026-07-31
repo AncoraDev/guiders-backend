@@ -20,7 +20,7 @@ npm run test:check-mongo
 ### 2. Para Desarrollo Local
 ```bash
 # Levantar MongoDB con docker-compose
-docker-compose up -d mongodb-test
+docker compose -f docker/docker-compose.yml up -d mongodb-test
 
 # Ejecutar tests E2E localmente
 npm run test:e2e
@@ -56,7 +56,7 @@ TEST_MONGODB_ROOT_PASSWORD=admin123
 docker ps | grep mongo
 
 # Si no está corriendo, levantarlo
-docker-compose up -d mongodb-test
+docker compose -f docker/docker-compose.yml up -d mongodb-test
 ```
 
 ### 2. Puerto ocupado o incorrecto
@@ -116,8 +116,8 @@ node scripts/verify-e2e-ci-setup.js
 npm run test:check-mongo
 
 # Limpiar y reiniciar servicios
-docker-compose down
-docker-compose up -d mongodb-test postgres-test
+docker compose -f docker/docker-compose.yml down
+docker compose -f docker/docker-compose.yml up -d mongodb-test postgres-test
 
 # Ejecutar tests específicos
 npm run test:e2e -- --testNamePattern="Chat"

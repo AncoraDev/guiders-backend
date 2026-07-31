@@ -39,7 +39,13 @@
     "openapi:generate": "ts-node -r tsconfig-paths/register scripts/generate-openapi.ts",
     "openapi:lint": "redocly lint docs/api/openapi.yaml",
     "openapi:bundle": "redocly bundle docs/api/openapi.yaml -o docs/api/openapi.bundled.yaml",
-    "openapi:preview": "redocly preview-docs docs/api/openapi.yaml"
+    "openapi:preview": "redocly preview-docs docs/api/openapi.yaml",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:ps": "docker compose -f docker/docker-compose.yml ps",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "docker:e2e:up": "docker compose -f docker/docker-compose.e2e.yml up -d --wait",
+    "docker:e2e:down": "docker compose -f docker/docker-compose.e2e.yml down -v"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.933.0",

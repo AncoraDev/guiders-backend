@@ -128,10 +128,13 @@ guiders-backend/
 ├── _bmad/                            # BMad configuration
 ├── .opencode/                        # OpenCode skills and config
 │   └── skills/                       # BMad skill definitions
-├── docker-compose.yml                # Servicios desarrollo (PG, Mongo, Redis, Keycloak)
-├── docker-compose-staging.yml        # Servicios staging
-├── docker-compose-prod.yml           # Servicios produccion
-├── Dockerfile                        # Multi-stage build (node:20-alpine)
+├── docker/                           # Compose + Dockerfiles (ver docker/README.md)
+│   ├── docker-compose.yml            # Desarrollo (PG, Mongo, Redis, Keycloak)
+│   ├── docker-compose-staging.yml    # Staging
+│   ├── docker-compose-prod.yml       # Producción
+│   ├── docker-compose.e2e.yml        # E2E CI
+│   ├── Dockerfile                    # Imagen app
+│   └── Dockerfile.e2e                # Imagen E2E
 ├── package.json                      # Dependencias y scripts NPM
 ├── tsconfig.json                     # TypeScript config (ES2021, strict)
 ├── eslint.config.mjs                 # ESLint flat config
@@ -252,10 +255,10 @@ src/context/<contexto>/
 | `.prettierrc`                  | Prettier: single quotes, trailing commas           |
 | `jest-unit.json`               | Jest unitario: SQLite in-memory, moduleNameMapper  |
 | `jest-int.json`                | Jest integracion: MongoDB memory server            |
-| `docker-compose.yml`           | Desarrollo: PostgreSQL, MongoDB, Redis, Keycloak   |
-| `docker-compose-staging.yml`   | Staging: con volumenes persistentes                |
-| `docker-compose-prod.yml`      | Produccion: optimizado                             |
-| `Dockerfile`                   | Multi-stage: build + production (node:20-alpine)   |
+| `docker/docker-compose.yml`         | Desarrollo: PostgreSQL, MongoDB, Redis, Keycloak |
+| `docker/docker-compose-staging.yml` | Staging: con volumenes persistentes              |
+| `docker/docker-compose-prod.yml`    | Produccion: optimizado                           |
+| `docker/Dockerfile`                 | Multi-stage: build + production                  |
 | `.env.test`                    | Variables de entorno para tests                    |
 | `.env.session-cleanup.example` | Ejemplo de config para limpieza de sesiones        |
 | `ecosystem.config.js`          | PM2: produccion (cluster mode)                     |

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+📚 **Documentation index**: [`docs/README.md`](docs/README.md)
+
 ## Quick Reference
 
 ### Critical Rules (ALWAYS follow)

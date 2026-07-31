@@ -155,7 +155,7 @@ Registros de sincronización. Índice unique: `(visitorId, companyId, crmType)`.
 
 ## Referencia de la API LeadCars v2.4
 
-> Documentación oficial: `docs/leadcar/LeadCars_API_V2_4.pdf`
+> Documentación oficial: `docs/integrations/leadcar/LeadCars_API_V2_4.pdf`
 > Última revisión: 10/06/2025
 
 ### URLs Base
@@ -427,7 +427,7 @@ npm run test:unit -- src/context/leads/**/*.spec.ts
 
 ## Related Documentation
 
-- [Frontend Integration](../../../docs/leadcar/frontend-integration.md) — Guía para frontend
-- [LeadCars API v2.4 (PDF)](../../../docs/leadcar/LeadCars_API_V2_4.pdf) — Documentación oficial de la API
-- [LLM Tool Use Guide](../../../docs/LLM_TOOL_USE_GUIDE.md) — Captura automática por IA
+- [Frontend Integration](../../../docs/integrations/leadcar/frontend-integration.md) — Guía para frontend
+- [LeadCars API v2.4 (PDF)](../../../docs/integrations/leadcar/LeadCars_API_V2_4.pdf) — Documentación oficial de la API
+- [LLM Tool Use Guide](../../../docs/llm/LLM_TOOL_USE_GUIDE.md) — Captura automática por IA
 - [Root AGENTS.md](../../AGENTS.md) — Arquitectura general

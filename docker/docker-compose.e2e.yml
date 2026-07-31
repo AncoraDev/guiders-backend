@@ -2,9 +2,9 @@
 # Entorno efímero para tests E2E en CI (GitHub Actions).
 # NO usar en producción ni staging. Todas las credenciales son públicas a propósito.
 #
-# Uso:
-#   docker compose -f docker-compose.e2e.yml up -d --wait
-#   docker compose -f docker-compose.e2e.yml down -v
+# Uso (desde la raíz del repo):
+#   docker compose -f docker/docker-compose.e2e.yml up -d --wait
+#   docker compose -f docker/docker-compose.e2e.yml down -v
 
 version: '3.8'
 
@@ -76,8 +76,8 @@ services:
 
   backend-e2e:
     build:
-      context: .
-      dockerfile: Dockerfile.e2e
+      context: ..
+      dockerfile: docker/Dockerfile.e2e
     container_name: guiders-e2e-backend
     env_file:
       - .env.e2e

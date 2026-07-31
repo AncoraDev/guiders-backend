@@ -2,6 +2,9 @@
 
 Este proyecto es el backend de un producto orientado a comerciales, permitiendo que puedan comunicarse con los visitantes del sitio web en tiempo real y sin fricción.
 
+📚 **Documentación técnica**: índice completo en [`docs/README.md`](docs/README.md).  
+🐳 **Docker**: [`docker/README.md`](docker/README.md) (`npm run docker:up`).
+
 ## Descripción
 
 **guiders-backend** provee la infraestructura de servidor necesaria para habilitar la comunicación instantánea entre comerciales y visitantes de la web. El objetivo es eliminar barreras y facilitar el contacto, mejorando la experiencia del usuario y potenciando la conversión.
@@ -182,9 +185,10 @@ node bin/guiders-cli.js create-company-with-admin --name "Mi Compañía" --domai
 
 ## Recursos adicionales
 
-- [Arquitectura Técnica](/docs/technical-architecture.md): Documentación detallada sobre la arquitectura del proyecto.
-- [Ejemplos de Uso](/docs/usage-examples.md): Ejemplos prácticos y buenas prácticas.
-- [Diagramas](/docs/diagrams/): Visualizaciones de la arquitectura y flujos del sistema.
+- [Índice de documentación](docs/README.md)
+- [Arquitectura](docs/architecture/architecture.md)
+- [Guía de desarrollo](docs/architecture/development-guide.md)
+- [Diagramas](docs/diagrams/)
 
 ## Autor
 

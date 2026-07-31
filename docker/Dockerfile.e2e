@@ -5,8 +5,10 @@
 #   2. El entrypoint ejecuta migraciones + seed antes de arrancar NestJS
 #   3. Credenciales E2E hardcodeadas via .env.e2e (nunca tocan staging/prod)
 #
-# Build: docker build -f Dockerfile.e2e -t guiders-backend-e2e .
-# Run:   docker compose -f docker-compose.e2e.yml up --wait
+# Build (desde la raíz del repo):
+#   docker build -f docker/Dockerfile.e2e -t guiders-backend-e2e .
+# Run:
+#   docker compose -f docker/docker-compose.e2e.yml up --wait
 
 # --------------------------
 # Stage 1: Build
@@ -45,7 +47,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/bin ./bin
 
 # Entrypoint que orquesta: migraciones → seed → servidor
-COPY docker-entrypoint.e2e.sh /usr/local/bin/docker-entrypoint.e2e.sh
+COPY docker/docker-entrypoint.e2e.sh /usr/local/bin/docker-entrypoint.e2e.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.e2e.sh
 
 EXPOSE 3099

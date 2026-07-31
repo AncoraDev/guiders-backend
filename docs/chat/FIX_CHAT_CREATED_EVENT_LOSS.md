@@ -300,7 +300,7 @@ public someModifyingMethod(): Chat {
 - **Command Handler**: `src/context/conversations-v2/application/commands/create-chat-with-message.command-handler.ts`
 - **Aggregate Fixed**: `src/context/conversations-v2/domain/entities/chat.aggregate.ts` (líneas 241-259)
 - **Test Coverage**: `src/context/conversations-v2/domain/entities/__tests__/chat.spec.ts` (líneas 75-106)
-- **WebSocket Docs**: `docs/websocket-real-time-chat.md`
+- **WebSocket Docs**: `./websocket-real-time-chat.md`
 
 ## Pasos para Aplicar en Producción
 

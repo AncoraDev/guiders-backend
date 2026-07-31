@@ -65,7 +65,7 @@ Una vez configurados todos los secrets:
 echo "scp deploy-staging.tar.gz ..."
 
 # Por esto:
-sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-staging.tar.gz .env.staging docker-compose.yml $STAGING_USER@$STAGING_HOST:/var/www/guiders-backend-staging/
+sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no deploy-staging.tar.gz .env.staging docker/docker-compose.yml $STAGING_USER@$STAGING_HOST:/var/www/guiders-backend-staging/
 ```
 
 3. **Actualizar configuración de environment**

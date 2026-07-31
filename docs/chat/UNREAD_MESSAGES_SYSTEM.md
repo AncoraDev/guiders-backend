@@ -1058,7 +1058,7 @@ socket.on('message:new', (message) => {
 ## Referencias
 
 - API REST: `/docs/API_DOCUMENTATION.md`
-- WebSocket: `/docs/websocket-real-time-chat.md`
+- WebSocket: `/./websocket-real-time-chat.md`
 - Arquitectura: `/docs/ARCHITECTURE.md`
 - Código fuente:
   - Query Handler: `src/context/conversations-v2/application/queries/get-unread-messages.query-handler.ts`

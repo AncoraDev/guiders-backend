@@ -437,8 +437,8 @@ Frontend SPA                    BFF Backend                 Keycloak
 
 | Entorno    | Infraestructura            | Gestion de proceso | Deploy                     |
 | ---------- | -------------------------- | ------------------ | -------------------------- |
-| Desarrollo | docker-compose.yml         | nest start --watch | Manual                     |
-| Staging    | docker-compose-staging.yml | PM2 ecosystem      | GitHub Actions (staging)   |
+| Desarrollo | docker/docker-compose.yml         | nest start --watch | Manual                     |
+| Staging    | docker/docker-compose-staging.yml | PM2 ecosystem      | GitHub Actions (staging)   |
 | Produccion | docker-compose-prod.yml    | PM2 ecosystem      | GitHub Actions → VPN → SSH |
 
 ### Topologia de Produccion

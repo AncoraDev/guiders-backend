@@ -301,8 +301,8 @@ Para ver quién cambió un secret:
 
 | Documento | Descripción |
 |-----------|-------------|
-| `docs/CONSENT_VERSION_MANAGEMENT.md` | Guía completa de gestión de versiones |
-| `docs/CONSENT_VERSION_FORMAT.md` | Formatos válidos de versión |
+| `./CONSENT_VERSION_MANAGEMENT.md` | Guía completa de gestión de versiones |
+| `./CONSENT_VERSION_FORMAT.md` | Formatos válidos de versión |
 | `src/context/consent/domain/config/consent-version.config.ts` | Configuración centralizada |
 | `.github/workflows/deploy-staging.yml` | Workflow de staging |
 | `.github/workflows/deploy-production.yml` | Workflow de producción |
@@ -313,7 +313,7 @@ Para ver quién cambió un secret:
 
 **¿Dudas o problemas?**
 - Revisa los logs del workflow en GitHub Actions
-- Consulta `docs/CONSENT_VERSION_MANAGEMENT.md`
+- Consulta `./CONSENT_VERSION_MANAGEMENT.md`
 - Contacta al equipo de backend
 
 ---

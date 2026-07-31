@@ -268,8 +268,8 @@ const version = request.consentVersion || getCurrentConsentVersion();
 | `src/context/consent/domain/value-objects/consent-version.ts` | Value Object con validación |
 | `src/context/visitors-v2/application/commands/identify-visitor.command-handler.ts` | Usa versión en identificación |
 | `src/context/consent/application/commands/record-consent.command-handler.ts` | Registra consentimiento |
-| `docs/CONSENT_VERSION_FORMAT.md` | Formato detallado de versiones |
-| `docs/SDK_CONSENT_API.md` | API para SDKs externos |
+| `./CONSENT_VERSION_FORMAT.md` | Formato detallado de versiones |
+| `./SDK_CONSENT_API.md` | API para SDKs externos |
 
 ---
 
@@ -319,7 +319,7 @@ CONSENT_VERSION_CURRENT=v1.5.0 npm run start:dev
 ## 📞 Soporte
 
 Para preguntas o problemas:
-- **Documentación completa**: `docs/CONSENT_README.md`
+- **Documentación completa**: `./CONSENT_README.md`
 - **Equipo Backend**: backend@tudominio.com
 
 ---

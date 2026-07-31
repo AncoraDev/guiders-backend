@@ -276,14 +276,14 @@ Stage 2 (production): node:20-alpine → COPY dist/ → npm ci --production
 
 ### Servicios Docker Compose
 
-**Desarrollo** (`docker-compose.yml`):
+**Desarrollo** (`docker/docker-compose.yml`):
 
 - PostgreSQL 14 (puerto 5432)
 - MongoDB 7 (puerto 27017)
 - Redis 7 (puerto 6379)
 - Keycloak 23 (puerto 8080)
 
-**Staging** (`docker-compose-staging.yml`):
+**Staging** (`docker/docker-compose-staging.yml`):
 
 - Mismos servicios + volumenes persistentes
 - Configuracion PM2 via `ecosystem.staging.config.js`
