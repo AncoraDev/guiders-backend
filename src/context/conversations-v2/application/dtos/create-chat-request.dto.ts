@@ -6,6 +6,16 @@ import { IsString, IsOptional, IsObject } from 'class-validator';
  */
 export class CreateChatVisitorInfoDto {
   @ApiProperty({
+    description:
+      'ID del visitante (requerido para comerciales/admins, ignorado para visitantes)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  visitorId?: string;
+
+  @ApiProperty({
     description: 'Nombre del visitante',
     example: 'Juan Pérez',
     required: false,

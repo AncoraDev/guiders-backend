@@ -37,16 +37,21 @@ import { NotifyTenantOnCommercialPresenceChangedEventHandler } from './infrastru
 import { MongoCommercialRepositoryImpl } from './infrastructure/persistence/impl/mongo-commercial.repository.impl';
 import { CommercialController } from './infrastructure/controllers/commercial.controller';
 import { RedisCommercialConnectionDomainService } from './infrastructure/connection/redis-commercial-connection.domain-service';
-import { CommercialInactivityScheduler } from './infrastructure/schedulers/inactivity.scheduler';
 
 // Schema imports
 import { CommercialSchemaDefinition } from './infrastructure/persistence/schemas/commercial.schema';
+import { CommercialConnectionSessionSchemaDefinition } from './infrastructure/persistence/schemas/commercial-connection-session.schema';
+import {
+  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+} from './domain/commercial-connection-session.repository';
+import { MongoCommercialConnectionSessionRepositoryImpl } from './infrastructure/persistence/impl/mongo-commercial-connection-session.repository.impl';
 
 // External dependencies needed by controller
 import { AuthVisitorModule } from '../auth/auth-visitor/infrastructure/auth-visitor.module';
 import { AuthUserModule } from '../auth/auth-user/infrastructure/auth-user.module';
 import { CompanyModule } from '../company/company.module';
 import { WebSocketModule } from 'src/websocket/websocket.module';
+import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
 /**
  * Módulo del contexto Commercial
@@ -60,6 +65,10 @@ import { WebSocketModule } from 'src/websocket/websocket.module';
     ConfigModule,
     MongooseModule.forFeature([
       { name: 'Commercial', schema: CommercialSchemaDefinition },
+      {
+        name: 'CommercialConnectionSession',
+        schema: CommercialConnectionSessionSchemaDefinition,
+      },
     ]),
     // Módulos externos necesarios para el controller
     AuthVisitorModule, // Para validación de API Key
@@ -73,6 +82,10 @@ import { WebSocketModule } from 'src/websocket/websocket.module';
     {
       provide: COMMERCIAL_REPOSITORY,
       useClass: MongoCommercialRepositoryImpl,
+    },
+    {
+      provide: COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+      useClass: MongoCommercialConnectionSessionRepositoryImpl,
     },
 
     // Domain Services - Redis implementation para funcionalidad real-time
@@ -102,11 +115,17 @@ import { WebSocketModule } from 'src/websocket/websocket.module';
     EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler,
     NotifyTenantOnCommercialPresenceChangedEventHandler,
 
-    // Schedulers
-    CommercialInactivityScheduler,
+    // Schedulers — CommercialInactivityScheduler desactivado:
+    // presencia es manual (toggle Console); no away/offline por inactividad.
 
     // Servicios compartidos necesarios para AuthGuard
     TokenVerifyService,
+
+    // Alias local para inyectar el gateway en command handlers de presencia
+    {
+      provide: 'WEBSOCKET_GATEWAY',
+      useExisting: WebSocketGatewayBasic,
+    },
   ],
   exports: [COMMERCIAL_REPOSITORY, COMMERCIAL_CONNECTION_DOMAIN_SERVICE],
 })

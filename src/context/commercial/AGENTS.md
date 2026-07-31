@@ -1,45 +1,54 @@
 # AGENTS.md - Commercial Context
 
-Billing, subscriptions, and commercial operations. Manages customer billing, invoicing, and revenue tracking.
+Presencia y disponibilidad de comerciales (Console ↔ Redis ↔ Web).
 
-**Parent documentation**: [Root AGENTS.md](../../AGENTS.md) | **Related**: [Company](../company/AGENTS.md)
+**Parent**: [Root AGENTS.md](../../AGENTS.md)
 
-## Context Overview
+## Presencia manual (producto)
 
-The Commercial context handles:
+- Login Console → **Desconectado** (no auto-connect).
+- Toggle Conectado/Desconectado en Console (`guiders-status-selector`).
+- Web demo: `POST /v2/commercials/availability` → `available` si `onlineCount ≥ 1`.
+- Cerrar pestaña (`beforeunload` + sendBeacon) o logout → offline.
+- **Sin** cron de inactividad (`CommercialInactivityScheduler` desregistrado).
 
-- Subscription billing and payment processing
-- Invoice generation and tracking
-- Usage-based billing calculation
-- Payment method management
-- Billing history and reports
-- Revenue analytics
+## Sesiones de conexión
 
-This context integrates with company subscriptions and tracks revenue.
+Colección Mongo `commercial_connection_sessions`:
 
-## Integration Points
+| Campo | Uso |
+|-------|-----|
+| commercialId, companyId | Identidad |
+| commercialDisplayName | Nombre/email al abrir (UI Conexiones) |
+| startedAt / endedAt | Intervalo |
+| durationMs | Cerrado |
+| endReason | `manual` \| `logout` \| `browser_close` \| `unknown` |
 
-| Context     | Purpose                   | Method           |
-| ----------- | ------------------------- | ---------------- |
-| company     | Company subscriptions     | Billing status   |
-| tracking-v2 | Usage metrics for billing | Event count      |
-| leads       | Deal tracking             | Revenue per lead |
+- Open: `ConnectCommercialCommandHandler` (guarda displayName)
+- Close: `DisconnectCommercialCommandHandler`
+- List: `GET /v2/commercials/connection-sessions` (filtros + paginación)
 
-## Testing Strategy
+### Scoping del listado
 
-### Unit Tests
+| Rol | Visibilidad |
+|-----|-------------|
+| `commercial` | Solo sus sesiones |
+| `admin` / `supervisor` | Toda la compañía; opcional `?commercialId=` |
+
+Query params: `page`, `limit`, `from`, `to`, `endReason`, `status` (`open`\|`closed`), `commercialId`.
+
+## Endpoints clave
+
+| Método | Path | Notas |
+|--------|------|-------|
+| POST | `/v2/commercials/connect` | Online + open session |
+| POST | `/v2/commercials/disconnect` | Offline + close session (`reason` opcional) |
+| PUT | `/v2/commercials/status` | Cambio manual de estado |
+| POST | `/v2/commercials/availability` | Público (domain + apiKey) |
+| GET | `/v2/commercials/connection-sessions` | Historial paginado (Conexiones UI) |
+
+## Testing
 
 ```bash
 npm run test:unit -- src/context/commercial/**/*.spec.ts
 ```
-
-### Integration Tests
-
-```bash
-npm run test:int -- src/context/commercial/**/*.spec.ts
-```
-
-## Related Documentation
-
-- [Company Context](../company/AGENTS.md) - Subscriptions
-- [Root AGENTS.md](../../AGENTS.md) - Architecture overview

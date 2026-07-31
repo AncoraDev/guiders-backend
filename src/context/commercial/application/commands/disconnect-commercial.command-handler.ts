@@ -1,5 +1,10 @@
-import { CommandHandler, ICommandHandler, EventPublisher } from '@nestjs/cqrs';
-import { Inject, Logger } from '@nestjs/common';
+import {
+  CommandHandler,
+  ICommandHandler,
+  EventPublisher,
+  EventBus,
+} from '@nestjs/cqrs';
+import { Inject, Logger, Optional } from '@nestjs/common';
 import { DisconnectCommercialCommand } from './disconnect-commercial.command';
 import { CommercialRepository } from '../../domain/commercial.repository';
 import { COMMERCIAL_REPOSITORY } from '../../domain/commercial.repository';
@@ -7,11 +12,13 @@ import { COMMERCIAL_CONNECTION_DOMAIN_SERVICE } from '../../domain/commercial-co
 import { CommercialConnectionDomainService } from '../../domain/commercial-connection.domain-service';
 import { CommercialId } from '../../domain/value-objects/commercial-id';
 import { CommercialConnectionStatus } from '../../domain/value-objects/commercial-connection-status';
+import {
+  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+  CommercialConnectionSessionRepository,
+} from '../../domain/commercial-connection-session.repository';
+import { PresenceChangedEvent } from 'src/context/shared/domain/events/presence-changed.event';
+import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
-/**
- * Handler para el comando DisconnectCommercialCommand
- * Se encarga de desconectar un comercial del sistema
- */
 @CommandHandler(DisconnectCommercialCommand)
 export class DisconnectCommercialCommandHandler
   implements ICommandHandler<DisconnectCommercialCommand>
@@ -23,51 +30,103 @@ export class DisconnectCommercialCommandHandler
     private readonly commercialRepository: CommercialRepository,
     @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
     private readonly connectionService: CommercialConnectionDomainService,
+    @Inject(COMMERCIAL_CONNECTION_SESSION_REPOSITORY)
+    private readonly sessionRepository: CommercialConnectionSessionRepository,
     private readonly publisher: EventPublisher,
+    private readonly eventBus: EventBus,
+    @Optional()
+    @Inject('WEBSOCKET_GATEWAY')
+    private readonly websocketGateway?: WebSocketGatewayBasic,
   ) {}
 
   async execute(command: DisconnectCommercialCommand): Promise<void> {
-    this.logger.log(`Desconectando comercial: ${command.commercialId}`);
+    this.logger.log(
+      `Desconectando comercial: ${command.commercialId} companyId=${command.companyId ?? 'n/a'} reason=${command.endReason}`,
+    );
 
     try {
       const commercialId = new CommercialId(command.commercialId);
+      const offlineStatus = CommercialConnectionStatus.offline();
 
-      // Buscar el comercial existente
+      const closeResult = await this.sessionRepository.closeOpenSession({
+        commercialId: command.commercialId,
+        endReason: command.endReason,
+      });
+      if (closeResult.isErr()) {
+        this.logger.warn(
+          `No se pudo cerrar sesión: ${closeResult.error.message}`,
+        );
+      }
+
+      // companyId: request > Redis
+      let companyId =
+        command.companyId ||
+        (await this.connectionService.getCompanyIdByCommercial(commercialId));
+
       const commercialResult =
         await this.commercialRepository.findById(commercialId);
 
+      let previousStatus = 'online';
+
       if (!commercialResult.isOk() || !commercialResult.unwrap()) {
-        this.logger.warn(
-          `Comercial no encontrado para desconexión: ${command.commercialId}`,
+        await this.connectionService.setConnectionStatus(
+          commercialId,
+          offlineStatus,
+          companyId,
         );
+        this.logger.warn(
+          `Comercial no encontrado en Mongo; Redis offline: ${command.commercialId}`,
+        );
+        this.eventBus.publish(
+          new PresenceChangedEvent(
+            command.commercialId,
+            'commercial',
+            previousStatus,
+            'offline',
+            companyId,
+          ),
+        );
+        await this.emitAvailability(companyId);
         return;
       }
 
       const commercial = commercialResult.unwrap()!;
-      const offlineStatus = CommercialConnectionStatus.offline();
+      previousStatus = commercial.toPrimitives().connectionStatus;
 
-      // Actualizar estado del comercial a offline
       const updatedCommercial =
         commercial.changeConnectionStatus(offlineStatus);
 
-      // Recuperar companyId antes de actualizar para limpiar sets por tenant
-      const companyId =
-        await this.connectionService.getCompanyIdByCommercial(commercialId);
-
-      // Actualizar estado en Redis propagando companyId (puede ser undefined)
       await this.connectionService.setConnectionStatus(
         commercialId,
         offlineStatus,
         companyId,
       );
 
-      // Guardar y publicar eventos
-      const aggCtx = this.publisher.mergeObjectContext(updatedCommercial);
-      await this.commercialRepository.update(aggCtx);
-      aggCtx.commit();
+      if (previousStatus !== 'offline') {
+        const aggCtx = this.publisher.mergeObjectContext(updatedCommercial);
+        await this.commercialRepository.update(aggCtx);
+        aggCtx.commit();
+      }
+
+      if (!companyId) {
+        companyId =
+          await this.connectionService.getCompanyIdByCommercial(commercialId);
+      }
+
+      this.eventBus.publish(
+        new PresenceChangedEvent(
+          command.commercialId,
+          'commercial',
+          previousStatus,
+          'offline',
+          companyId,
+        ),
+      );
+
+      await this.emitAvailability(companyId);
 
       this.logger.log(
-        `Comercial desconectado exitosamente: ${commercialId.value}`,
+        `✅ Comercial desconectado: ${commercialId.value} tenant=${companyId ?? 'MISSING'}`,
       );
     } catch (error) {
       this.logger.error(
@@ -76,5 +135,30 @@ export class DisconnectCommercialCommandHandler
       );
       throw error;
     }
+  }
+
+  private async emitAvailability(companyId?: string): Promise<void> {
+    if (!companyId || !this.websocketGateway) {
+      this.logger.warn(
+        `emitAvailability omitido: companyId=${companyId ?? 'n/a'} gateway=${!!this.websocketGateway}`,
+      );
+      return;
+    }
+    const onlineCount =
+      await this.connectionService.getOnlineCountByTenant(companyId);
+    const payload = {
+      available: onlineCount > 0,
+      onlineCount,
+      tenantId: companyId,
+      timestamp: new Date().toISOString(),
+    };
+    this.websocketGateway.emitToRoom(
+      `tenant:${companyId}`,
+      'commercial:availability-changed',
+      payload,
+    );
+    this.logger.log(
+      `📡 commercial:availability-changed → tenant:${companyId} available=${payload.available} count=${onlineCount}`,
+    );
   }
 }

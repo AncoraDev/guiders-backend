@@ -1044,7 +1044,7 @@ describe('SearchVisitorsQueryHandler', () => {
         expect.anything(),
         expect.objectContaining({
           visitorIds: [visitorId],
-          lifecycle: ['LEAD'],
+          lifecycle: ['lead'],
           connectionStatus: ['online'],
         }),
         expect.anything(),

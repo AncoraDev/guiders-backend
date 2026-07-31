@@ -55,6 +55,7 @@ export class GetCommercialAvailabilityBySiteQueryHandler
         onlineCount,
         timestamp: new Date().toISOString(),
         siteId: query.siteId,
+        tenantId: query.companyId,
       };
     } catch (error) {
       this.logger.error(
@@ -68,6 +69,7 @@ export class GetCommercialAvailabilityBySiteQueryHandler
         onlineCount: 0,
         timestamp: new Date().toISOString(),
         siteId: query.siteId,
+        tenantId: query.companyId,
       };
     }
   }

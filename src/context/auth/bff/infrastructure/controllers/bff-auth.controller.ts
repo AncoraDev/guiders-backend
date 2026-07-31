@@ -590,7 +590,7 @@ export class BffController {
       expires_in?: number;
     };
     try {
-      t = await this.oidc.refresh(rt);
+      t = await this.oidc.refresh(rt, app);
     } catch (e) {
       // El refresh token puede estar expirado, revocado o ser inválido
       const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
@@ -705,7 +705,7 @@ export class BffController {
 
     // Revocar refresh token si existe
     if (rt) {
-      await this.oidc.revoke(rt);
+      await this.oidc.revoke(rt, app);
     }
 
     // Limpiar cookies de la aplicación (incluyendo id_token)
@@ -729,14 +729,21 @@ export class BffController {
     });
 
     // Construir URL de logout de Keycloak con id_token_hint
-    // Después del logout, redirigir al frontend (no al backend /login)
-    // Usa la primera URL de ALLOW_RETURN_TO como destino post-logout
+    // Después del logout, redirigir al frontend de la app correspondiente
     const allowedOrigins = getAllowedReturnTo();
-    const postLogoutRedirectUri = allowedOrigins[0] || 'http://localhost:4200';
+    const preferredOrigin =
+      app === 'admin'
+        ? allowedOrigins.find((o) => o.includes('4201') || o.includes('admin'))
+        : allowedOrigins.find(
+            (o) => o.includes('4200') || o.includes('console'),
+          );
+    const postLogoutRedirectUri =
+      preferredOrigin || allowedOrigins[0] || 'http://localhost:4200';
 
     try {
       const keycloakLogoutUrl = this.oidc.buildLogoutUrl({
         postLogoutRedirectUri,
+        app,
         idTokenHint: idToken, // Keycloak requiere id_token_hint para logout
       });
 

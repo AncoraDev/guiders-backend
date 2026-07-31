@@ -173,18 +173,47 @@ export class ChatV2Controller {
     @Req() req: AuthenticatedRequest,
   ): Promise<{ chatId: string; position: number }> {
     try {
-      this.logger.log(`Creando chat para visitante: ${req.user.id}`);
+      const userRoles = req.user.roles || [];
+      const isVisitor = userRoles.includes('visitor');
+      const isCommercialOrAdmin = userRoles.some((role) =>
+        ['commercial', 'admin'].includes(role),
+      );
 
-      // El visitorId se obtiene del token autenticado
-      const visitorId = req.user.id;
-
-      // Usar los datos del DTO o valores por defecto
-      const visitorInfo = createChatDto.visitorInfo || {};
+      const visitorInfoDto = createChatDto.visitorInfo || {};
       const metadata = createChatDto.metadata || {};
+
+      // Misma resolución que createChatWithMessage:
+      // visitante → token; comercial/admin → visitorInfo.visitorId
+      let visitorId: string;
+      if (isVisitor) {
+        visitorId = req.user.id;
+        if (visitorInfoDto.visitorId) {
+          this.logger.warn(
+            `Visitante ${req.user.id} intentó especificar visitorId ${visitorInfoDto.visitorId}, será ignorado`,
+          );
+        }
+      } else if (isCommercialOrAdmin) {
+        if (!visitorInfoDto.visitorId) {
+          throw new HttpException(
+            'Los comerciales y administradores deben especificar visitorInfo.visitorId',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        visitorId = visitorInfoDto.visitorId;
+      } else {
+        throw new HttpException(
+          'Rol no autorizado para crear chats',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      this.logger.log(
+        `Creando chat PENDING para visitante ${visitorId} (actor ${req.user.id})`,
+      );
 
       const command = new JoinWaitingRoomCommand(
         visitorId,
-        visitorInfo,
+        visitorInfoDto,
         metadata,
         req.user.companyId,
       );

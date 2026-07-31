@@ -6,6 +6,7 @@ export class SaveLeadContactDataCommand {
     public readonly input: {
       visitorId: string;
       companyId: string;
+      alias?: string;
       nombre?: string;
       apellidos?: string;
       email?: string;

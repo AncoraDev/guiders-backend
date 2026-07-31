@@ -71,6 +71,15 @@ export class CommercialHeartbeatDto {
  */
 export class DisconnectCommercialDto {
   @ApiProperty({
+    description: 'Motivo de desconexión (para auditoría de sesiones)',
+    enum: ['manual', 'logout', 'browser_close', 'unknown'],
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: 'manual' | 'logout' | 'browser_close' | 'unknown';
+
+  @ApiProperty({
     description: 'ID del comercial',
     example: 'e7f8a9b0-1234-5678-9abc-def012345678',
   })

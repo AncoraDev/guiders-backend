@@ -66,6 +66,11 @@ import {
   UserPasswordHasher,
 } from '../src/context/auth/auth-user/application/service/user-password-hasher';
 import { Uuid } from '../src/context/shared/domain/value-objects/uuid';
+import {
+  LEAD_CONTACT_DATA_REPOSITORY,
+  ILeadContactDataRepository,
+} from '../src/context/leads/domain/lead-contact-data.repository';
+import { meetsLeadCriteria } from '../src/context/leads/application/commands/save-lead-contact-data-command.handler';
 
 const program = new Command();
 
@@ -949,6 +954,119 @@ program
       logger.log(`   Company ID: ${companyId}`);
     }
 
+    await app.close();
+  });
+
+program
+  .command('promote-leads-from-contact-data')
+  .description(
+    'Promueve a LEAD visitors ANON/ENGAGED que ya tienen nombre + (email o teléfono) en contacto',
+  )
+  .option(
+    '--company-id <companyId>',
+    'Limitar a una compañía (si se omite, procesa todas)',
+  )
+  .option('--dry-run', 'Solo listar candidatos sin guardar', false)
+  .action(async (options: { companyId?: string; dryRun?: boolean }) => {
+    const logger = new Logger('PromoteLeadsFromContactData');
+    const app = await NestFactory.createApplicationContext(AppModule);
+    const contactRepo = app.get<ILeadContactDataRepository>(
+      LEAD_CONTACT_DATA_REPOSITORY,
+    );
+    const visitorRepo = app.get<VisitorV2Repository>(VISITOR_V2_REPOSITORY);
+    const publisher = app.get(EventPublisher);
+    const companyRepo = app.get<CompanyRepository>(COMPANY_REPOSITORY);
+
+    const companyIds: string[] = [];
+    if (options.companyId) {
+      companyIds.push(options.companyId);
+    } else {
+      const companiesResult = await companyRepo.findAll();
+      if (companiesResult.isErr()) {
+        throw companiesResult.error;
+      }
+      for (const company of companiesResult.unwrap()) {
+        companyIds.push(company.toPrimitives().id);
+      }
+    }
+
+    let promoted = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const companyId of companyIds) {
+      logger.log(`Procesando company ${companyId}...`);
+      const contactsResult = await contactRepo.findByCompanyId(companyId);
+      if (contactsResult.isErr()) {
+        logger.error(
+          `Error listando contactos de ${companyId}: ${contactsResult.error.message}`,
+        );
+        errors++;
+        continue;
+      }
+
+      const contacts = contactsResult.unwrap().filter(meetsLeadCriteria);
+      logger.log(
+        `  Candidatos con criterio Lead: ${contacts.length} (de ${contactsResult.unwrap().length} contactos)`,
+      );
+
+      for (const contact of contacts) {
+        const visitorResult = await visitorRepo.findById(
+          VisitorId.create(contact.visitorId),
+        );
+        if (visitorResult.isErr()) {
+          logger.warn(`  Visitor no encontrado: ${contact.visitorId}`);
+          skipped++;
+          continue;
+        }
+
+        const visitor = visitorResult.unwrap();
+        if (
+          !visitor.getLifecycle().isAnon() &&
+          !visitor.getLifecycle().isEngaged()
+        ) {
+          skipped++;
+          continue;
+        }
+
+        if (options.dryRun) {
+          logger.log(
+            `  [dry-run] Promovería ${contact.visitorId} (${contact.nombre} / ${contact.email ?? contact.telefono})`,
+          );
+          promoted++;
+          continue;
+        }
+
+        try {
+          visitor.convertToLead();
+          const aggCtx = publisher.mergeObjectContext(visitor);
+          const saveResult = await visitorRepo.save(aggCtx);
+          if (saveResult.isErr()) {
+            logger.warn(
+              `  Error guardando ${contact.visitorId}: ${saveResult.error.message}`,
+            );
+            errors++;
+            continue;
+          }
+          aggCtx.commit();
+          logger.log(`  ✅ Promovido a LEAD: ${contact.visitorId}`);
+          promoted++;
+        } catch (e) {
+          logger.warn(
+            `  Error promoviendo ${contact.visitorId}: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+          errors++;
+        }
+      }
+    }
+
+    logger.log(
+      `Resumen: promovidos=${promoted}, omitidos=${skipped}, errores=${errors}, dryRun=${!!options.dryRun}`,
+    );
+    // Dar tiempo a handlers async (p.ej. SyncLeadOnLifecycleChanged) antes de cerrar Mongo
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await app.close();
   });
 

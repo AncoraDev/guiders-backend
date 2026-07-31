@@ -51,6 +51,7 @@ describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
 
       expect(result.available).toBe(true);
       expect(result.onlineCount).toBe(2);
+      expect(result.tenantId).toBe(companyId);
       expect(result.siteId).toBe(siteId);
       expect(result.timestamp).toBeDefined();
     });

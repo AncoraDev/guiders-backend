@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { EventPublisher } from '@nestjs/cqrs';
 import { JoinWaitingRoomCommandHandler } from '../join-waiting-room.command-handler';
 import { JoinWaitingRoomCommand } from '../join-waiting-room.command';
 import { IChatRepository } from '../../../domain/chat.repository';
@@ -8,8 +9,11 @@ import { DomainError } from 'src/context/shared/domain/domain.error';
 describe('JoinWaitingRoomCommandHandler', () => {
   let handler: JoinWaitingRoomCommandHandler;
   let chatRepository: jest.Mocked<IChatRepository>;
+  let publisher: jest.Mocked<EventPublisher>;
+  let commitMock: jest.Mock;
 
   beforeEach(() => {
+    commitMock = jest.fn();
     chatRepository = {
       save: jest.fn(),
       findById: jest.fn(),
@@ -32,29 +36,32 @@ describe('JoinWaitingRoomCommandHandler', () => {
       countPendingCreatedBefore: jest.fn(),
     } as unknown as jest.Mocked<IChatRepository>;
 
-    handler = new JoinWaitingRoomCommandHandler(chatRepository);
+    publisher = {
+      mergeObjectContext: jest.fn((aggregate: { commit: () => void }) => {
+        aggregate.commit = commitMock;
+        return aggregate;
+      }),
+    } as unknown as jest.Mocked<EventPublisher>;
+
+    handler = new JoinWaitingRoomCommandHandler(chatRepository, publisher);
   });
 
-  it('crea un chat pendiente y devuelve posición calculada (sumando 1)', async () => {
-    // Arrange
+  it('crea un chat pendiente, publica eventos y devuelve posición (sumando 1)', async () => {
     const command = new JoinWaitingRoomCommand(
       '550e8400-e29b-41d4-a716-446655440000',
       { name: 'Test' },
       { department: 'sales' },
+      '21908c1b-8836-42f1-b0c9-74d36a05d8ff',
     );
-    // Mock: chatRepository.save debe devolver ok(void)
     chatRepository.save.mockResolvedValue(ok(undefined));
-
-    // Simulamos countPendingCreatedBefore devolviendo 4 (hay 4 antes, posición = 5)
     chatRepository.countPendingCreatedBefore.mockResolvedValue(ok(4));
 
-    // Espiamos Chat.createPendingChat para controlar createdAt si necesario (aquí no imprescindible)
-    // Act
     const result = await handler.execute(command);
 
-    // Assert
+    expect(publisher.mergeObjectContext).toHaveBeenCalledTimes(1);
     expect(chatRepository.save).toHaveBeenCalledTimes(1);
     expect(chatRepository.countPendingCreatedBefore).toHaveBeenCalledTimes(1);
+    expect(commitMock).toHaveBeenCalledTimes(1);
     expect(result.position).toBe(5);
     expect(result.chatId).toBeDefined();
   });
@@ -67,7 +74,6 @@ describe('JoinWaitingRoomCommandHandler', () => {
     );
     chatRepository.save.mockResolvedValue(ok(undefined));
 
-    // Simular error en countPendingCreatedBefore
     class DummyError extends DomainError {
       constructor() {
         super('fail');
@@ -79,10 +85,11 @@ describe('JoinWaitingRoomCommandHandler', () => {
 
     const result = await handler.execute(command);
 
+    expect(commitMock).toHaveBeenCalledTimes(1);
     expect(result.position).toBe(1);
   });
 
-  it('lanza error si save falla', async () => {
+  it('lanza error si save falla y no hace commit', async () => {
     const command = new JoinWaitingRoomCommand(
       '9a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
       {},
@@ -96,5 +103,6 @@ describe('JoinWaitingRoomCommandHandler', () => {
     chatRepository.save.mockResolvedValue(err(new SaveError()));
 
     await expect(handler.execute(command)).rejects.toBeInstanceOf(SaveError);
+    expect(commitMock).not.toHaveBeenCalled();
   });
 });

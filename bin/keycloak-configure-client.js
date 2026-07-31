@@ -78,6 +78,15 @@ async function configureClient(clientKey, config) {
     redirectUris.push('http://localhost:3000/*');
   }
 
+  // Destinos válidos tras logout SSO (frontend apps)
+  const postLogoutRedirectUris = Array.from(
+    new Set([
+      ...config.appOrigins,
+      ...config.appOrigins.map((o) => `${o}/`),
+      `${appUrl}/`,
+    ]),
+  );
+
   console.log(`\n🔧 Configurando cliente ${clientKey} (${config.clientId})...`);
 
   // Obtener token admin (realm master)
@@ -113,7 +122,10 @@ async function configureClient(clientKey, config) {
       serviceAccountsEnabled: false,
       redirectUris,
       webOrigins,
-      attributes: { 'pkce.code.challenge.method': 'S256' },
+      attributes: {
+        'pkce.code.challenge.method': 'S256',
+        'post.logout.redirect.uris': postLogoutRedirectUris.join('##'),
+      },
     });
     // Obtenerlo de nuevo para conseguir id
     const after = await kc.get(`/clients`, { params: { clientId: config.clientId } });
@@ -124,6 +136,9 @@ async function configureClient(clientKey, config) {
     // Actualizar cliente existente
     const id = client.id;
     // Mezclar con valores actuales para no borrar otros campos críticos
+    const existingPostLogout = (client.attributes || {})['post.logout.redirect.uris']
+      ? String((client.attributes || {})['post.logout.redirect.uris']).split('##')
+      : [];
     const updated = {
       ...client,
       publicClient: true,
@@ -132,7 +147,13 @@ async function configureClient(clientKey, config) {
       serviceAccountsEnabled: false,
       redirectUris: Array.from(new Set([...(client.redirectUris || []), ...redirectUris])),
       webOrigins: Array.from(new Set([...(client.webOrigins || []), ...webOrigins])),
-      attributes: { ...(client.attributes || {}), 'pkce.code.challenge.method': 'S256' },
+      attributes: {
+        ...(client.attributes || {}),
+        'pkce.code.challenge.method': 'S256',
+        'post.logout.redirect.uris': Array.from(
+          new Set([...existingPostLogout, ...postLogoutRedirectUris]),
+        ).join('##'),
+      },
     };
     await kc.put(`/clients/${encodeURIComponent(id)}`, updated);
     console.log(`✅ Cliente actualizado: ${client.clientId}`);
@@ -140,6 +161,7 @@ async function configureClient(clientKey, config) {
 
   console.log(`   - redirectUris: ${JSON.stringify(redirectUris)}`);
   console.log(`   - webOrigins: ${JSON.stringify(webOrigins)}`);
+  console.log(`   - postLogoutRedirectUris: ${JSON.stringify(postLogoutRedirectUris)}`);
 }
 
 async function main() {

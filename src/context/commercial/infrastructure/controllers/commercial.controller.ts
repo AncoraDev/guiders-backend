@@ -16,6 +16,8 @@ import {
   ForbiddenException,
   UnauthorizedException,
   Inject,
+  Req,
+  Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
@@ -25,11 +27,17 @@ import {
   ApiParam,
   ApiBody,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../../../shared/infrastructure/guards/auth.guard';
 import { RolesGuard } from '../../../shared/infrastructure/guards/role.guard';
 import { Roles } from '../../../shared/infrastructure/roles.decorator';
 import { Public } from '../../../shared/infrastructure/decorators/public.decorator';
+import { AuthenticatedRequest } from '../../../shared/infrastructure/guards/auth.guard';
+import {
+  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+  CommercialConnectionSessionRepository,
+} from '../../domain/commercial-connection-session.repository';
 
 // DTOs
 import {
@@ -96,7 +104,130 @@ export class CommercialController {
     private readonly apiKeyValidator: ValidateDomainApiKey,
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: CompanyRepository,
+    @Inject(COMMERCIAL_CONNECTION_SESSION_REPOSITORY)
+    private readonly sessionRepository: CommercialConnectionSessionRepository,
   ) {}
+
+  /**
+   * Lista sesiones de conexión con filtros y paginación.
+   * Comercial: solo las suyas. Admin/supervisor: todas las de su compañía.
+   */
+  @Get('connection-sessions')
+  @Roles(['admin', 'supervisor', 'commercial'])
+  @ApiOperation({
+    summary: 'Listar sesiones de conexión',
+    description:
+      'Historial paginado de conexiones/desconexiones. El comercial solo ve las suyas; admin/supervisor ven la compañía.',
+  })
+  @ApiQuery({
+    name: 'commercialId',
+    required: false,
+    description: 'Solo admin/supervisor: filtrar por comercial',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Página (default 1)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Tamaño de página (default 20, máx 100)',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Inicio del rango sobre startedAt (ISO)',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    description: 'Fin del rango sobre startedAt (ISO)',
+  })
+  @ApiQuery({
+    name: 'endReason',
+    required: false,
+    description: 'manual | logout | browser_close | unknown',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'open | closed',
+  })
+  @ApiResponse({ status: 200, description: 'Lista paginada de sesiones' })
+  async listConnectionSessions(
+    @Req() req: AuthenticatedRequest,
+    @Query('commercialId') commercialId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('endReason') endReason?: string,
+    @Query('status') status?: string,
+  ) {
+    const companyId = req.user.companyId;
+    if (!companyId) {
+      throw new BadRequestException('El usuario no tiene companyId asociado');
+    }
+
+    const roles = req.user.roles || [];
+    const isAdmin = roles.some((r) => ['admin', 'supervisor'].includes(r));
+
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+
+    const allowedReasons = ['manual', 'logout', 'browser_close', 'unknown'] as const;
+    const parsedReason =
+      endReason &&
+      (allowedReasons as readonly string[]).includes(endReason)
+        ? (endReason as (typeof allowedReasons)[number])
+        : undefined;
+
+    const parsedStatus =
+      status === 'open' || status === 'closed' ? status : undefined;
+
+    let parsedFrom: Date | undefined;
+    let parsedTo: Date | undefined;
+    if (from) {
+      parsedFrom = new Date(from);
+      if (Number.isNaN(parsedFrom.getTime())) {
+        throw new BadRequestException('Parámetro from inválido');
+      }
+    }
+    if (to) {
+      parsedTo = new Date(to);
+      if (Number.isNaN(parsedTo.getTime())) {
+        throw new BadRequestException('Parámetro to inválido');
+      }
+    }
+
+    // Comercial: siempre propio. Admin: compañía completa o filtro por agente.
+    const scopedCommercialId = isAdmin
+      ? commercialId || undefined
+      : req.user.id;
+
+    const result = await this.sessionRepository.search({
+      companyId,
+      commercialId: scopedCommercialId,
+      from: parsedFrom,
+      to: parsedTo,
+      endReason: parsedReason,
+      status: parsedStatus,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
+
+    if (result.isErr()) {
+      throw new InternalServerErrorException(result.error.message);
+    }
+
+    const data = result.unwrap();
+    return {
+      sessions: data.sessions,
+      pagination: {
+        page: data.page,
+        limit: data.limit,
+        total: data.total,
+        totalPages: data.totalPages,
+      },
+    };
+  }
 
   /**
    * Conecta un comercial al sistema
@@ -117,15 +248,19 @@ export class CommercialController {
   @ApiValidationError()
   async connectCommercial(
     @Body() connectDto: ConnectCommercialDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<CommercialOperationResponseDto> {
     try {
-      this.logger.log(`Conectando comercial: ${connectDto.id}`);
+      this.logger.log(
+        `Conectando comercial: ${connectDto.id} companyId=${req.user.companyId ?? 'n/a'}`,
+      );
 
       // Ejecutar comando para conectar comercial
       const command = new ConnectCommercialCommand(
         connectDto.id,
         connectDto.name,
         connectDto.metadata,
+        req.user.companyId,
       );
       await this.commandBus.execute(command);
 
@@ -165,12 +300,19 @@ export class CommercialController {
   @ApiValidationError()
   async disconnectCommercial(
     @Body() disconnectDto: DisconnectCommercialDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<CommercialOperationResponseDto> {
     try {
-      this.logger.log(`Desconectando comercial: ${disconnectDto.id}`);
+      this.logger.log(
+        `Desconectando comercial: ${disconnectDto.id} companyId=${req.user.companyId ?? 'n/a'}`,
+      );
 
       // Ejecutar comando para desconectar comercial
-      const command = new DisconnectCommercialCommand(disconnectDto.id);
+      const command = new DisconnectCommercialCommand(
+        disconnectDto.id,
+        disconnectDto.reason ?? 'unknown',
+        req.user.companyId,
+      );
       await this.commandBus.execute(command);
 
       return {

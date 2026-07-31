@@ -13,6 +13,15 @@ import { LeadContactDataPrimitives } from '../../domain/services/crm-sync.servic
  */
 export class SaveLeadContactDataDto {
   @ApiPropertyOptional({
+    description: 'Alias interno para identificar al contacto en la consola',
+    example: 'Cliente VIP - Seat León',
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  alias?: string;
+
+  @ApiPropertyOptional({
     description: 'Nombre del contacto',
     example: 'Juan',
   })
@@ -87,6 +96,11 @@ export class LeadContactDataResponseDto {
   @ApiProperty({ description: 'ID de la empresa' })
   companyId: string;
 
+  @ApiPropertyOptional({
+    description: 'Alias interno para identificar al contacto',
+  })
+  alias?: string;
+
   @ApiPropertyOptional({ description: 'Nombre del contacto' })
   nombre?: string;
 
@@ -129,6 +143,7 @@ export class LeadContactDataResponseDto {
     dto.id = data.id;
     dto.visitorId = data.visitorId;
     dto.companyId = data.companyId;
+    dto.alias = data.alias;
     dto.nombre = data.nombre;
     dto.apellidos = data.apellidos;
     dto.email = data.email;

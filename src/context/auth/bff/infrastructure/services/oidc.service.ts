@@ -17,8 +17,8 @@ export class OidcService implements OnModuleInit {
 
   // Librería ESM (se carga dinámicamente para compatibilidad con CJS)
   private clientLib!: typeof import('openid-client');
-  // Configuración descubierta del Authorization Server + metadata de cliente
-  private config?: openid.Configuration;
+  // Configuración descubierta por app (client_id distinto para console/admin)
+  private readonly configs: Partial<Record<string, openid.Configuration>> = {};
 
   // Configuraciones por aplicación
   private readonly appConfigs = {
@@ -50,6 +50,20 @@ export class OidcService implements OnModuleInit {
     return this.appConfigs.console;
   }
 
+  private resolveApp(app?: string): keyof typeof this.appConfigs {
+    return app === 'admin' ? 'admin' : 'console';
+  }
+
+  private async getConfig(app?: string): Promise<openid.Configuration> {
+    const appKey = this.resolveApp(app);
+    await this.ensureConfig(appKey);
+    const config = this.configs[appKey];
+    if (!config) {
+      throw new Error(`OIDC config no inicializada para app '${appKey}'`);
+    }
+    return config;
+  }
+
   async onModuleInit() {
     // Saltar inicialización OIDC en entorno de test para evitar problemas con ES modules
     if (process.env.NODE_ENV === 'test') {
@@ -60,18 +74,27 @@ export class OidcService implements OnModuleInit {
     // Carga ESM en entorno CommonJS
     const client = await import('openid-client');
     this.clientLib = client;
-    // Intento discovery no bloqueante
-    await this.ensureConfig(true);
-    if (this.config) {
+    // Intento discovery no bloqueante para ambas apps
+    await this.ensureConfig('console', true);
+    await this.ensureConfig('admin', true);
+    const ready = Object.keys(this.configs);
+    if (ready.length > 0) {
       this.logger.log(
-        `OIDC listo: ${this.issuerUrl} apps=[${Object.keys(this.appConfigs).join(', ')}]`,
+        `OIDC listo: ${this.issuerUrl} apps=[${ready.join(', ')}]`,
       );
     }
   }
 
   // Intenta configurar discovery; si silent=true no lanza error (útil en bootstrap)
-  private async ensureConfig(silent = false): Promise<void> {
-    if (this.config) return;
+  private async ensureConfig(
+    app: string = 'console',
+    silent = false,
+  ): Promise<void> {
+    const appKey = this.resolveApp(app);
+    if (this.configs[appKey]) return;
+    if (!this.clientLib) {
+      this.clientLib = await import('openid-client');
+    }
     const client = this.clientLib;
     const allowInsecure =
       this.issuerUrl.startsWith('http://') ||
@@ -87,18 +110,15 @@ export class OidcService implements OnModuleInit {
       ? { execute: [client.allowInsecureRequests], algorithm: algorithmEnv }
       : { algorithm: algorithmEnv };
 
-    // Usar configuración de console por defecto para discovery
-    const defaultConfig = this.getAppConfig('console');
+    const appConfig = this.getAppConfig(appKey);
 
     const tryDiscovery = async (url: URL, algorithm: 'oidc' | 'oauth2') =>
       client.discovery(
         url,
-        defaultConfig.clientId,
+        appConfig.clientId,
         {
           token_endpoint_auth_method: 'none',
-          redirect_uris: Object.values(this.appConfigs).map(
-            (config) => config.redirectUri,
-          ),
+          redirect_uris: [appConfig.redirectUri],
           response_types: ['code'],
         },
         undefined,
@@ -108,14 +128,14 @@ export class OidcService implements OnModuleInit {
       );
 
     try {
-      this.config = await tryDiscovery(
+      this.configs[appKey] = await tryDiscovery(
         discoveryUrlOverride ? new URL(discoveryUrlOverride) : issuerURL,
         initialAlgorithm,
       );
     } catch {
       const altAlgorithm = initialAlgorithm === 'oidc' ? 'oauth2' : 'oidc';
       try {
-        this.config = await tryDiscovery(
+        this.configs[appKey] = await tryDiscovery(
           discoveryUrlOverride ? new URL(discoveryUrlOverride) : issuerURL,
           altAlgorithm,
         );
@@ -128,7 +148,10 @@ export class OidcService implements OnModuleInit {
           `${issuerURL.protocol}//${issuerURL.host}`,
         );
         try {
-          this.config = await tryDiscovery(docUrl1, baseOptions.algorithm);
+          this.configs[appKey] = await tryDiscovery(
+            docUrl1,
+            baseOptions.algorithm,
+          );
         } catch {
           const legacyPath = issuerURL.pathname.startsWith('/auth')
             ? issuerURL.pathname
@@ -140,11 +163,14 @@ export class OidcService implements OnModuleInit {
             `${issuerURL.protocol}//${issuerURL.host}`,
           );
           try {
-            this.config = await tryDiscovery(docUrl2, baseOptions.algorithm);
+            this.configs[appKey] = await tryDiscovery(
+              docUrl2,
+              baseOptions.algorithm,
+            );
           } catch (e4) {
             if (silent) {
               this.logger.warn(
-                'No se pudo completar discovery OIDC durante el bootstrap. Se reintentará bajo demanda.',
+                `No se pudo completar discovery OIDC para '${appKey}' durante el bootstrap. Se reintentará bajo demanda.`,
               );
               return;
             }
@@ -156,7 +182,7 @@ export class OidcService implements OnModuleInit {
 
     if (allowInsecure) {
       this.logger.warn(
-        'OIDC en modo inseguro (HTTP) habilitado por entorno de desarrollo. No usar en producción.',
+        `OIDC (${appKey}) en modo inseguro (HTTP) habilitado por entorno de desarrollo. No usar en producción.`,
       );
     }
   }
@@ -185,9 +211,10 @@ export class OidcService implements OnModuleInit {
     sess: OidcSessionFields,
     opts?: { app?: string; redirectUri?: string },
   ): Promise<string> {
-    await this.ensureConfig();
+    const appKey = this.resolveApp(opts?.app);
+    const config = await this.getConfig(appKey);
     const c = this.clientLib;
-    const redirectUri = opts?.redirectUri || this.deriveRedirect(opts?.app);
+    const redirectUri = opts?.redirectUri || this.deriveRedirect(appKey);
     const code_verifier = c.randomPKCECodeVerifier();
     const code_challenge = await c.calculatePKCECodeChallenge(code_verifier);
     const state = c.randomState();
@@ -199,7 +226,7 @@ export class OidcService implements OnModuleInit {
       oidc_nonce: nonce,
     });
 
-    const url = c.buildAuthorizationUrl(this.config as openid.Configuration, {
+    const url = c.buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
       scope: this.scope,
       code_challenge,
@@ -209,7 +236,7 @@ export class OidcService implements OnModuleInit {
     });
 
     this.logger.log(
-      `🔐 OIDC Auth URL generada para app '${opts?.app || 'console'}' con scope: '${this.scope}'`,
+      `🔐 OIDC Auth URL generada para app '${appKey}' client_id='${this.getAppConfig(appKey).clientId}' con scope: '${this.scope}'`,
     );
     this.logger.debug(`🔗 Authorization URL: ${url.href}`);
 
@@ -224,7 +251,8 @@ export class OidcService implements OnModuleInit {
   ): Promise<
     openid.TokenEndpointResponse & openid.TokenEndpointResponseHelpers
   > {
-    await this.ensureConfig();
+    const appKey = this.resolveApp(opts?.app);
+    const config = await this.getConfig(appKey);
     const c = this.clientLib;
 
     const code_verifier = sess.pkce_verifier;
@@ -239,7 +267,7 @@ export class OidcService implements OnModuleInit {
 
     // Reconstruimos la URL actual de callback con su query
     const currentUrl = new URL(
-      opts?.redirectUri || this.deriveRedirect(opts?.app),
+      opts?.redirectUri || this.deriveRedirect(appKey),
     );
     for (const [k, v] of Object.entries(query || {})) {
       if (Array.isArray(v)) {
@@ -249,15 +277,11 @@ export class OidcService implements OnModuleInit {
       }
     }
 
-    const tokenResponse = await c.authorizationCodeGrant(
-      this.config as openid.Configuration,
-      currentUrl,
-      {
-        pkceCodeVerifier: code_verifier,
-        expectedState: state,
-        expectedNonce: nonce,
-      },
-    );
+    const tokenResponse = await c.authorizationCodeGrant(config, currentUrl, {
+      pkceCodeVerifier: code_verifier,
+      expectedState: state,
+      expectedNonce: nonce,
+    });
 
     // Log detallado de los tokens recibidos
     this.logger.log(
@@ -307,13 +331,14 @@ export class OidcService implements OnModuleInit {
   }
 
   // Usa Refresh Token para obtener nuevos tokens
-  async refresh(refreshToken: string) {
-    await this.ensureConfig();
+  async refresh(refreshToken: string, app?: string) {
+    const appKey = this.resolveApp(app);
+    const config = await this.getConfig(appKey);
 
-    this.logger.log('🔄 Iniciando refresh de token OIDC');
+    this.logger.log(`🔄 Iniciando refresh de token OIDC para app '${appKey}'`);
 
     const tokenResponse = await this.clientLib.refreshTokenGrant(
-      this.config as openid.Configuration,
+      config,
       refreshToken,
     );
 
@@ -355,10 +380,10 @@ export class OidcService implements OnModuleInit {
   }
 
   // Revoca el refresh token (ignora fallo de revocación)
-  async revoke(refreshToken: string) {
-    await this.ensureConfig();
+  async revoke(refreshToken: string, app?: string) {
+    const config = await this.getConfig(app);
     return this.clientLib
-      .tokenRevocation(this.config as openid.Configuration, refreshToken, {
+      .tokenRevocation(config, refreshToken, {
         token_type_hint: 'refresh_token',
       })
       .catch(() => void 0);
@@ -368,12 +393,15 @@ export class OidcService implements OnModuleInit {
   buildLogoutUrl(opts?: {
     postLogoutRedirectUri?: string;
     idTokenHint?: string;
+    app?: string;
   }): string {
-    if (!this.config) {
+    const appKey = this.resolveApp(opts?.app);
+    const config = this.configs[appKey] || this.configs.console;
+    if (!config) {
       throw new Error('OIDC config no inicializada');
     }
 
-    const as = this.config.serverMetadata();
+    const as = config.serverMetadata();
     const endSessionEndpoint = as.end_session_endpoint;
 
     if (!endSessionEndpoint) {
@@ -392,6 +420,7 @@ export class OidcService implements OnModuleInit {
           opts.postLogoutRedirectUri,
         );
       }
+      logoutUrl.searchParams.set('client_id', this.getAppConfig(appKey).clientId);
       if (opts?.idTokenHint) {
         logoutUrl.searchParams.set('id_token_hint', opts.idTokenHint);
       }
@@ -406,6 +435,8 @@ export class OidcService implements OnModuleInit {
         opts.postLogoutRedirectUri,
       );
     }
+
+    logoutUrl.searchParams.set('client_id', this.getAppConfig(appKey).clientId);
 
     if (opts?.idTokenHint) {
       logoutUrl.searchParams.set('id_token_hint', opts.idTokenHint);

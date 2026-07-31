@@ -9,7 +9,8 @@ Gestión de datos de contacto de visitantes y sincronización CRM. Captura leads
 El contexto Leads maneja:
 
 - Guardado y actualización de datos de contacto de visitantes (upsert con merge parcial)
-- Conversión automática de visitor a estado LEAD (cuando hay email o teléfono)
+- Conversión automática de visitor a estado LEAD cuando el contacto cumple el criterio de Lead:
+  **nombre** (no vacío) **+** (**email** o **teléfono**)
 - Sincronización automática de leads a CRM al cambiar lifecycle a LEAD
 - Sincronización automática de conversaciones de chat al cerrar un chat
 - Configuración CRM multi-tenant (una config por empresa + tipo de CRM)
@@ -299,9 +300,23 @@ Módulo opcional de nurturing. Usa autenticación diferente: `api-user` (email) 
 
 ## Commands Implementados
 
-- `SaveLeadContactDataCommand` → Guarda/actualiza datos de contacto + convierte a LEAD
+- `SaveLeadContactDataCommand` → Guarda/actualiza datos de contacto; si hay **nombre + (email|teléfono)** y el visitor está en ANON/ENGAGED, llama a `convertToLead()` + `commit()` (emite `VisitorLifecycleChangedEvent`). Si la promoción falla, el contacto igual se persiste.
 - `SyncLeadToCrmCommand` → Sincroniza lead al CRM configurado
 - `SyncChatToCrmCommand` → Sincroniza conversación de chat al CRM
+
+### Criterio de Lead
+
+| Campo | Requisito |
+|-------|-----------|
+| `nombre` | Obligatorio (trim no vacío) |
+| `email` **o** `telefono` | Al menos uno (trim no vacío) |
+
+Backfill de contactos ya existentes (one-shot):
+
+```bash
+node bin/guiders-cli.js promote-leads-from-contact-data --dry-run
+node bin/guiders-cli.js promote-leads-from-contact-data --company-id <uuid>
+```
 
 ## Event Handlers
 

@@ -314,7 +314,8 @@ export class SearchVisitorsQueryHandler
     dto: SearchVisitorsQuery['filters'],
   ): VisitorSearchFilters {
     return {
-      lifecycle: dto.lifecycle,
+      // Dominio/Mongo persisten lifecycle en minúsculas (anon, lead, …)
+      lifecycle: dto.lifecycle?.map((value) => value.toLowerCase()),
       connectionStatus: dto.connectionStatus,
       hasAcceptedPrivacyPolicy: dto.hasAcceptedPrivacyPolicy,
       createdFrom: dto.createdFrom ? new Date(dto.createdFrom) : undefined,

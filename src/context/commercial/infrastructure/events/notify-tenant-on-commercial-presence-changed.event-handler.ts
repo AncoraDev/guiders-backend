@@ -6,6 +6,7 @@ import {
   COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
   CommercialConnectionDomainService,
 } from '../../domain/commercial-connection.domain-service';
+import { CommercialId } from '../../domain/value-objects/commercial-id';
 
 /**
  * Event handler de infraestructura que emite el evento commercial:availability-changed
@@ -43,13 +44,20 @@ export class NotifyTenantOnCommercialPresenceChangedEventHandler
   ) {}
 
   async handle(event: PresenceChangedEvent): Promise<void> {
-    // Solo procesar eventos de comerciales con tenantId conocido
+    // Solo procesar eventos de comerciales
     if (event.getUserType() !== 'commercial') return;
 
-    const tenantId = event.getTenantId();
+    let tenantId = event.getTenantId();
     if (!tenantId) {
-      this.logger.debug(
-        `PresenceChangedEvent de comercial ${event.getUserId()} sin tenantId — omitido para commercial:availability-changed`,
+      // Fallback: companyId en Redis (commercial:tenant:{id})
+      tenantId = await this.connectionService.getCompanyIdByCommercial(
+        new CommercialId(event.getUserId()),
+      );
+    }
+
+    if (!tenantId) {
+      this.logger.warn(
+        `PresenceChangedEvent de comercial ${event.getUserId()} sin tenantId — omitido commercial:availability-changed`,
       );
       return;
     }

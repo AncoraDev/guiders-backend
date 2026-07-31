@@ -108,13 +108,35 @@ describe('NotifyTenantOnCommercialPresenceChangedEventHandler', () => {
       expect(websocketGateway.emitToRoom).not.toHaveBeenCalled();
     });
 
-    it('debe ignorar eventos de comercial sin tenantId', async () => {
+    it('debe resolver tenantId desde Redis si el evento no lo trae', async () => {
+      connectionService.getCompanyIdByCommercial.mockResolvedValue(tenantId);
+      connectionService.getOnlineCountByTenant.mockResolvedValue(1);
+      const event = new PresenceChangedEvent(
+        commercialId,
+        'commercial',
+        'online',
+        'offline',
+        undefined, // sin tenantId en el evento
+      );
+
+      await handler.handle(event);
+
+      expect(connectionService.getCompanyIdByCommercial).toHaveBeenCalled();
+      expect(websocketGateway.emitToRoom).toHaveBeenCalledWith(
+        `tenant:${tenantId}`,
+        'commercial:availability-changed',
+        expect.objectContaining({ available: true, onlineCount: 1 }),
+      );
+    });
+
+    it('debe omitir emisión si no hay tenantId ni en evento ni en Redis', async () => {
+      connectionService.getCompanyIdByCommercial.mockResolvedValue(undefined);
       const event = new PresenceChangedEvent(
         commercialId,
         'commercial',
         'offline',
         'online',
-        undefined, // sin tenantId
+        undefined,
       );
 
       await handler.handle(event);

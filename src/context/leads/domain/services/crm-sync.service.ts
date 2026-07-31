@@ -13,6 +13,8 @@ export interface LeadContactDataPrimitives {
   id: string;
   visitorId: string;
   companyId: string;
+  /** Alias interno para identificar al lead en consola */
+  alias?: string;
   nombre?: string;
   apellidos?: string;
   email?: string;

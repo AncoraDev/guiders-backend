@@ -1,16 +1,16 @@
 import { EventsHandler, IEventHandler, EventBus } from '@nestjs/cqrs';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { CommercialConnectionStatusChangedEvent } from '../../domain/events/commercial-connection-status-changed.event';
 import { PresenceChangedEvent } from 'src/context/shared/domain/events/presence-changed.event';
+import {
+  COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
+  CommercialConnectionDomainService,
+} from '../../domain/commercial-connection.domain-service';
+import { CommercialId } from '../../domain/value-objects/commercial-id';
 
 /**
- * Event handler que convierte CommercialConnectionStatusChangedEvent a PresenceChangedEvent
- * para notificación por WebSocket
- *
- * Flujo:
- * 1. Escucha CommercialConnectionStatusChangedEvent (evento específico de comerciales)
- * 2. Emite PresenceChangedEvent (evento genérico para notificaciones WebSocket)
- * 3. NotifyPresenceChangedOnPresenceChangedEventHandler recoge el evento y notifica por WS
+ * Convierte CommercialConnectionStatusChangedEvent → PresenceChangedEvent
+ * con tenantId (companyId) para que el SDK reciba commercial:availability-changed.
  */
 @EventsHandler(CommercialConnectionStatusChangedEvent)
 export class EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler
@@ -20,9 +20,13 @@ export class EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler
     EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler.name,
   );
 
-  constructor(private readonly eventBus: EventBus) {}
+  constructor(
+    private readonly eventBus: EventBus,
+    @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
+    private readonly connectionService: CommercialConnectionDomainService,
+  ) {}
 
-  handle(event: CommercialConnectionStatusChangedEvent): void {
+  async handle(event: CommercialConnectionStatusChangedEvent): Promise<void> {
     try {
       const { commercialId, previousStatus, newStatus } = event.attributes;
 
@@ -30,21 +34,29 @@ export class EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler
         `Procesando cambio de conexión de comercial: ${commercialId} de ${previousStatus} a ${newStatus}`,
       );
 
-      // Emitir evento genérico de presencia para notificación WebSocket
-      // Nota: tenantId es opcional y por ahora lo omitimos para comerciales
-      // ya que el agregado Commercial no tiene tenantId directamente
+      // companyId en Redis (escrito en connect / setConnectionStatus)
+      const tenantId = await this.connectionService.getCompanyIdByCommercial(
+        new CommercialId(commercialId),
+      );
+
+      if (!tenantId) {
+        this.logger.warn(
+          `PresenceChangedEvent sin tenantId para comercial ${commercialId} — el chat no recibirá availability-changed`,
+        );
+      }
+
       const presenceEvent = new PresenceChangedEvent(
         commercialId,
         'commercial',
         previousStatus,
         newStatus,
-        undefined, // tenantId opcional
+        tenantId,
       );
 
       this.eventBus.publish(presenceEvent);
 
       this.logger.debug(
-        `PresenceChangedEvent emitido para comercial: ${commercialId}`,
+        `PresenceChangedEvent emitido para comercial: ${commercialId} (tenant=${tenantId ?? 'n/a'})`,
       );
     } catch (error) {
       const errorObj = error as Error;
@@ -52,7 +64,6 @@ export class EmitPresenceChangedOnCommercialConnectionStatusChangedEventHandler
         `Error al emitir PresenceChangedEvent para comercial: ${errorObj.message}`,
         errorObj.stack,
       );
-      // No lanzamos el error para no afectar el flujo principal
     }
   }
 }

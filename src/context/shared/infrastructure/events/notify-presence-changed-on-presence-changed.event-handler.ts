@@ -83,9 +83,11 @@ export class NotifyPresenceChangedOnPresenceChangedEventHandler
         await this.notifyCommercialsWithActiveChats(userId, payload);
       }
 
-      // Si es comercial, notificar a visitantes con chats activos
+      // Si es comercial, notificar a visitantes con chats asignados
+      // + emitir a la room del tenant (chats PENDING / widget sin asignación)
       if (userType === 'commercial') {
         await this.notifyVisitorsWithActiveChats(userId, payload);
+        this.emitCommercialPresenceToTenant(payload);
       }
 
       this.logger.debug(
@@ -306,6 +308,30 @@ export class NotifyPresenceChangedOnPresenceChangedEventHandler
 
     this.logger.debug(
       `Notificaciones enviadas: ${chats.length} granulares + ${targetChatMap.size} globales`,
+    );
+  }
+
+  /**
+   * Emite presence:changed a tenant:{companyId} para que el SDK (chats PENDING
+   * o abiertos sin assignedCommercialId) actualice el indicador del agente.
+   */
+  private emitCommercialPresenceToTenant(payload: {
+    userId: string;
+    userType: string;
+    status: string;
+    previousStatus: string;
+    timestamp: string;
+    tenantId?: string;
+  }): void {
+    const tenantId = payload.tenantId;
+    if (!tenantId || !this.websocketGateway) {
+      return;
+    }
+
+    const tenantRoom = `tenant:${tenantId}`;
+    this.websocketGateway.emitToRoom(tenantRoom, 'presence:changed', payload);
+    this.logger.log(
+      `📤 Tenant → ${tenantRoom} | comercial ${payload.userId} → ${payload.status}`,
     );
   }
 

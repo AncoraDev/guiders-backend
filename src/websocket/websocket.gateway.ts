@@ -163,20 +163,15 @@ export class WebSocketGatewayBasic
     // Intentar autenticar desde handshake (async)
     await this.authenticateClient(client);
 
-    // Marcar como ONLINE si el usuario fue autenticado
+    // Visitantes: online al conectar WS.
+    // Comerciales: presencia MANUAL (Console toggle) — no auto-online aquí.
     const user = this.clientUsers.get(client.id);
     if (user) {
       const isVisitor = user.roles.includes('visitor');
-      const isCommercial =
-        user.roles.includes('commercial') ||
-        user.roles.includes('admin') ||
-        user.roles.includes('owner');
 
       try {
         if (isVisitor && this.visitorConnectionService) {
           await this.markVisitorOnline(user.userId, user.companyId);
-        } else if (isCommercial && this.commercialConnectionService) {
-          await this.markCommercialOnline(user.userId, user.companyId);
         }
       } catch (error) {
         this.logger.error(

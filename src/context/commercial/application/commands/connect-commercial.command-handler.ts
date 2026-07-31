@@ -1,5 +1,10 @@
-import { CommandHandler, ICommandHandler, EventPublisher } from '@nestjs/cqrs';
-import { Inject, Logger } from '@nestjs/common';
+import {
+  CommandHandler,
+  ICommandHandler,
+  EventPublisher,
+  EventBus,
+} from '@nestjs/cqrs';
+import { Inject, Logger, Optional } from '@nestjs/common';
 import { ConnectCommercialCommand } from './connect-commercial.command';
 import {
   COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
@@ -19,11 +24,13 @@ import {
   UserAccountRepository,
 } from 'src/context/auth/auth-user/domain/user-account.repository';
 import { UserAccountKeycloakId } from 'src/context/auth/auth-user/domain/value-objects/user-account-keycloak-id';
+import {
+  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+  CommercialConnectionSessionRepository,
+} from '../../domain/commercial-connection-session.repository';
+import { PresenceChangedEvent } from 'src/context/shared/domain/events/presence-changed.event';
+import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
-/**
- * Handler para el comando ConnectCommercialCommand
- * Se encarga de conectar un comercial al sistema
- */
 @CommandHandler(ConnectCommercialCommand)
 export class ConnectCommercialCommandHandler
   implements ICommandHandler<ConnectCommercialCommand, void>
@@ -37,21 +44,28 @@ export class ConnectCommercialCommandHandler
     private readonly commercialRepository: CommercialRepository,
     @Inject(USER_ACCOUNT_REPOSITORY)
     private readonly userAccountRepository: UserAccountRepository,
+    @Inject(COMMERCIAL_CONNECTION_SESSION_REPOSITORY)
+    private readonly sessionRepository: CommercialConnectionSessionRepository,
     private readonly publisher: EventPublisher,
+    private readonly eventBus: EventBus,
+    @Optional()
+    @Inject('WEBSOCKET_GATEWAY')
+    private readonly websocketGateway?: WebSocketGatewayBasic,
   ) {}
 
   async execute(command: ConnectCommercialCommand): Promise<void> {
     this.logger.log(
-      `Conectando comercial: ${command.commercialId} (${command.name})`,
+      `Conectando comercial: ${command.commercialId} (${command.name}) companyId=${command.companyId ?? 'n/a'}`,
     );
 
     try {
       const commercialId = new CommercialId(command.commercialId);
       const onlineStatus = CommercialConnectionStatus.online();
 
-      // Obtener datos reales de UserAccount (el commercialId es el keycloakId)
       let realName = command.name;
       let avatarUrl: string | null = null;
+      // Prioridad: companyId del request autenticado (fiable)
+      let companyId: string | undefined = command.companyId;
 
       try {
         const userAccount = await this.userAccountRepository.findByKeycloakId(
@@ -61,33 +75,35 @@ export class ConnectCommercialCommandHandler
           const userPrimitives = userAccount.toPrimitives();
           realName = userPrimitives.name || command.name;
           avatarUrl = userPrimitives.avatarUrl ?? null;
-          this.logger.debug(
-            `Datos de UserAccount obtenidos: name="${realName}", avatarUrl=${avatarUrl ? 'presente' : 'null'}`,
-          );
+          companyId = companyId || userPrimitives.companyId || undefined;
         }
       } catch {
         this.logger.debug(
-          `No se pudo obtener UserAccount para ${command.commercialId}, usando datos del comando`,
+          `No se pudo obtener UserAccount para ${command.commercialId}`,
+        );
+      }
+
+      if (!companyId) {
+        this.logger.error(
+          `❌ Connect SIN companyId para ${command.commercialId} — availability WS no funcionará`,
         );
       }
 
       const commercialName = new CommercialName(realName);
-
-      // Verificar si el comercial ya existe
       const existingCommercialResult =
         await this.commercialRepository.findById(commercialId);
 
       let commercial: Commercial;
+      let previousStatus = 'offline';
 
       if (
         existingCommercialResult.isOk() &&
         existingCommercialResult.unwrap()
       ) {
-        // Comercial existe, actualizar estado a online y sincronizar datos
         commercial = existingCommercialResult.unwrap()!;
+        previousStatus = commercial.toPrimitives().connectionStatus;
         commercial = commercial.changeConnectionStatus(onlineStatus);
 
-        // Sincronizar nombre y avatar desde UserAccount si no están actualizados
         const primitives = commercial.toPrimitives();
         if (primitives.name !== realName) {
           commercial = commercial.updateName(realName);
@@ -96,7 +112,6 @@ export class ConnectCommercialCommandHandler
           commercial = commercial.updateAvatar(avatarUrl);
         }
       } else {
-        // Crear nuevo comercial con datos de UserAccount
         commercial = Commercial.create({
           id: commercialId,
           name: commercialName,
@@ -105,19 +120,18 @@ export class ConnectCommercialCommandHandler
         });
       }
 
-      // Actualizar estado en Redis
+      // Redis CON companyId (sets por tenant)
       await this.connectionService.setConnectionStatus(
         commercialId,
         onlineStatus,
+        companyId,
       );
       await this.connectionService.updateLastActivity(
         commercialId,
         CommercialLastActivity.now(),
       );
 
-      // Guardar en MongoDB y publicar eventos
       const aggCtx = this.publisher.mergeObjectContext(commercial);
-
       if (
         existingCommercialResult.isOk() &&
         existingCommercialResult.unwrap()
@@ -126,11 +140,37 @@ export class ConnectCommercialCommandHandler
       } else {
         await this.commercialRepository.save(aggCtx);
       }
-
       aggCtx.commit();
 
+      if (companyId) {
+        const sessionResult = await this.sessionRepository.openSession({
+          commercialId: command.commercialId,
+          companyId,
+          commercialDisplayName: command.name || null,
+        });
+        if (sessionResult.isErr()) {
+          this.logger.warn(
+            `No se pudo abrir sesión: ${sessionResult.error.message}`,
+          );
+        }
+      }
+
+      // Evento de presencia CON tenantId
+      this.eventBus.publish(
+        new PresenceChangedEvent(
+          command.commercialId,
+          'commercial',
+          previousStatus,
+          'online',
+          companyId,
+        ),
+      );
+
+      // Emisión DIRECTA de availability (no depender solo de event handlers)
+      await this.emitAvailability(companyId);
+
       this.logger.log(
-        `Comercial conectado exitosamente: ${command.commercialId}`,
+        `✅ Comercial conectado: ${command.commercialId} tenant=${companyId ?? 'MISSING'}`,
       );
     } catch (error) {
       this.logger.error(
@@ -139,5 +179,30 @@ export class ConnectCommercialCommandHandler
       );
       throw error;
     }
+  }
+
+  private async emitAvailability(companyId?: string): Promise<void> {
+    if (!companyId || !this.websocketGateway) {
+      this.logger.warn(
+        `emitAvailability omitido: companyId=${companyId ?? 'n/a'} gateway=${!!this.websocketGateway}`,
+      );
+      return;
+    }
+    const onlineCount =
+      await this.connectionService.getOnlineCountByTenant(companyId);
+    const payload = {
+      available: onlineCount > 0,
+      onlineCount,
+      tenantId: companyId,
+      timestamp: new Date().toISOString(),
+    };
+    this.websocketGateway.emitToRoom(
+      `tenant:${companyId}`,
+      'commercial:availability-changed',
+      payload,
+    );
+    this.logger.log(
+      `📡 commercial:availability-changed → tenant:${companyId} available=${payload.available} count=${onlineCount}`,
+    );
   }
 }

@@ -34,15 +34,19 @@ export class LeadSearchProvider implements SearchProvider {
           companyId: params.companyId,
           $text: { $search: params.query },
         })
-        .select('id nombre apellidos email telefono visitorId extractedAt')
+        .select(
+          'id alias nombre apellidos email telefono visitorId extractedAt',
+        )
         .limit(limit)
         .lean()
         .exec();
 
       return docs.map((doc) => {
+        const personName = [doc.nombre, doc.apellidos]
+          .filter(Boolean)
+          .join(' ');
         const fullName =
-          [doc.nombre, doc.apellidos].filter(Boolean).join(' ') ||
-          'Lead sin nombre';
+          doc.alias?.trim() || personName || 'Lead sin nombre';
         return SearchResult.create({
           id: doc.id,
           scope: SearchScope.LEADS,

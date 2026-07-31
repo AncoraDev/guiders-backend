@@ -146,4 +146,12 @@ export class CommercialAvailabilityResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
   siteId: string;
+
+  @ApiProperty({
+    description:
+      'UUID de la empresa (companyId / tenantId). Usar para unirse a la room WS tenant:{tenantId}',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+    required: false,
+  })
+  tenantId?: string;
 }

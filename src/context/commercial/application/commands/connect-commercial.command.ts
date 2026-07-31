@@ -8,5 +8,7 @@ export class ConnectCommercialCommand implements ICommand {
     public readonly commercialId: string,
     public readonly name: string,
     public readonly metadata?: Record<string, any>,
+    /** companyId del usuario autenticado (tenant) — crítico para Redis + WS */
+    public readonly companyId?: string,
   ) {}
 }

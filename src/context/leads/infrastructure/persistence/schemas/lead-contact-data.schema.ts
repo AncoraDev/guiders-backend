@@ -24,6 +24,9 @@ export class LeadContactDataSchema {
   companyId: string;
 
   @Prop({ type: String, required: false })
+  alias?: string;
+
+  @Prop({ type: String, required: false })
   nombre?: string;
 
   @Prop({ type: String, required: false })
@@ -68,9 +71,10 @@ LeadContactDataSchemaDefinition.index(
   { sparse: true },
 );
 
-// Índice de texto para búsqueda global (nombre, apellidos, email, teléfono)
+// Índice de texto para búsqueda global (alias, nombre, apellidos, email, teléfono)
 LeadContactDataSchemaDefinition.index(
   {
+    alias: 'text',
     nombre: 'text',
     apellidos: 'text',
     email: 'text',
@@ -78,6 +82,7 @@ LeadContactDataSchemaDefinition.index(
   },
   {
     weights: {
+      alias: 12,
       nombre: 10,
       apellidos: 8,
       email: 6,

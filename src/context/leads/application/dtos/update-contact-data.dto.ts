@@ -7,6 +7,15 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
  */
 export class UpdateContactDataDto {
   @ApiPropertyOptional({
+    description: 'Alias interno para identificar al contacto',
+    example: 'Cliente VIP - Seat León',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  alias?: string;
+
+  @ApiPropertyOptional({
     description: 'Nombre del contacto',
     example: 'Roger',
   })

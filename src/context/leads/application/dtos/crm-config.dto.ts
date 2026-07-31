@@ -430,6 +430,9 @@ export class TestConnectionResponseDto {
  * DTO con los datos de contacto del visitante asociado a un registro de sincronización
  */
 export class ContactDataDto {
+  @ApiPropertyOptional({ description: 'Alias interno del contacto' })
+  alias?: string;
+
   @ApiPropertyOptional({ description: 'Nombre del contacto' })
   nombre?: string;
 
@@ -518,6 +521,7 @@ export class CrmSyncRecordResponseDto {
       updatedAt: Date;
     },
     contactData?: {
+      alias?: string;
       nombre?: string;
       apellidos?: string;
       email?: string;
@@ -542,6 +546,7 @@ export class CrmSyncRecordResponseDto {
     dto.updatedAt = data.updatedAt.toISOString();
     if (contactData) {
       const cd = new ContactDataDto();
+      cd.alias = contactData.alias;
       cd.nombre = contactData.nombre;
       cd.apellidos = contactData.apellidos;
       cd.email = contactData.email;

@@ -1,4 +1,4 @@
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, EventPublisher, ICommandHandler } from '@nestjs/cqrs';
 import { JoinWaitingRoomCommand } from './join-waiting-room.command';
 import { Inject } from '@nestjs/common';
 import {
@@ -20,6 +20,7 @@ export class JoinWaitingRoomCommandHandler
   constructor(
     @Inject(CHAT_V2_REPOSITORY)
     private readonly chatRepository: IChatRepository,
+    private readonly publisher: EventPublisher,
   ) {}
 
   async execute(
@@ -33,7 +34,9 @@ export class JoinWaitingRoomCommandHandler
       metadata: ChatMetadata.fromPrimitives(command.metadata).toPrimitives(),
     });
 
-    const saveResult = await this.chatRepository.save(chat);
+    const chatAggregate = this.publisher.mergeObjectContext(chat);
+
+    const saveResult = await this.chatRepository.save(chatAggregate);
     if (saveResult.isErr()) {
       throw saveResult.error;
     }
@@ -46,6 +49,9 @@ export class JoinWaitingRoomCommandHandler
           : undefined,
       );
     const position = positionResult.isOk() ? positionResult.value + 1 : 1;
+
+    chatAggregate.commit();
+
     return { chatId: chat.id.getValue(), position };
   }
 }

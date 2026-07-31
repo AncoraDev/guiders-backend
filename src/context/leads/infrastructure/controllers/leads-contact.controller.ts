@@ -94,6 +94,7 @@ export class LeadsContactController {
       new SaveLeadContactDataCommand({
         visitorId,
         companyId: req.user.companyId,
+        alias: dto.alias,
         nombre: dto.nombre,
         apellidos: dto.apellidos,
         email: dto.email,
@@ -117,6 +118,38 @@ export class LeadsContactController {
     }
 
     return LeadContactDataResponseDto.fromPrimitives(savedResult.unwrap()!);
+  }
+
+  /**
+   * Lista todos los datos de contacto de la empresa
+   * GET /leads/contact-data
+   * IMPORTANTE: declarar ANTES de contact-data/:visitorId para que Nest no capture la ruta estática.
+   */
+  @Get('contact-data')
+  @Roles(['admin', 'commercial'])
+  @ApiOperation({
+    summary: 'Listar todos los datos de contacto',
+    description: 'Retorna todos los datos de contacto de la empresa',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de datos de contacto',
+    type: [LeadContactDataResponseDto],
+  })
+  async listContactData(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<LeadContactDataResponseDto[]> {
+    const result = await this.contactDataRepository.findByCompanyId(
+      req.user.companyId,
+    );
+
+    if (result.isErr()) {
+      throw new BadRequestException(result.error.message);
+    }
+
+    return result
+      .unwrap()
+      .map((cd) => LeadContactDataResponseDto.fromPrimitives(cd));
   }
 
   /**
@@ -161,36 +194,5 @@ export class LeadsContactController {
     }
 
     return LeadContactDataResponseDto.fromPrimitives(contactData);
-  }
-
-  /**
-   * Lista todos los datos de contacto de la empresa
-   * GET /leads/contact-data
-   */
-  @Get('contact-data')
-  @Roles(['admin', 'commercial'])
-  @ApiOperation({
-    summary: 'Listar todos los datos de contacto',
-    description: 'Retorna todos los datos de contacto de la empresa',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de datos de contacto',
-    type: [LeadContactDataResponseDto],
-  })
-  async listContactData(
-    @Req() req: AuthenticatedRequest,
-  ): Promise<LeadContactDataResponseDto[]> {
-    const result = await this.contactDataRepository.findByCompanyId(
-      req.user.companyId,
-    );
-
-    if (result.isErr()) {
-      throw new BadRequestException(result.error.message);
-    }
-
-    return result
-      .unwrap()
-      .map((cd) => LeadContactDataResponseDto.fromPrimitives(cd));
   }
 }
