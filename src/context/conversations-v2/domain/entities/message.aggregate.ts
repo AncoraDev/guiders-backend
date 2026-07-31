@@ -140,6 +140,7 @@ export class Message extends AggregateRoot {
           isFirstResponse: message._isFirstResponse,
           isInternal: message._isInternal,
           sentAt: message._createdAt,
+          systemData: message._systemData || undefined,
           attachment: message._attachment || undefined,
           isAI: message._isAI,
           aiMetadata: message._aiMetadata || undefined,
@@ -208,26 +209,35 @@ export class Message extends AggregateRoot {
     fromUserId?: string;
     toUserId?: string;
     reason?: string;
+    /** Texto visible; si no se indica, se genera según action. */
+    content?: string;
+    /**
+     * Por defecto true (solo comerciales).
+     * Transferencias visibles en el hilo: pasar false.
+     */
+    isInternal?: boolean;
   }): Message {
     const now = new Date();
 
     // Generar contenido descriptivo basado en la acción
-    let content = '';
-    switch (params.action) {
-      case 'assigned':
-        content = `Comercial asignado al chat`;
-        break;
-      case 'transferred':
-        content = `Chat transferido a otro comercial`;
-        break;
-      case 'joined':
-        content = `Usuario se unió al chat`;
-        break;
-      case 'left':
-        content = `Usuario abandonó el chat`;
-        break;
-      default:
-        content = `Acción del sistema: ${params.action}`;
+    let content = params.content?.trim() || '';
+    if (!content) {
+      switch (params.action) {
+        case 'assigned':
+          content = `Comercial asignado al chat`;
+          break;
+        case 'transferred':
+          content = `Chat transferido a otro comercial`;
+          break;
+        case 'joined':
+          content = `Usuario se unió al chat`;
+          break;
+        case 'left':
+          content = `Usuario abandonó el chat`;
+          break;
+        default:
+          content = `Acción del sistema: ${params.action}`;
+      }
     }
 
     return Message.create({
@@ -242,7 +252,7 @@ export class Message extends AggregateRoot {
         toUserId: params.toUserId,
         reason: params.reason,
       },
-      isInternal: true, // Los mensajes del sistema son siempre internos
+      isInternal: params.isInternal ?? true,
       isFirstResponse: false,
       createdAt: now,
       updatedAt: now,

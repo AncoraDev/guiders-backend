@@ -24,6 +24,9 @@ export class UserListItemDto {
   @ApiProperty({ required: false, nullable: true })
   keycloakId: string | null;
 
+  @ApiProperty({ required: false, nullable: true })
+  avatarUrl?: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

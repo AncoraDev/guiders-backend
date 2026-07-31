@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { QueryBus } from '@nestjs/cqrs';
 import { SearchVisitorsQueryHandler } from '../search-visitors.query-handler';
 import { SearchVisitorsQuery } from '../search-visitors.query';
 import {
@@ -42,12 +43,21 @@ describe('SearchVisitorsQueryHandler', () => {
           useValue: {
             countByVisitorIds: jest.fn().mockResolvedValue(ok(new Map())),
             getAvailableChats: jest.fn().mockResolvedValue(ok([])),
+            findLatestAssignedCommercialByVisitorIds: jest
+              .fn()
+              .mockResolvedValue(ok(new Map())),
           },
         },
         {
           provide: COMMERCIAL_REPOSITORY,
           useValue: {
             findById: jest.fn().mockResolvedValue(ok(null)),
+          },
+        },
+        {
+          provide: QueryBus,
+          useValue: {
+            execute: jest.fn().mockResolvedValue(null),
           },
         },
       ],

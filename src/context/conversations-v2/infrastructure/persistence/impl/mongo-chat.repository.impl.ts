@@ -909,6 +909,51 @@ export class MongoChatRepositoryImpl implements IChatRepository {
     }
   }
 
+  async findLatestAssignedCommercialByVisitorIds(
+    visitorIds: string[],
+  ): Promise<Result<Map<string, string>, DomainError>> {
+    try {
+      if (visitorIds.length === 0) {
+        return ok(new Map<string, string>());
+      }
+
+      const aggregation = await this.chatModel.aggregate([
+        {
+          $match: {
+            visitorId: { $in: visitorIds },
+            assignedCommercialId: { $exists: true, $nin: [null, ''] },
+            status: { $in: ['ASSIGNED', 'ACTIVE', 'TRANSFERRED'] },
+          },
+        },
+        { $sort: { updatedAt: -1, createdAt: -1 } },
+        {
+          $group: {
+            _id: '$visitorId',
+            assignedCommercialId: { $first: '$assignedCommercialId' },
+          },
+        },
+      ]);
+
+      const map = new Map<string, string>();
+      for (const item of aggregation as Array<{
+        _id: string;
+        assignedCommercialId: string;
+      }>) {
+        if (item.assignedCommercialId) {
+          map.set(item._id, item.assignedCommercialId);
+        }
+      }
+
+      return ok(map);
+    } catch (error) {
+      return err(
+        new ChatPersistenceError(
+          `Error al obtener comerciales asignados por visitante: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+    }
+  }
+
   async incrementUnreadCount(
     chatId: ChatId,
   ): Promise<Result<number, DomainError>> {

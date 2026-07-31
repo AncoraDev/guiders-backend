@@ -284,6 +284,75 @@ export class Chat extends AggregateRoot {
   }
 
   /**
+   * Transfiere el chat a otro comercial (ASSIGNED/ACTIVE/TRANSFERRED → ACTIVE).
+   */
+  public transferTo(
+    commercialId: string,
+    options?: { transferredBy?: string },
+  ): Chat {
+    if (!this._status.canBeTransferred()) {
+      throw new Error('El chat no puede ser transferido en su estado actual');
+    }
+
+    if (!this._assignedCommercialId) {
+      throw new Error('El chat no tiene comercial asignado para transferir');
+    }
+
+    const previousCommercialId = this._assignedCommercialId.getValue();
+    if (previousCommercialId === commercialId) {
+      throw new Error('El chat ya está asignado a ese comercial');
+    }
+
+    const commercial = CommercialId.create(commercialId);
+    const now = new Date();
+    const newStatus = ChatStatus.ACTIVE;
+
+    const updatedChat = new Chat(
+      this._id,
+      newStatus,
+      this._priority,
+      this._visitorId,
+      this._companyId,
+      this._channel,
+      commercial,
+      this._availableCommercialIds,
+      this._lastMessageDate,
+      this._lastMessageContent,
+      this._lastMessageSenderId,
+      this._totalMessages,
+      this._firstResponseTime,
+      this._responseTimeSeconds,
+      this._closedAt,
+      this._closedReason,
+      this._visitorInfo,
+      this._metadata,
+      this._createdAt,
+      now,
+    );
+
+    const originalEvents = this.getUncommittedEvents();
+    originalEvents.forEach((event) => updatedChat.apply(event));
+
+    updatedChat.apply(
+      new CommercialAssignedEvent({
+        assignment: {
+          chatId: this._id.getValue(),
+          commercialId,
+          visitorId: this._visitorId.getValue(),
+          previousStatus: this._status.value,
+          newStatus: newStatus.value,
+          assignedAt: now,
+          assignmentReason: 'transfer',
+          previousCommercialId,
+          transferredBy: options?.transferredBy,
+        },
+      }),
+    );
+
+    return updatedChat;
+  }
+
+  /**
    * Solicita asignación automática del chat
    * Emite un evento que será procesado por el domain service
    */

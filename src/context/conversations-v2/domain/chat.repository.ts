@@ -226,6 +226,14 @@ export interface IChatRepository {
   ): Promise<Result<Map<string, number>, DomainError>>;
 
   /**
+   * Para cada visitorId, devuelve el assignedCommercialId del chat abierto
+   * más reciente (ASSIGNED/ACTIVE/TRANSFERRED) que tenga comercial asignado.
+   */
+  findLatestAssignedCommercialByVisitorIds(
+    visitorIds: string[],
+  ): Promise<Result<Map<string, string>, DomainError>>;
+
+  /**
    * Incrementa el contador de mensajes no leídos de un chat en 1.
    * Operación atómica — no requiere cargar el aggregate completo.
    */

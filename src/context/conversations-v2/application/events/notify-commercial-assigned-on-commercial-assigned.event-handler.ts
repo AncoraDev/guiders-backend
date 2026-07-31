@@ -53,48 +53,22 @@ export class NotifyCommercialAssignedOnCommercialAssignedEventHandler
       const visitorId = event.getVisitorId();
       const commercialId = event.getCommercialId();
 
-      // Obtener datos del comercial para enriquecer el payload
-      let commercialInfo: {
+      const commercialInfo = await this.resolveCommercialInfo(commercialId);
+      if (!commercialInfo) {
+        this.logger.warn(
+          `No se pudo obtener datos del comercial ${commercialId}`,
+        );
+      }
+
+      let previousCommercialInfo: {
         id: string;
         name: string;
         avatarUrl: string | null;
       } | null = null;
 
-      const commercialResult = await this.commercialRepository.findById(
-        CommercialId.create(commercialId),
-      );
-
-      if (commercialResult.isOk() && commercialResult.unwrap()) {
-        const commercial = commercialResult.unwrap()!;
-        const primitives = commercial.toPrimitives();
-        let avatarUrl = primitives.avatarUrl ?? null;
-
-        // Si no hay avatar en Commercial (MongoDB), intentar obtenerlo de UserAccount (PostgreSQL)
-        // El commercialId es el keycloakId del usuario
-        if (!avatarUrl) {
-          try {
-            const userAccount =
-              await this.userAccountRepository.findByKeycloakId(
-                UserAccountKeycloakId.create(commercialId),
-              );
-            if (userAccount) {
-              avatarUrl = userAccount.toPrimitives().avatarUrl ?? null;
-            }
-          } catch {
-            this.logger.debug(
-              `No se pudo obtener avatar de UserAccount para ${commercialId}`,
-            );
-          }
-        }
-
-        commercialInfo = {
-          id: primitives.id,
-          name: primitives.name,
-          avatarUrl,
-        };
-      } else {
-        this.logger.warn(
-          `No se pudo obtener datos del comercial ${commercialId}`,
+      if (assignmentData.previousCommercialId) {
+        previousCommercialInfo = await this.resolveCommercialInfo(
+          assignmentData.previousCommercialId,
         );
       }
 
@@ -105,19 +79,41 @@ export class NotifyCommercialAssignedOnCommercialAssignedEventHandler
         status: assignmentData.newStatus,
         assignedAt: assignmentData.assignedAt.toISOString(),
         assignmentReason: assignmentData.assignmentReason || 'auto',
+        previousCommercialId: assignmentData.previousCommercialId,
+        transferredBy: assignmentData.transferredBy,
         commercial: commercialInfo,
+        previousCommercial: previousCommercialInfo,
       };
 
-      // Emitir solo a la sala del chat (visitante y comerciales conectados)
-      // No emitimos a visitor:{visitorId} para evitar duplicados si el visitante está en ambas salas
+      // Sala del chat (visitante + quien esté en la conversación)
       this.websocketGateway.emitToRoom(
         `chat:${chatId}`,
         'chat:commercial-assigned',
         payload,
       );
 
+      // Destinatario: sala personal (aunque no haya abierto el chat aún)
+      this.websocketGateway.emitToRoom(
+        `commercial:${commercialId}`,
+        'chat:commercial-assigned',
+        payload,
+      );
+
+      // Origen (transferencia): para que suelte sala WS / deje de notificar
+      if (
+        assignmentData.assignmentReason === 'transfer' &&
+        assignmentData.previousCommercialId &&
+        assignmentData.previousCommercialId !== commercialId
+      ) {
+        this.websocketGateway.emitToRoom(
+          `commercial:${assignmentData.previousCommercialId}`,
+          'chat:commercial-assigned',
+          payload,
+        );
+      }
+
       this.logger.log(
-        `Notificación enviada a sala chat:${chatId} - comercial ${commercialId} asignado`,
+        `Notificación enviada a chat:${chatId} y commercial:${commercialId}`,
       );
     } catch (error) {
       const errorObj = error as Error;
@@ -127,5 +123,44 @@ export class NotifyCommercialAssignedOnCommercialAssignedEventHandler
       );
       // No lanzamos el error para no afectar el flujo principal
     }
+  }
+
+  private async resolveCommercialInfo(commercialId: string): Promise<{
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  } | null> {
+    const commercialResult = await this.commercialRepository.findById(
+      CommercialId.create(commercialId),
+    );
+
+    if (!(commercialResult.isOk() && commercialResult.unwrap())) {
+      return null;
+    }
+
+    const commercial = commercialResult.unwrap()!;
+    const primitives = commercial.toPrimitives();
+    let avatarUrl = primitives.avatarUrl ?? null;
+
+    if (!avatarUrl) {
+      try {
+        const userAccount = await this.userAccountRepository.findByKeycloakId(
+          UserAccountKeycloakId.create(commercialId),
+        );
+        if (userAccount) {
+          avatarUrl = userAccount.toPrimitives().avatarUrl ?? null;
+        }
+      } catch {
+        this.logger.debug(
+          `No se pudo obtener avatar de UserAccount para ${commercialId}`,
+        );
+      }
+    }
+
+    return {
+      id: primitives.id,
+      name: primitives.name,
+      avatarUrl,
+    };
   }
 }

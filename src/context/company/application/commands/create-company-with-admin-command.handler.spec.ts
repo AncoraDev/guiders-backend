@@ -1,4 +1,3 @@
-// Prueba unitaria para CreateCompanyWithAdminCommandHandler siguiendo DDD y usando Uuid del dominio
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreateCompanyWithAdminCommandHandler } from './create-company-with-admin-command.handler';
 import {
@@ -6,51 +5,48 @@ import {
   CompanyRepository,
 } from '../../domain/company.repository';
 import { CreateCompanyWithAdminCommand } from './create-company-with-admin.command';
-import { EventPublisher, EventBus } from '@nestjs/cqrs';
-
-// Mock del repositorio de compañía
-const mockCompanyRepository = () =>
-  ({
-    save: jest.fn(),
-  }) as unknown as CompanyRepository;
-
-// Mock del publisher y eventBus
-const mockPublisher = () => ({
-  mergeObjectContext: jest.fn(),
-});
-const mockEventBus = () => ({
-  publish: jest.fn(),
-});
+import { CommandBus, EventPublisher } from '@nestjs/cqrs';
+import { ok, err, okVoid } from 'src/context/shared/domain/result';
+import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
+import { CompanyUserEmailExistsError } from 'src/context/auth/auth-user/application/errors/company-user.errors';
 
 describe('CreateCompanyWithAdminCommandHandler', () => {
   let handler: CreateCompanyWithAdminCommandHandler;
-  let repository: ReturnType<typeof mockCompanyRepository>;
-  let publisher: ReturnType<typeof mockPublisher>;
-  let eventBus: ReturnType<typeof mockEventBus>;
+  let repository: jest.Mocked<Pick<CompanyRepository, 'save'>>;
+  let publisher: { mergeObjectContext: jest.Mock };
+  let commandBus: { execute: jest.Mock };
 
   beforeEach(async () => {
+    repository = { save: jest.fn().mockResolvedValue(okVoid()) };
+    publisher = {
+      mergeObjectContext: jest.fn((agg) => {
+        agg.commit = jest.fn();
+        return agg;
+      }),
+    };
+    commandBus = { execute: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: COMPANY_REPOSITORY, useFactory: mockCompanyRepository },
-        { provide: EventPublisher, useFactory: mockPublisher },
-        { provide: EventBus, useFactory: mockEventBus },
+        { provide: COMPANY_REPOSITORY, useValue: repository },
+        { provide: EventPublisher, useValue: publisher },
+        { provide: CommandBus, useValue: commandBus },
         CreateCompanyWithAdminCommandHandler,
       ],
     }).compile();
 
     handler = module.get(CreateCompanyWithAdminCommandHandler);
-    repository = module.get(COMPANY_REPOSITORY);
-    publisher = module.get(EventPublisher);
-    eventBus = module.get(EventBus);
   });
 
-  it('debe crear la compañía, persistirla y publicar el evento de integración', async () => {
-    // Arrange
+  it('debe crear la compañía y el admin vía Keycloak (CreateCompanyUser)', async () => {
+    const adminUserId = Uuid.random().value;
+    commandBus.execute.mockResolvedValue(ok({ userId: adminUserId }));
+
     const props = {
       companyName: 'GuiderTest',
       sites: [
         {
-          id: '550e8400-e29b-41d4-a716-446655440000',
+          id: Uuid.random().value,
           name: 'Principal',
           canonicalDomain: 'guiders.com',
           domainAliases: [],
@@ -59,40 +55,69 @@ describe('CreateCompanyWithAdminCommandHandler', () => {
       adminName: 'Admin User',
       adminEmail: 'admin@guiders.com',
       adminTel: '123456789',
+      adminPassword: 'TempPassw0rd!',
     };
-    const command = new CreateCompanyWithAdminCommand(props);
-    const now = new Date();
-    jest.spyOn(global, 'Date').mockImplementation(() => now);
 
-    // Mock para mergeObjectContext y commit
-    const mockCommit = jest.fn();
-    const mockAggregate = { commit: mockCommit };
-    publisher.mergeObjectContext.mockReturnValue(mockAggregate);
+    const result = await handler.execute(
+      new CreateCompanyWithAdminCommand(props),
+    );
 
-    // Act
-    await handler.execute(command);
-
-    // Assert
-    // Se accede al mock directamente desde el objeto mockeado
-
-    expect((repository as any).save).toHaveBeenCalled();
+    expect(result.isOk()).toBe(true);
+    expect(repository.save).toHaveBeenCalled();
     expect(publisher.mergeObjectContext).toHaveBeenCalled();
-    expect(mockCommit).toHaveBeenCalled();
-    // Extraemos los argumentos del evento publicado para aserción manual, tipando correctamente
+    expect(commandBus.execute).toHaveBeenCalled();
+    const unwrapped = result.unwrap();
+    expect(unwrapped.adminUserId).toBe(adminUserId);
+    expect(unwrapped.companyId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
 
-    const publishCall = eventBus.publish.mock.calls[0][0] as {
-      _attributes: Record<string, unknown>;
-    };
-    const attrs = publishCall._attributes as Record<string, any>;
-    expect(attrs.companyName).toBe(props.companyName);
-    expect(Array.isArray(attrs.sites)).toBe(true);
-    expect(attrs.sites).toHaveLength(1);
-    expect(attrs.sites[0].canonicalDomain).toBe('guiders.com');
-    expect(attrs.adminName).toBe(props.adminName);
-    expect(attrs.adminEmail).toBe(props.adminEmail);
-    expect(attrs.adminTel).toBe(props.adminTel);
-    expect(attrs.createdAt).toBe(now.toISOString());
-    expect(typeof attrs.companyId).toBe('string');
-    expect(attrs.companyId).toMatch(/[\w-]{36}/);
+  it('debe fallar si el email del admin ya existe', async () => {
+    commandBus.execute.mockResolvedValue(
+      err(new CompanyUserEmailExistsError('admin@guiders.com')),
+    );
+
+    const result = await handler.execute(
+      new CreateCompanyWithAdminCommand({
+        companyName: 'GuiderTest',
+        sites: [
+          {
+            name: 'Principal',
+            canonicalDomain: 'guiders.com',
+            domainAliases: [],
+          },
+        ],
+        adminName: 'Admin User',
+        adminEmail: 'admin@guiders.com',
+        adminPassword: 'TempPassw0rd!',
+      }),
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.message).toContain('admin@guiders.com');
+    }
+  });
+
+  it('debe rechazar si falta el email del admin', async () => {
+    const result = await handler.execute(
+      new CreateCompanyWithAdminCommand({
+        companyName: 'GuiderTest',
+        sites: [
+          {
+            name: 'Principal',
+            canonicalDomain: 'guiders.com',
+            domainAliases: [],
+          },
+        ],
+        adminName: 'Admin User',
+        adminEmail: '   ',
+        adminPassword: 'TempPassw0rd!',
+      }),
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(commandBus.execute).not.toHaveBeenCalled();
   });
 });

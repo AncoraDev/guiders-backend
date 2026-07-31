@@ -15,6 +15,10 @@ import { UserResponseDto } from 'src/context/auth/auth-user/application/dtos/use
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { QueryBus } from '@nestjs/cqrs';
+import {
+  getBffSessionCookieNames,
+  resolveBffAuthApp,
+} from '../bff-app-cookie';
 
 export interface AuthenticatedRequest extends Request {
   user: {
@@ -125,23 +129,26 @@ export class AuthGuard implements CanActivate {
       }
     }
 
-    // 2. Fallback: extraer desde la cookie BFF (console o admin session)
+    // 2. Fallback: cookie BFF de la app que llama (nunca mezclar console/admin)
     const cookies = (request as any).cookies as
       | Record<string, string>
       | undefined;
     if (cookies) {
-      const consoleCookieName =
-        process.env.SESSION_COOKIE_CONSOLE ||
-        process.env.SESSION_COOKIE ||
-        'console_session';
-      const adminCookieName =
-        process.env.SESSION_COOKIE_ADMIN || 'admin_session';
+      const names = getBffSessionCookieNames();
+      const app = resolveBffAuthApp(request);
 
-      const cookieToken =
-        cookies[consoleCookieName] || cookies[adminCookieName];
-      if (cookieToken) {
-        return cookieToken;
+      if (app === 'admin') {
+        return cookies[names.admin] ?? null;
       }
+      if (app === 'console') {
+        return cookies[names.console] ?? null;
+      }
+
+      // Origen desconocido: no preferir una cookie sobre otra si ambas existen
+      const consoleToken = cookies[names.console];
+      const adminToken = cookies[names.admin];
+      if (consoleToken && !adminToken) return consoleToken;
+      if (adminToken && !consoleToken) return adminToken;
     }
 
     return null;

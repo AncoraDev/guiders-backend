@@ -14,10 +14,16 @@ import { FindCompanyByDomainQueryHandler } from './application/queries/find-comp
 import { ResolveSiteByHostQueryHandler } from './application/queries/resolve-site-by-host.query-handler';
 import { GetCompanySitesQueryHandler } from './application/queries/get-company-sites.query-handler';
 import { GetCompanyByIdQueryHandler } from './application/queries/get-company-by-id.query-handler';
+import { ListCompaniesQueryHandler } from './application/queries/list-companies.query-handler';
+import { GetPlatformCompanyDetailQueryHandler } from './application/queries/get-platform-company-detail.query-handler';
 import { CompanyController } from './infrastructure/controllers/company.controller';
+import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TokenVerifyService } from '../shared/infrastructure/token-verify.service';
 import { BffSessionAuthService } from '../shared/infrastructure/services/bff-session-auth.service';
+import { DualAuthGuard } from '../shared/infrastructure/guards/dual-auth.guard';
+import { RolesGuard } from '../shared/infrastructure/guards/role.guard';
+import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
 
 @Module({
   imports: [
@@ -26,8 +32,9 @@ import { BffSessionAuthService } from '../shared/infrastructure/services/bff-ses
     HttpModule,
     JwtModule.register({}),
     ConfigModule,
+    ApiKeyModule,
   ],
-  controllers: [CompanyController],
+  controllers: [CompanyController, PlatformCompaniesController],
   providers: [
     companyRepositoryProvider,
     CreateCompanyCommandHandler,
@@ -36,9 +43,13 @@ import { BffSessionAuthService } from '../shared/infrastructure/services/bff-ses
     ResolveSiteByHostQueryHandler,
     GetCompanySitesQueryHandler,
     GetCompanyByIdQueryHandler,
+    ListCompaniesQueryHandler,
+    GetPlatformCompanyDetailQueryHandler,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,
     BffSessionAuthService,
+    DualAuthGuard,
+    RolesGuard,
 
     // Search Provider — registrado como multi-provider para GlobalSearchQueryHandler
     CompanySearchProvider,

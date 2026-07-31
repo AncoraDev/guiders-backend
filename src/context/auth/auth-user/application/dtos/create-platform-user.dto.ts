@@ -1,15 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMinSize,
   IsArray,
-  IsBoolean,
   IsEmail,
   IsOptional,
   IsString,
-  ArrayMinSize,
+  IsUUID,
   MinLength,
 } from 'class-validator';
 
-export class CreateCompanyUserRequestDto {
+export class CreatePlatformUserRequestDto {
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Company destino del usuario',
+  })
+  @IsUUID('4', { message: 'companyId debe ser un UUID válido' })
+  companyId: string;
+
   @ApiProperty({ example: 'Ana' })
   @IsString({ message: 'El nombre debe ser una cadena de texto' })
   firstName: string;
@@ -45,32 +52,4 @@ export class CreateCompanyUserRequestDto {
   @IsString({ message: 'La contraseña es obligatoria' })
   @MinLength(6, { message: 'La contraseña temporal debe tener al menos 6 caracteres' })
   temporaryPassword: string;
-}
-
-export class UpdateCompanyUserRequestDto {
-  @ApiPropertyOptional({ example: 'Ana García' })
-  @IsOptional()
-  @IsString({ message: 'El nombre debe ser una cadena de texto' })
-  name?: string;
-
-  @ApiPropertyOptional({
-    example: ['admin', 'commercial'],
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray({ message: 'roles debe ser un array' })
-  @ArrayMinSize(1, { message: 'Debes asignar al menos un rol' })
-  @IsString({ each: true, message: 'Cada rol debe ser una cadena de texto' })
-  roles?: string[];
-}
-
-export class SetCompanyUserActiveRequestDto {
-  @ApiProperty({ example: true })
-  @IsBoolean({ message: 'isActive debe ser boolean' })
-  isActive: boolean;
-}
-
-export class CompanyUserMutationResponseDto {
-  @ApiProperty({ example: 'uuid' })
-  userId: string;
 }

@@ -20,6 +20,12 @@ export interface MessageSentData {
   isFirstResponse: boolean;
   isInternal: boolean;
   sentAt: Date;
+  systemData?: {
+    action?: string;
+    fromUserId?: string;
+    toUserId?: string;
+    reason?: string;
+  };
   attachment?: {
     url: string;
     fileName: string;

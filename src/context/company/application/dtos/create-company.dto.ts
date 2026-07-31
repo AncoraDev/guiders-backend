@@ -1,5 +1,13 @@
 // DTO para la creación de una empresa, siguiendo DDD y CQRS
-import { IsString, ValidateNested, IsArray, IsOptional } from 'class-validator';
+import {
+  IsString,
+  ValidateNested,
+  IsArray,
+  IsOptional,
+  IsEmail,
+  IsNotEmpty,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -35,17 +43,45 @@ export class SiteDto {
 
 // DTO para el administrador de la empresa
 export class AdminDto {
-  @ApiProperty({ description: 'Nombre del administrador' })
-  @IsString({ message: 'El nombre del administrador es obligatorio' })
-  adminName: string;
+  @ApiProperty({
+    description: 'Nombre completo (legacy). Preferir adminFirstName + adminLastName',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'El nombre del administrador debe ser texto' })
+  adminName?: string;
 
-  @ApiProperty({ description: 'Email del administrador', required: false })
-  @IsString({ message: 'El email del administrador es obligatorio' })
-  adminEmail?: string;
+  @ApiProperty({ description: 'Nombre del administrador', required: false })
+  @IsOptional()
+  @IsString({ message: 'El nombre del administrador debe ser texto' })
+  adminFirstName?: string;
+
+  @ApiProperty({ description: 'Apellidos del administrador', required: false })
+  @IsOptional()
+  @IsString({ message: 'Los apellidos del administrador deben ser texto' })
+  adminLastName?: string;
+
+  @ApiProperty({ description: 'Email del administrador' })
+  @IsEmail({}, { message: 'El email del administrador no es válido' })
+  @IsNotEmpty({ message: 'El email del administrador es obligatorio' })
+  adminEmail!: string;
 
   @ApiProperty({ description: 'Teléfono del administrador', required: false })
-  @IsString({ message: 'El teléfono del administrador es obligatorio' })
+  @IsOptional()
+  @IsString({ message: 'El teléfono del administrador debe ser texto' })
   adminTel?: string;
+
+  @ApiProperty({
+    description:
+      'Contraseña temporal del admin (mín. 6). En el primer login Keycloak exige una nueva segura.',
+    example: 'admin123!',
+  })
+  @IsString({ message: 'La contraseña temporal del administrador es obligatoria' })
+  @IsNotEmpty({ message: 'La contraseña temporal del administrador es obligatoria' })
+  @MinLength(6, {
+    message: 'La contraseña temporal debe tener al menos 6 caracteres',
+  })
+  adminPassword!: string;
 }
 
 // DTO principal para crear una empresa

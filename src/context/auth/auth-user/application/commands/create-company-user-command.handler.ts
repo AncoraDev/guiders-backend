@@ -18,8 +18,13 @@ import { DomainError } from 'src/context/shared/domain/domain.error';
 import {
   CompanyUserEmailExistsError,
   CompanyUserPersistError,
+  InvalidCompanyUserDataError,
+  InvalidCompanyUserPasswordError,
   validateAssignableRoles,
 } from '../errors/company-user.errors';
+
+/** Mínimo para la temporal; la política fuerte la aplica Keycloak en el cambio obligatorio. */
+const TEMP_PASSWORD_MIN_LENGTH = 6;
 
 @CommandHandler(CreateCompanyUserCommand)
 export class CreateCompanyUserCommandHandler
@@ -40,6 +45,23 @@ export class CreateCompanyUserCommandHandler
     const rolesError = validateAssignableRoles(command.roles);
     if (rolesError) return err(rolesError);
 
+    const firstName = command.firstName.trim();
+    const lastName = command.lastName.trim();
+    if (!firstName || !lastName) {
+      return err(
+        new InvalidCompanyUserDataError('Nombre y apellidos son obligatorios'),
+      );
+    }
+
+    const password = command.temporaryPassword?.trim() ?? '';
+    if (password.length < TEMP_PASSWORD_MIN_LENGTH) {
+      return err(
+        new InvalidCompanyUserPasswordError(
+          `La contraseña temporal debe tener al menos ${TEMP_PASSWORD_MIN_LENGTH} caracteres`,
+        ),
+      );
+    }
+
     const email = command.email.trim().toLowerCase();
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
@@ -52,10 +74,15 @@ export class CreateCompanyUserCommandHandler
       return err(new CompanyUserEmailExistsError(email));
     }
 
-    // 1. Keycloak primero (evitar huérfano en BD)
+    const displayName = `${firstName} ${lastName}`.trim();
+
+    // 1. Keycloak primero (evitar huérfano en BD) — sin email; password temporal
     const createKc = await this.keycloakAdmin.createUser({
       email,
-      name: command.name.trim(),
+      firstName,
+      lastName,
+      temporaryPassword: password,
+      phone: command.phone?.trim() || undefined,
       enabled: true,
     });
     if (createKc.isErr()) return err(createKc.error);
@@ -73,18 +100,11 @@ export class CreateCompanyUserCommandHandler
       return err(rolesKc.error);
     }
 
-    const emailKc = await this.keycloakAdmin.sendUpdatePasswordEmail(keycloakId);
-    if (emailKc.isErr()) {
-      this.logger.warn(
-        `Email UPDATE_PASSWORD falló para ${email}: ${emailKc.error.message}. Se continúa con alta en BD.`,
-      );
-    }
-
-    // 2. Persistencia local
+    // 2. Persistencia local (password vacío en BD; vive solo en Keycloak)
     try {
       const user = UserAccount.create({
         email: UserAccountEmail.create(email),
-        name: new UserAccountName(command.name.trim()),
+        name: new UserAccountName(displayName),
         password: UserAccountPassword.empty(),
         roles: UserAccountRoles.fromPrimitives(command.roles),
         companyId: UserAccountCompanyId.create(command.companyId),

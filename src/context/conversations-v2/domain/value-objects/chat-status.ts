@@ -71,4 +71,15 @@ export class ChatStatus extends PrimitiveValueObject<string> {
   canBeAssigned(): boolean {
     return this.value === ChatStatusEnum.PENDING.toString();
   }
+
+  /**
+   * Verifica si el chat puede transferirse a otro comercial
+   */
+  canBeTransferred(): boolean {
+    return (
+      this.value === ChatStatusEnum.ASSIGNED.toString() ||
+      this.value === ChatStatusEnum.ACTIVE.toString() ||
+      this.value === ChatStatusEnum.TRANSFERRED.toString()
+    );
+  }
 }

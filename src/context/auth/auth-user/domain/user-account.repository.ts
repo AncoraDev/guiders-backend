@@ -11,5 +11,7 @@ export interface UserAccountRepository {
   ): Promise<UserAccount | null>;
   save(userAccount: UserAccount): Promise<void>;
   findByCompanyId(companyId: UserAccountCompanyId): Promise<UserAccount[]>;
+  /** Todos los usuarios (uso platform / superadmin) */
+  findAll(): Promise<UserAccount[]>;
   delete(id: string): Promise<void>;
 }

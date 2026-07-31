@@ -197,6 +197,29 @@ describe('ChatStatus', () => {
     });
   });
 
+  describe('canBeTransferred', () => {
+    it('debería retornar true para ASSIGNED, ACTIVE y TRANSFERRED', () => {
+      expect(new ChatStatus(ChatStatusEnum.ASSIGNED).canBeTransferred()).toBe(
+        true,
+      );
+      expect(new ChatStatus(ChatStatusEnum.ACTIVE).canBeTransferred()).toBe(
+        true,
+      );
+      expect(
+        new ChatStatus(ChatStatusEnum.TRANSFERRED).canBeTransferred(),
+      ).toBe(true);
+    });
+
+    it('debería retornar false para PENDING y CLOSED', () => {
+      expect(new ChatStatus(ChatStatusEnum.PENDING).canBeTransferred()).toBe(
+        false,
+      );
+      expect(new ChatStatus(ChatStatusEnum.CLOSED).canBeTransferred()).toBe(
+        false,
+      );
+    });
+  });
+
   describe('equals', () => {
     it('debería retornar true para ChatStatus con el mismo valor', () => {
       // Arrange

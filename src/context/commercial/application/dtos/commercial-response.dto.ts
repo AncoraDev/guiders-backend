@@ -64,6 +64,14 @@ export class CommercialSummaryDto {
     example: true,
   })
   isActive: boolean;
+
+  @ApiProperty({
+    description: 'URL del avatar del comercial',
+    example: 'https://cdn.example.com/avatars/user.jpg',
+    required: false,
+    nullable: true,
+  })
+  avatarUrl?: string | null;
 }
 
 /**

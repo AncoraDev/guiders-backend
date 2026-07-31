@@ -226,6 +226,8 @@ export class OidcService implements OnModuleInit {
       oidc_nonce: nonce,
     });
 
+    // prompt=login: evita SSO silencioso entre Console y Admin (mismo realm Keycloak).
+    // Cada app exige credenciales aunque exista sesión SSO en el IdP.
     const url = c.buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
       scope: this.scope,
@@ -233,10 +235,11 @@ export class OidcService implements OnModuleInit {
       code_challenge_method: 'S256',
       state,
       nonce,
+      prompt: 'login',
     });
 
     this.logger.log(
-      `🔐 OIDC Auth URL generada para app '${appKey}' client_id='${this.getAppConfig(appKey).clientId}' con scope: '${this.scope}'`,
+      `🔐 OIDC Auth URL generada para app '${appKey}' client_id='${this.getAppConfig(appKey).clientId}' con scope: '${this.scope}' prompt=login`,
     );
     this.logger.debug(`🔗 Authorization URL: ${url.href}`);
 

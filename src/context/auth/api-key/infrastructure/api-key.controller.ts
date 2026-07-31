@@ -18,15 +18,16 @@ import {
   AuthGuard,
   AuthenticatedRequest,
 } from 'src/context/shared/infrastructure/guards/auth.guard';
+import { DualAuthGuard } from 'src/context/shared/infrastructure/guards/dual-auth.guard';
 import {
   RolesGuard,
   RequiredRoles,
 } from 'src/context/shared/infrastructure/guards/role.guard';
+import { Roles } from 'src/context/shared/infrastructure/roles.decorator';
 import {
   ApiAuthErrors,
   ApiInternalServerError,
   ApiValidationError,
-  PublicEndpoint,
 } from 'src/context/shared/infrastructure/swagger';
 import { ApiKeyService } from './api-key.service';
 import {
@@ -41,12 +42,17 @@ import {
 export class ApiKeyController {
   constructor(private readonly apiKeyService: ApiKeyService) {}
 
+  /**
+   * @deprecated Preferir POST /api/platform/companies/:companyId/api-keys
+   */
   @Post('create')
-  @PublicEndpoint()
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['superadmin'])
+  @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Crear (o reutilizar) API Key para un dominio',
+    summary: '[Deprecated] Crear (o reutilizar) API Key para un dominio',
     description:
-      'Genera una nueva API Key asociada a un dominio y compañía. Si el dominio ya tiene una API Key se reutiliza en lugar de crear una nueva.',
+      'Usar POST /api/platform/companies/:companyId/api-keys. Requiere rol superadmin.',
   })
   @ApiBody({ type: CreateApiKeyRequestDto })
   @ApiResponse({

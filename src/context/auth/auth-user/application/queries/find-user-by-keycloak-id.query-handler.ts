@@ -61,6 +61,7 @@ export class FindUserByKeycloakIdQueryHandler
         companyId: user.companyId.getValue(),
         isActive: user.isActive,
         keycloakId: user.keycloakId.getOrNull()?.value ?? null,
+        avatarUrl: user.avatarUrl.getOrNull(),
         createdAt: user.createdAt.getValue(),
         lastLoginAt: user.lastLoginAt.getOrNull(),
       };

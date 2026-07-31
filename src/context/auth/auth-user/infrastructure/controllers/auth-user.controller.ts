@@ -93,6 +93,8 @@ import {
   CannotModifySelfError,
   CompanyUserEmailExistsError,
   CompanyUserNotFoundError,
+  InvalidCompanyUserDataError,
+  InvalidCompanyUserPasswordError,
   InvalidCompanyUserRolesError,
 } from '../../application/errors/company-user.errors';
 import { KeycloakAdminError } from '../services/keycloak-admin.service';
@@ -368,7 +370,7 @@ export class AuthUserController {
   @ApiOperation({
     summary: 'Listar usuarios de la compañía',
     description:
-      'Devuelve los usuarios asociados a la compañía del token JWT / sesión BFF',
+      'Devuelve los usuarios asociados a la compañía del token JWT / sesión BFF. Lectura también para comerciales (p.ej. @mention / transferencia).',
   })
   @ApiBearerAuth()
   @ApiResponse({
@@ -376,7 +378,7 @@ export class AuthUserController {
     description: 'Listado de usuarios',
     type: UserListResponseDto,
   })
-  @Roles(['admin'])
+  @Roles(['admin', 'commercial', 'supervisor'])
   @UseGuards(DualAuthGuard, RolesGuard)
   async listCompanyUsers(@Req() req: any): Promise<UserListResponseDto> {
     // Extrae el companyId del payload del token (req.user)
@@ -398,6 +400,7 @@ export class AuthUserController {
         companyId: u.companyId,
         isActive: u.isActive,
         keycloakId: u.keycloakId,
+        avatarUrl: u.avatarUrl ?? null,
         createdAt: u.createdAt,
         lastLoginAt: u.lastLoginAt ?? null,
       })),
@@ -409,7 +412,7 @@ export class AuthUserController {
   @ApiOperation({
     summary: 'Crear usuario de la compañía',
     description:
-      'Crea el usuario en Keycloak, envía email para definir contraseña y persiste en BD',
+      'Crea el usuario en Keycloak con contraseña temporal (sin email). En el primer login Keycloak exige cambiar la contraseña.',
   })
   @ApiBearerAuth()
   @ApiBody({ type: CreateCompanyUserRequestDto })
@@ -428,9 +431,14 @@ export class AuthUserController {
     if (!companyId) {
       throw new HttpException('No companyId in token', HttpStatus.UNAUTHORIZED);
     }
-    if (!body?.name?.trim() || !body?.email?.trim()) {
+    if (
+      !body?.firstName?.trim() ||
+      !body?.lastName?.trim() ||
+      !body?.email?.trim() ||
+      !body?.temporaryPassword
+    ) {
       throw new HttpException(
-        'name y email son obligatorios',
+        'firstName, lastName, email y temporaryPassword son obligatorios',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -439,9 +447,12 @@ export class AuthUserController {
       await this.commandBus.execute(
         new CreateCompanyUserCommand(
           companyId,
-          body.name,
+          body.firstName,
+          body.lastName,
           body.email,
           body.roles ?? [],
+          body.temporaryPassword,
+          body.phone,
         ),
       );
 
@@ -568,6 +579,8 @@ export class AuthUserController {
     if (
       error instanceof CompanyUserEmailExistsError ||
       error instanceof InvalidCompanyUserRolesError ||
+      error instanceof InvalidCompanyUserPasswordError ||
+      error instanceof InvalidCompanyUserDataError ||
       error instanceof CannotModifySelfError
     ) {
       return new HttpException(error.message, HttpStatus.BAD_REQUEST);

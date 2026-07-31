@@ -14,9 +14,14 @@ export interface SitePrimitivesDto {
 export interface CreateCompanyWithAdminProps {
   companyName: string;
   sites: SitePrimitivesDto[];
-  adminName: string;
+  /** @deprecated Preferir adminFirstName + adminLastName */
+  adminName?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
   adminEmail: string;
   adminTel?: string;
+  /** Contraseña temporal; el admin deberá cambiarla en el primer login */
+  adminPassword: string;
 }
 
 // Comando principal

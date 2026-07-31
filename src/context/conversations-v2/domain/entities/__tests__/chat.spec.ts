@@ -154,6 +154,63 @@ describe('Chat', () => {
     });
   });
 
+  describe('transferTo', () => {
+    const otherCommercialId = uuidv4();
+
+    it('debería transferir un chat asignado a otro comercial', () => {
+      const chat = Chat.createPendingChat({
+        visitorId: mockVisitorId,
+        companyId: mockCompanyId,
+        visitorInfo: mockVisitorInfo,
+        availableCommercialIds: [mockCommercialId, otherCommercialId],
+      });
+      const assigned = chat.assignCommercial(mockCommercialId);
+
+      const transferred = assigned.transferTo(otherCommercialId, {
+        transferredBy: mockCommercialId,
+      });
+
+      expect(transferred.status.value).toBe('ACTIVE');
+      expect(transferred.isAssignedTo(otherCommercialId)).toBe(true);
+      const events = transferred.getUncommittedEvents();
+      const transferEvents = events.filter(
+        (e) => e.constructor.name === 'CommercialAssignedEvent',
+      ) as Array<{ getAssignmentData: () => { assignmentReason?: string } }>;
+      expect(transferEvents.length).toBeGreaterThanOrEqual(1);
+      expect(
+        transferEvents[transferEvents.length - 1].getAssignmentData()
+          .assignmentReason,
+      ).toBe('transfer');
+    });
+
+    it('debería rechazar transferencia al mismo comercial', () => {
+      const chat = Chat.createPendingChat({
+        visitorId: mockVisitorId,
+        companyId: mockCompanyId,
+        visitorInfo: mockVisitorInfo,
+        availableCommercialIds: [mockCommercialId],
+      });
+      const assigned = chat.assignCommercial(mockCommercialId);
+
+      expect(() => assigned.transferTo(mockCommercialId)).toThrow(
+        'El chat ya está asignado a ese comercial',
+      );
+    });
+
+    it('debería rechazar transferencia de chat pendiente', () => {
+      const chat = Chat.createPendingChat({
+        visitorId: mockVisitorId,
+        companyId: mockCompanyId,
+        visitorInfo: mockVisitorInfo,
+        availableCommercialIds: [mockCommercialId],
+      });
+
+      expect(() => chat.transferTo(otherCommercialId)).toThrow(
+        'El chat no puede ser transferido en su estado actual',
+      );
+    });
+  });
+
   describe('close', () => {
     it('debería cerrar un chat asignado', () => {
       // Arrange

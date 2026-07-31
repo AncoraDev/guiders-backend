@@ -63,6 +63,7 @@ import { GetChatsWithFiltersQuery } from '../../application/queries/get-chats-wi
 import { JoinWaitingRoomCommand } from '../../application/commands/join-waiting-room.command';
 import { CreateChatWithMessageCommand } from '../../application/commands/create-chat-with-message.command';
 import { AssignChatToCommercialCommand } from '../../application/commands/assign-chat-to-commercial.command';
+import { TransferChatToCommercialCommand } from '../../application/commands/transfer-chat-to-commercial.command';
 import { RequestAgentCommand } from '../../application/commands/request-agent.command';
 import { RequestAgentDto } from '../../application/dtos/request-agent.dto';
 import { OpenChatViewCommand } from '../../application/commands/open-chat-view.command';
@@ -1150,6 +1151,82 @@ export class ChatV2Controller {
         throw error;
       }
       this.logger.error(`Error al asignar chat ${chatId}:`, error);
+      throw new HttpException(
+        'Error interno del servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Transfiere un chat ya asignado a otro comercial (debe estar conectado)
+   */
+  @Put(':chatId/transfer/:commercialId')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiBearerAuth()
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Transferir chat a otro comercial',
+    description:
+      'Transfiere un chat ASSIGNED/ACTIVE a otro comercial conectado. Solo el comercial asignado puede transferir.',
+  })
+  @ApiParam({
+    name: 'chatId',
+    description: 'ID del chat',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiParam({
+    name: 'commercialId',
+    description: 'ID del comercial de destino',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Chat transferido exitosamente',
+    type: ChatResponseDto,
+  })
+  @ApiNotFoundError('Chat', 'Chat o comercial no encontrado')
+  async transferChat(
+    @Param('chatId') chatId: string,
+    @Param('commercialId') commercialId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ChatResponseDto> {
+    try {
+      this.logger.log(
+        `Transfiriendo chat ${chatId} al comercial ${commercialId}`,
+      );
+
+      const command = new TransferChatToCommercialCommand({
+        chatId,
+        commercialId,
+        transferredBy: req.user.id,
+      });
+
+      const result: Result<{ assignedCommercialId: string }, DomainError> =
+        await this.commandBus.execute(command);
+
+      if (result.isErr()) {
+        const error = result.error;
+        this.logger.error(`Error al transferir chat: ${error.message}`);
+        throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      }
+
+      const chatQuery = new GetChatByIdQuery(chatId);
+      const chatResult: Result<Chat, DomainError> =
+        await this.queryBus.execute(chatQuery);
+
+      if (chatResult.isErr()) {
+        throw new HttpException('Chat no encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const commercialData = await this.getCommercialData(commercialId);
+      return ChatResponseDto.fromDomain(chatResult.value, commercialData);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`Error al transferir chat ${chatId}:`, error);
       throw new HttpException(
         'Error interno del servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,

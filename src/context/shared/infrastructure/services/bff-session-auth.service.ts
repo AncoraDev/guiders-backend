@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import {
+  BffAuthApp,
+  getBffSessionCookieNames,
+} from '../bff-app-cookie';
 
 export interface BffUserInfo {
   sub: string;
@@ -74,10 +78,13 @@ export class BffSessionAuthService {
   }
 
   /**
-   * Extrae cookies de sesión BFF de la cabecera Cookie
-   * Busca tanto 'console_session' como 'bff_sess' y otros patrones conocidos
+   * Extrae cookies de sesión BFF de la cabecera Cookie.
+   * Si se indica preferredApp, solo usa la cookie de esa app (aisla Console/Admin).
    */
-  extractBffSessionTokens(cookieHeader?: string): string[] {
+  extractBffSessionTokens(
+    cookieHeader?: string,
+    preferredApp?: BffAuthApp | null,
+  ): string[] {
     if (!cookieHeader) {
       return [];
     }
@@ -87,14 +94,17 @@ export class BffSessionAuthService {
     );
 
     const tokens: string[] = [];
-
-    // Patrones conocidos de cookies BFF
-    const bffCookiePatterns = ['console_session', 'admin_session', 'bff_sess'];
-
-    // Parsear cookies manualmente para manejar casos especiales
+    const names = getBffSessionCookieNames();
     const cookies = this.parseCookies(cookieHeader);
 
-    for (const pattern of bffCookiePatterns) {
+    const patterns =
+      preferredApp === 'admin'
+        ? [names.admin]
+        : preferredApp === 'console'
+          ? [names.console]
+          : [names.console, names.admin, 'bff_sess'];
+
+    for (const pattern of patterns) {
       const token = cookies[pattern];
       if (token && this.looksLikeJWT(token)) {
         tokens.push(token);

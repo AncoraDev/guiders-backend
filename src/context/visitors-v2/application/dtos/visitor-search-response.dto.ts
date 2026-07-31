@@ -221,6 +221,29 @@ export class VisitorSummaryDto {
     example: true,
   })
   isMe: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'ID del comercial asignado al chat abierto más reciente del visitante (si existe)',
+    example: '550e8400-e29b-41d4-a716-446655440099',
+  })
+  assignedCommercialId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Datos del comercial asignado (nombre y avatar)',
+    type: 'object',
+    additionalProperties: false,
+    example: {
+      id: '550e8400-e29b-41d4-a716-446655440099',
+      name: 'Laura García',
+      avatarUrl: 'https://cdn.example.com/avatars/laura.jpg',
+    },
+  })
+  assignedCommercial?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
 }
 
 /**

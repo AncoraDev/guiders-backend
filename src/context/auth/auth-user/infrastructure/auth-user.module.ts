@@ -28,7 +28,11 @@ import { EtherealEmailSenderService } from 'src/context/shared/infrastructure/em
 import { ResendEmailSenderService } from 'src/context/shared/infrastructure/email/resend-email-sender.service';
 import { AcceptInviteCommandHandler } from '../application/commands/accept-invite-command.handler';
 import { AuthUserController } from './controllers/auth-user.controller';
+import { PlatformUsersController } from './controllers/platform-users.controller';
 import { FindUsersByCompanyIdQueryHandler } from '../application/queries/find-users-by-company-id.query-handler';
+import { ListPlatformUsersQueryHandler } from '../application/queries/list-platform-users.query-handler';
+import { DualAuthGuard } from 'src/context/shared/infrastructure/guards/dual-auth.guard';
+import { RolesGuard } from 'src/context/shared/infrastructure/guards/role.guard';
 import { CreateInviteOnUserAccountCreatedEventHandler } from '../application/events/create-invite-on-user-account-created-event.handler';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -60,7 +64,7 @@ import { DeleteCompanyUserCommandHandler } from '../application/commands/delete-
     UploadModule,
     forwardRef(() => CommercialModule), // forwardRef para evitar dependencia circular
   ],
-  controllers: [AuthUserController],
+  controllers: [AuthUserController, PlatformUsersController],
   providers: [
     JwtStrategy,
     { provide: USER_ACCOUNT_REPOSITORY, useClass: UserAccountService },
@@ -104,6 +108,7 @@ import { DeleteCompanyUserCommandHandler } from '../application/commands/delete-
     CreateInviteOnUserAccountCreatedEventHandler,
     AcceptInviteCommandHandler,
     FindUsersByCompanyIdQueryHandler,
+    ListPlatformUsersQueryHandler,
     LinkUserWithKeycloakCommandHandler,
     FindUserByKeycloakIdQueryHandler,
     SyncUserWithKeycloakCommandHandler,
@@ -118,6 +123,8 @@ import { DeleteCompanyUserCommandHandler } from '../application/commands/delete-
     DeleteCompanyUserCommandHandler,
     // Servicios necesarios para DualAuthGuard
     BffSessionAuthService,
+    DualAuthGuard,
+    RolesGuard,
   ],
   exports: [USER_ACCOUNT_REPOSITORY, EMAIL_SENDER_SERVICE, PassportModule],
 })

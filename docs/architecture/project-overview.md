@@ -194,7 +194,7 @@ guiders-backend/
 ├── docs/                        # Documentacion generada
 ├── test/                        # Tests E2E
 ├── migrations/                  # Migraciones TypeORM
-├── docker-compose.yml           # Servicios locales
+├── docker/                      # Compose + Dockerfiles (local/staging/prod/e2e)
 └── .github/workflows/           # CI/CD pipelines
 ```
 

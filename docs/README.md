@@ -96,6 +96,8 @@ Carpeta [`security/`](./security/) — auditorías 2025/2026 y reportes. Tambié
 
 ## Ops, CI, MongoDB, staging
 
+- [Admin plataforma Guiders (superadmin)](./operations/platform-admin.md) — alta de clientes, API keys, seed local
+
 Infra Docker del backend: [`docker/README.md`](../docker/README.md).
 
 Carpeta [`ops/`](./ops/) — docker staging, secrets GitHub, MongoDB E2E/CI, HTTP 304, Swagger analysis.

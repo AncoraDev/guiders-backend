@@ -16,6 +16,7 @@ import { FindUserByKeycloakIdQuery } from '../../../auth/auth-user/application/q
 import { UserResponseDto } from '../../../auth/auth-user/application/dtos/user-list-response.dto';
 import { Result } from '../../domain/result';
 import { DomainError } from '../../domain/domain.error';
+import { resolveBffAuthApp } from '../bff-app-cookie';
 
 /**
  * Guard de autenticación dual que soporta múltiples métodos pero es OBLIGATORIO:
@@ -148,11 +149,16 @@ export class DualAuthGuard implements CanActivate {
         return false;
       }
 
-      // Extraer posibles tokens BFF de las cookies
-      const bffTokens =
-        this.bffSessionAuthService.extractBffSessionTokens(cookieHeader);
+      // Solo la cookie de la app que llama (Console ≠ Admin)
+      const preferredApp = resolveBffAuthApp(request);
+      const bffTokens = this.bffSessionAuthService.extractBffSessionTokens(
+        cookieHeader,
+        preferredApp,
+      );
 
-      this.logger.debug(`BFF tokens encontrados: ${bffTokens.length}`);
+      this.logger.debug(
+        `BFF tokens encontrados: ${bffTokens.length} (app=${preferredApp ?? 'unknown'})`,
+      );
 
       if (bffTokens.length === 0) {
         return false;

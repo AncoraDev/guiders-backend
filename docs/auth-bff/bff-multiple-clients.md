@@ -13,6 +13,15 @@ Cada aplicación tiene:
 - Cookies de sesión separadas
 - URIs de redirección específicas
 
+### Aislamiento de sesiones (importante)
+
+Aunque Console y Admin usan el mismo realm Keycloak, **no deben compartir login**:
+
+1. El BFF genera la authorize URL con `prompt=login` → Keycloak no reutiliza SSO en silencio entre apps.
+2. Los guards solo leen la cookie de la app que llama (`Origin` / `X-Guiders-App`: `console_session` vs `admin_session`).
+
+Si tras loguearte en Admin abres Console, debes ver el formulario de login (y viceversa).
+
 ## Configuración de Variables de Entorno
 
 ### Desarrollo (`.env`)

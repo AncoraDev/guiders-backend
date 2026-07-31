@@ -134,7 +134,12 @@ program
   .requiredOption('--name <companyName>', 'Nombre de la compañía')
   .requiredOption('--domain <domain>', 'Dominio canónico de la compañía')
   .requiredOption('--adminName <adminName>', 'Nombre del administrador')
+  .option('--admin-last-name <adminLastName>', 'Apellidos del administrador')
   .requiredOption('--adminEmail <adminEmail>', 'Email del administrador')
+  .requiredOption(
+    '--admin-password <adminPassword>',
+    'Contraseña temporal del admin (cambiará en el primer login)',
+  )
   .option('--adminTel <adminTel>', 'Teléfono del administrador')
   .option(
     '--aliases <aliases>',
@@ -159,7 +164,11 @@ program
     // Construye el comando con la nueva estructura de sites
     const command = new CreateCompanyWithAdminCommand({
       adminName: String(options.adminName),
+      adminLastName: options.adminLastName
+        ? String(options.adminLastName)
+        : undefined,
       adminEmail: String(options.adminEmail),
+      adminPassword: String(options.adminPassword),
       adminTel: options.adminTel ? String(options.adminTel) : undefined,
       companyName: String(options.name),
       sites: [
@@ -172,16 +181,30 @@ program
       ],
     });
     
-    await commandBus.execute(command);
-    // Espera explícita para asegurar que los eventos de dominio CQRS se procesen correctamente
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // Ajusta el tiempo según sea necesario
-    console.log('Compañía y admin creados correctamente');
+    const result = await commandBus.execute(command);
+    if (result?.isErr?.()) {
+      console.error(`Error: ${result.error.message}`);
+      await app.close();
+      process.exit(1);
+    }
+    // Espera breve para API keys (CompanyCreatedEvent)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const created = result?.unwrap?.() ?? result;
+    console.log('Compañía y admin creados correctamente (admin vía Keycloak)');
     console.log(`- Empresa: ${options.name}`);
+    if (created?.companyId) {
+      console.log(`- Company ID: ${created.companyId}`);
+    }
+    if (created?.adminUserId) {
+      console.log(`- Admin user ID: ${created.adminUserId}`);
+    }
     console.log(`- Dominio canónico: ${options.domain}`);
     if (domainAliases.length > 0) {
       console.log(`- Aliases: ${domainAliases.join(', ')}`);
     }
-    console.log(`- Admin: ${options.adminName} (${options.adminEmail})`);
+    console.log(
+      `- Admin: ${options.adminName} (${options.adminEmail}) — contraseña temporal; cambio obligatorio en primer login`,
+    );
     await app.close();
   });
 
@@ -418,12 +441,13 @@ program
           .map((a) => a.trim())
           .filter((a) => a.length > 0);
 
-        await commandBus.execute(
+        const createResult = await commandBus.execute(
           new CreateCompanyWithAdminCommand({
             companyName: options.name,
             adminName: options.adminName,
             adminEmail: options.adminEmail,
             adminTel: options.adminTel,
+            adminPassword: 'E2eAdmin123!',
             sites: [
               {
                 id: '',
@@ -434,10 +458,15 @@ program
             ],
           }),
         );
+        if (createResult?.isErr?.()) {
+          throw new Error(
+            `Error creando company+admin: ${createResult.error.message}`,
+          );
+        }
 
-        // Esperar a que los handlers asíncronos (API keys, user creation, invites) terminen
+        // Esperar API keys (CompanyCreatedEvent)
         logger.log('⏳ Esperando procesamiento de eventos de dominio...');
-        await new Promise((r) => setTimeout(r, 15000));
+        await new Promise((r) => setTimeout(r, 3000));
 
         // =====================================================================
         // 3. RECUPERAR DATOS DE LA EMPRESA

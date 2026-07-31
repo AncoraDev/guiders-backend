@@ -1,4 +1,4 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { IQueryHandler, QueryBus, QueryHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
 import { SearchVisitorsQuery } from './search-visitors.query';
 import {
@@ -27,6 +27,7 @@ import {
   PaginationInfoDto,
 } from '../dtos/visitor-search-response.dto';
 import { VisitorSortField, SortDirection } from '../dtos/visitor-filters.dto';
+import { FindUserByIdQuery } from 'src/context/auth/auth-user/application/queries/find-user-by-id.query';
 
 @QueryHandler(SearchVisitorsQuery)
 export class SearchVisitorsQueryHandler
@@ -41,6 +42,7 @@ export class SearchVisitorsQueryHandler
     private readonly chatRepository: IChatRepository,
     @Inject(COMMERCIAL_REPOSITORY)
     private readonly commercialRepository: CommercialRepository,
+    private readonly queryBus: QueryBus,
   ) {}
 
   async execute(
@@ -192,6 +194,38 @@ export class SearchVisitorsQueryHandler
         );
       }
 
+      // Comercial asignado (chat abierto más reciente) por visitante
+      let assignedCommercialByVisitor = new Map<string, string>();
+      if (visitorIds.length > 0) {
+        const assignedResult =
+          await this.chatRepository.findLatestAssignedCommercialByVisitorIds(
+            visitorIds,
+          );
+        if (assignedResult.isOk()) {
+          assignedCommercialByVisitor = assignedResult.unwrap();
+        } else {
+          this.logger.warn(
+            `Error obteniendo comerciales asignados: ${assignedResult.error.message}`,
+          );
+        }
+      }
+
+      const uniqueCommercialIds = [
+        ...new Set(assignedCommercialByVisitor.values()),
+      ];
+      const commercialsDataMap = new Map<
+        string,
+        { id: string; name: string; avatarUrl?: string | null }
+      >();
+      await Promise.all(
+        uniqueCommercialIds.map(async (commercialId) => {
+          const data = await this.getCommercialData(commercialId);
+          if (data) {
+            commercialsDataMap.set(commercialId, data);
+          }
+        }),
+      );
+
       // Mapear a DTOs de respuesta
       const visitors: VisitorSummaryDto[] = searchResult.visitors.map(
         (visitor) => {
@@ -261,6 +295,13 @@ export class SearchVisitorsQueryHandler
             );
           }
 
+          const assignedCommercialId = assignedCommercialByVisitor.get(
+            primitives.id,
+          );
+          const assignedCommercial = assignedCommercialId
+            ? commercialsDataMap.get(assignedCommercialId)
+            : undefined;
+
           return {
             id: primitives.id,
             tenantId: primitives.tenantId,
@@ -283,6 +324,8 @@ export class SearchVisitorsQueryHandler
             lastUserAgent,
             fingerprint: primitives.fingerprint,
             isMe,
+            assignedCommercialId,
+            assignedCommercial,
           };
         },
       );
@@ -307,6 +350,31 @@ export class SearchVisitorsQueryHandler
       }`;
       this.logger.error(errorMessage);
       return err(new VisitorV2PersistenceError(errorMessage));
+    }
+  }
+
+  private async getCommercialData(
+    commercialId: string,
+  ): Promise<{ id: string; name: string; avatarUrl?: string | null } | null> {
+    try {
+      const user = await this.queryBus.execute(
+        new FindUserByIdQuery(commercialId),
+      );
+      if (!user) {
+        return null;
+      }
+      return {
+        id: commercialId,
+        name: user.name.value,
+        avatarUrl: user.avatarUrl.getOrNull(),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron obtener datos del comercial ${commercialId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
     }
   }
 

@@ -63,6 +63,13 @@ export class UserAccountService implements UserAccountRepository {
       .map((user) => this.userAccountMapper.fromEntity(user))
       .filter(Boolean) as UserAccount[];
   }
+
+  async findAll(): Promise<UserAccount[]> {
+    const userEntities = await this.entityManager.find(UserAccountEntity);
+    return userEntities
+      .map((user) => this.userAccountMapper.fromEntity(user))
+      .filter(Boolean) as UserAccount[];
+  }
   async save(userAccount: UserAccount): Promise<void> {
     const userAccountEntity = this.userAccountMapper.toEntity(userAccount);
     try {

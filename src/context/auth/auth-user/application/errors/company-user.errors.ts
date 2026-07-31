@@ -41,6 +41,20 @@ export class CompanyUserPersistError extends DomainError {
   }
 }
 
+export class InvalidCompanyUserPasswordError extends DomainError {
+  constructor(
+    message = 'La contraseña temporal debe tener al menos 6 caracteres',
+  ) {
+    super(message);
+  }
+}
+
+export class InvalidCompanyUserDataError extends DomainError {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
 /** Roles asignables desde Console (sin superadmin) */
 export const ASSIGNABLE_COMPANY_ROLES = [
   'admin',

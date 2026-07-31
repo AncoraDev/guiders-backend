@@ -14,6 +14,7 @@ import { FindUserByKeycloakIdQuery } from '../../../auth/auth-user/application/q
 import { UserResponseDto } from '../../../auth/auth-user/application/dtos/user-list-response.dto';
 import { Result } from '../../domain/result';
 import { DomainError } from '../../domain/domain.error';
+import { resolveBffAuthApp } from '../bff-app-cookie';
 
 /**
  * Guard de autenticación opcional que soporta múltiples métodos:
@@ -130,11 +131,15 @@ export class OptionalAuthGuard implements CanActivate {
         return false;
       }
 
-      // Extraer posibles tokens BFF de las cookies
-      const bffTokens =
-        this.bffSessionAuthService.extractBffSessionTokens(cookieHeader);
+      const preferredApp = resolveBffAuthApp(request);
+      const bffTokens = this.bffSessionAuthService.extractBffSessionTokens(
+        cookieHeader,
+        preferredApp,
+      );
 
-      this.logger.debug(`BFF tokens encontrados: ${bffTokens.length}`);
+      this.logger.debug(
+        `BFF tokens encontrados: ${bffTokens.length} (app=${preferredApp ?? 'unknown'})`,
+      );
 
       if (bffTokens.length === 0) {
         return false;

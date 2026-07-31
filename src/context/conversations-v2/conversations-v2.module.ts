@@ -56,6 +56,7 @@ import { SendMessageCommandHandler } from './application/commands/send-message.c
 import { AutoAssignChatCommandHandler } from './application/commands/auto-assign-chat.command-handler';
 import { CreateAssignmentRulesCommandHandler } from './application/commands/create-assignment-rules.command-handler';
 import { AssignChatToCommercialCommandHandler } from './application/commands/assign-chat-to-commercial.command-handler';
+import { TransferChatToCommercialCommandHandler } from './application/commands/transfer-chat-to-commercial.command-handler';
 import { MarkMessagesAsReadCommandHandler } from './application/commands/mark-messages-as-read.command-handler';
 import { ResetChatUnreadCountCommandHandler } from './application/commands/reset-chat-unread-count.command-handler';
 import { StartTypingCommandHandler } from './application/commands/start-typing.command-handler';
@@ -171,6 +172,7 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     AutoAssignChatCommandHandler,
     CreateAssignmentRulesCommandHandler,
     AssignChatToCommercialCommandHandler,
+    TransferChatToCommercialCommandHandler,
     MarkMessagesAsReadCommandHandler,
     ResetChatUnreadCountCommandHandler,
     StartTypingCommandHandler,

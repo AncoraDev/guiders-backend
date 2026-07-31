@@ -11,6 +11,9 @@ export interface CommercialAssignedData {
   newStatus: string;
   assignedAt: Date;
   assignmentReason?: string; // auto, manual, transfer
+  /** Comercial anterior en transferencias */
+  previousCommercialId?: string;
+  transferredBy?: string;
 }
 
 /**

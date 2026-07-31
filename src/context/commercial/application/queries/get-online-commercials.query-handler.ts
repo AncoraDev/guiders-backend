@@ -42,7 +42,7 @@ export class GetOnlineCommercialsQueryHandler
 
       const commercials: CommercialSummaryDto[] = [];
 
-      // Para cada comercial online, obtener detalles
+      // Para cada comercial online, obtener detalles (fallback si no hay fila en repo)
       for (const commercialId of onlineCommercialIds) {
         const commercialResult =
           await this.commercialRepository.findById(commercialId);
@@ -58,8 +58,25 @@ export class GetOnlineCommercialsQueryHandler
             connectionStatus: commercial.connectionStatus.value,
             lastActivity: commercial.lastActivity.value,
             isActive,
+            avatarUrl: commercial.avatarUrl ?? null,
           });
+          continue;
         }
+
+        // Presencia en Redis sin documento Commercial: devolver id igual
+        // (el frontend puede enriquecer el nombre con company-users).
+        const status =
+          await this.connectionService.getConnectionStatus(commercialId);
+        const lastActivity =
+          await this.connectionService.getLastActivity(commercialId);
+        commercials.push({
+          id: commercialId.value,
+          name: commercialId.value,
+          connectionStatus: status.value,
+          lastActivity: lastActivity.value,
+          isActive: true,
+          avatarUrl: null,
+        });
       }
 
       return {

@@ -122,20 +122,29 @@ export class KeycloakAdminService {
   }
 
   /**
-   * Crea usuario en Keycloak (sin contraseña). Devuelve el keycloakId.
+   * Crea usuario en Keycloak con contraseña temporal.
+   * No envía email: el operador entrega las credenciales y Keycloak
+   * exige UPDATE_PASSWORD en el primer login.
    */
   async createUser(params: {
     email: string;
-    name: string;
+    firstName: string;
+    lastName: string;
+    temporaryPassword: string;
+    phone?: string;
     enabled?: boolean;
   }): Promise<Result<string, DomainError>> {
     const tokenResult = await this.getAdminToken();
     if (tokenResult.isErr()) return err(tokenResult.error);
     const token = tokenResult.unwrap();
 
-    const parts = params.name.trim().split(/\s+/);
-    const firstName = parts[0] ?? params.name;
-    const lastName = parts.slice(1).join(' ') || '';
+    const firstName = params.firstName.trim();
+    const lastName = params.lastName.trim();
+    const phone = params.phone?.trim();
+
+    const attributes: Record<string, string[]> | undefined = phone
+      ? { phoneNumber: [phone], phone: [phone] }
+      : undefined;
 
     try {
       const res = await fetch(`${this.adminBase}/users`, {
@@ -148,6 +157,8 @@ export class KeycloakAdminService {
           lastName,
           enabled: params.enabled ?? true,
           emailVerified: true,
+          requiredActions: ['UPDATE_PASSWORD'],
+          ...(attributes ? { attributes } : {}),
         }),
       });
 
@@ -168,10 +179,65 @@ export class KeycloakAdminService {
           ),
         );
       }
+
+      const pwd = await this.setTemporaryPassword(
+        keycloakId,
+        params.temporaryPassword,
+        token,
+      );
+      if (pwd.isErr()) {
+        await this.deleteUser(keycloakId);
+        return err(pwd.error);
+      }
+
       return ok(keycloakId);
     } catch (e) {
       this.logger.error('Error creando usuario en Keycloak', e);
       return err(new KeycloakAdminError('Error creando usuario en Keycloak'));
+    }
+  }
+
+  /**
+   * Establece contraseña temporal (Keycloak pedirá cambiarla en el login).
+   */
+  async setTemporaryPassword(
+    keycloakId: string,
+    password: string,
+    existingToken?: string,
+  ): Promise<Result<void, DomainError>> {
+    let token = existingToken;
+    if (!token) {
+      const tokenResult = await this.getAdminToken();
+      if (tokenResult.isErr()) return err(tokenResult.error);
+      token = tokenResult.unwrap();
+    }
+
+    try {
+      const res = await fetch(
+        `${this.adminBase}/users/${keycloakId}/reset-password`,
+        {
+          method: 'PUT',
+          headers: this.headers(token),
+          body: JSON.stringify({
+            type: 'password',
+            value: password,
+            temporary: true,
+          }),
+        },
+      );
+      if (!res.ok) {
+        return err(
+          new KeycloakAdminError(
+            `Error asignando contraseña temporal: ${res.status} ${await res.text()}`,
+          ),
+        );
+      }
+      return ok(undefined);
+    } catch (e) {
+      this.logger.error('Error setTemporaryPassword Keycloak', e);
+      return err(
+        new KeycloakAdminError('Error asignando contraseña temporal en Keycloak'),
+      );
     }
   }
 

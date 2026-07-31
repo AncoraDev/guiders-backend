@@ -18,8 +18,10 @@ import { GetAllApiKeysUseCase } from '../application/usecase/get-all-api-keys.us
 import { GetApiKeysByCompanyIdUseCase } from '../application/usecase/get-api-keys-by-company-id.usecase';
 import { Sha256HashStrategy } from '../../../shared/infrastructure/sha-256-hash-strategy';
 import { TokenVerifyService } from '../../../shared/infrastructure/token-verify.service';
+import { BffSessionAuthService } from '../../../shared/infrastructure/services/bff-session-auth.service';
 import { AuthGuard } from '../../../shared/infrastructure/guards/auth.guard';
 import { RolesGuard } from '../../../shared/infrastructure/guards/role.guard';
+import { DualAuthGuard } from '../../../shared/infrastructure/guards/dual-auth.guard';
 import { API_KEY_ENCRYPT_PRIVATE_KEY } from '../application/services/api-key-encrypt-private-key';
 import { API_KEY_HASHER } from '../application/services/api-key-hasher';
 import { API_KEY_GENERATE_KEYS } from '../application/services/api-key-generate-keys';
@@ -49,6 +51,8 @@ import { CreateApiKeyOnCompanyCreatedEventHandler } from '../application/events/
     JwksService,
     // Auth / security
     TokenVerifyService,
+    BffSessionAuthService,
+    DualAuthGuard,
     AuthGuard,
     RolesGuard,
 
@@ -56,5 +60,6 @@ import { CreateApiKeyOnCompanyCreatedEventHandler } from '../application/events/
     CreateApiKeyOnCompanyCreatedEventHandler,
   ],
   controllers: [ApiKeyController, JwksController],
+  exports: [ApiKeyService],
 })
 export class ApiKeyModule {}
