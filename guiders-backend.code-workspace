@@ -5,6 +5,10 @@
 		},
 		{
 			"path": "../guiders-frontend"
+		},
+		{
+			"path": "../guiders-sdk"
 		}
-	]
+	],
+	"settings": {}
 }

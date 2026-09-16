@@ -194,6 +194,8 @@ async function bootstrap() {
     'X-Requested-With',
     'X-API-Key',
     'X-Guiders-Sid',
+    // Admin/Console BFF: distingue cookie admin_session vs console_session
+    'X-Guiders-App',
   ];
   const corsExposedHeaders: ReadonlyArray<string> = ['Set-Cookie'];
   const baseCors: SafeCorsOptions = {
