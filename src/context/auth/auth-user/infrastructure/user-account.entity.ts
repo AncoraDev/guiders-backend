@@ -50,4 +50,7 @@ export class UserAccountEntity {
 
   @Column({ type: 'text', nullable: true })
   avatarUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  greetingMessage: string | null;
 }

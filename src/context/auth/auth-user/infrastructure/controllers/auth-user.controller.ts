@@ -26,6 +26,8 @@ import { UnauthorizedError } from '../../application/errors/unauthorized.error';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { AcceptInviteCommand } from '../../application/commands/accept-invite.command';
 import { UpdateUserAvatarCommand } from '../../application/commands/update-user-avatar.command';
+import { UpdateUserGreetingMessageCommand } from '../../application/commands/update-user-greeting-message.command';
+import { UpdateGreetingMessageDto } from '../../application/dtos/update-greeting-message.dto';
 import {
   AuthGuard,
   AuthenticatedRequest,
@@ -667,6 +669,7 @@ export class AuthUserController {
         lastLoginAt: user.lastLoginAt ?? null,
         keycloakId: user.keycloakId ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        greetingMessage: user.greetingMessage ?? null,
       };
     } catch (error) {
       this.logger.error('Error fetching current user (/me)', error);
@@ -678,6 +681,66 @@ export class AuthUserController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Patch('me/greeting')
+  @ApiOperation({
+    summary: 'Actualizar mensaje de saludo',
+    description:
+      'Guarda el texto que se envía al visitante al pulsar Saludar. Vacío restaura el texto por defecto.',
+  })
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateGreetingMessageDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Saludo actualizado',
+    schema: {
+      type: 'object',
+      properties: {
+        greetingMessage: { type: 'string', nullable: true },
+      },
+    },
+  })
+  @ApiValidationError('Mensaje demasiado largo')
+  @Roles(['admin', 'commercial'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async updateGreeting(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateGreetingMessageDto,
+  ): Promise<{ greetingMessage: string | null }> {
+    const rawUserId: string | undefined = req.user?.id;
+    if (!rawUserId) {
+      throw new HttpException(
+        'No se encontró el usuario en el contexto',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    let backendUserId = rawUserId;
+    const keycloakResult = await this.queryBus.execute(
+      new FindUserByKeycloakIdQuery(rawUserId),
+    );
+    if (keycloakResult.isOk()) {
+      backendUserId = keycloakResult.value.id;
+    }
+
+    const result: Result<string | null, DomainError> =
+      await this.commandBus.execute(
+        new UpdateUserGreetingMessageCommand(
+          backendUserId,
+          body.greetingMessage ?? null,
+        ),
+      );
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrado')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return { greetingMessage: result.unwrap() };
   }
 
   @Get(':keycloakId')
@@ -746,6 +809,7 @@ export class AuthUserController {
         lastLoginAt: userPrimitives.lastLoginAt ?? null,
         keycloakId: userPrimitives.keycloakId ?? null,
         avatarUrl: userPrimitives.avatarUrl ?? null,
+        greetingMessage: userPrimitives.greetingMessage ?? null,
       };
     } catch (error) {
       this.logger.error(

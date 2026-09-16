@@ -43,6 +43,7 @@ import { KeycloakRoleMapperService } from '../application/services/keycloak-role
 import { VerifyRoleMappingQueryHandler } from '../application/queries/verify-role-mapping.query-handler';
 import { FindUserByIdQueryHandler } from '../application/queries/find-user-by-id.query-handler';
 import { UpdateUserAvatarCommandHandler } from '../application/commands/update-user-avatar-command.handler';
+import { UpdateUserGreetingMessageCommandHandler } from '../application/commands/update-user-greeting-message.command-handler';
 import { UploadModule } from 'src/context/shared/infrastructure/modules/upload.module';
 import { UpdateCommercialAvatarOnUserAvatarUpdatedEventHandler } from '../application/events/update-commercial-avatar-on-user-avatar-updated-event.handler';
 import { UpdateCommercialNameOnUserNameUpdatedEventHandler } from '../application/events/update-commercial-name-on-user-name-updated-event.handler';
@@ -115,6 +116,7 @@ import { DeleteCompanyUserCommandHandler } from '../application/commands/delete-
     KeycloakRoleMapperService,
     VerifyRoleMappingQueryHandler,
     UpdateUserAvatarCommandHandler,
+    UpdateUserGreetingMessageCommandHandler,
     UpdateCommercialAvatarOnUserAvatarUpdatedEventHandler,
     UpdateCommercialNameOnUserNameUpdatedEventHandler,
     CreateCompanyUserCommandHandler,

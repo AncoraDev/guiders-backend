@@ -17,6 +17,7 @@ import { UserNameUpdatedEvent } from './events/user-name-updated-event';
 import { UserAccountName } from './value-objects/user-account-name';
 import { UserAccountKeycloakId } from './value-objects/user-account-keycloak-id';
 import { UserAccountAvatarUrl } from './value-objects/user-account-avatar-url';
+import { UserAccountGreetingMessage } from './value-objects/user-account-greeting-message';
 
 export interface UserAccountPrimitives {
   id: string;
@@ -31,6 +32,7 @@ export interface UserAccountPrimitives {
   isActive: boolean; // Campo para estado activo/inactivo
   keycloakId: string | null; // Referencia al ID de usuario en Keycloak
   avatarUrl: string | null; // URL del avatar en S3
+  greetingMessage?: string | null; // Saludo personalizado (Saludar)
 }
 
 export class UserAccount extends AggregateRoot {
@@ -47,6 +49,7 @@ export class UserAccount extends AggregateRoot {
   private readonly _isActive: UserAccountIsActive;
   private readonly _keycloakId: UserAccountKeycloakId | null;
   private readonly _avatarUrl: UserAccountAvatarUrl;
+  private readonly _greetingMessage: UserAccountGreetingMessage;
 
   private constructor(
     id: UserAccountId,
@@ -61,6 +64,9 @@ export class UserAccount extends AggregateRoot {
     isActive: UserAccountIsActive = new UserAccountIsActive(true), // Por defecto activo
     keycloakId: UserAccountKeycloakId | null = null, // Por defecto null (usuarios legacy)
     avatarUrl: UserAccountAvatarUrl = new UserAccountAvatarUrl(null), // Por defecto sin avatar
+    greetingMessage: UserAccountGreetingMessage = new UserAccountGreetingMessage(
+      null,
+    ),
   ) {
     super();
     this._id = id;
@@ -75,6 +81,7 @@ export class UserAccount extends AggregateRoot {
     this._isActive = isActive;
     this._keycloakId = keycloakId;
     this._avatarUrl = avatarUrl;
+    this._greetingMessage = greetingMessage;
   }
 
   // Métodos estáticos de fábrica
@@ -88,6 +95,7 @@ export class UserAccount extends AggregateRoot {
     isActive?: UserAccountIsActive;
     keycloakId?: UserAccountKeycloakId | null;
     avatarUrl?: UserAccountAvatarUrl;
+    greetingMessage?: UserAccountGreetingMessage;
   }): UserAccount {
     const now = new Date();
     const user = new UserAccount(
@@ -103,6 +111,7 @@ export class UserAccount extends AggregateRoot {
       params.isActive ?? new UserAccountIsActive(true),
       params.keycloakId ?? null,
       params.avatarUrl ?? new UserAccountAvatarUrl(null),
+      params.greetingMessage ?? new UserAccountGreetingMessage(null),
     );
     // Aplica el evento de dominio al crear el usuario
     user.apply(
@@ -126,6 +135,7 @@ export class UserAccount extends AggregateRoot {
     isActive?: boolean;
     keycloakId?: string | null;
     avatarUrl?: string | null;
+    greetingMessage?: string | null;
   }): UserAccount {
     const newUser = new UserAccount(
       UserAccountId.create(params.id),
@@ -142,6 +152,7 @@ export class UserAccount extends AggregateRoot {
         ? UserAccountKeycloakId.fromString(params.keycloakId)
         : null,
       new UserAccountAvatarUrl(params.avatarUrl ?? null),
+      UserAccountGreetingMessage.fromInput(params.greetingMessage),
     );
 
     return newUser;
@@ -202,6 +213,10 @@ export class UserAccount extends AggregateRoot {
       : Optional.empty();
   }
 
+  get greetingMessage(): string | null {
+    return this._greetingMessage.getValue();
+  }
+
   // Métodos públicos
   public equals(userAccount: UserAccount): boolean {
     return (
@@ -238,6 +253,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 
@@ -256,6 +272,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
     this.apply(new UserPasswordUpdatedEvent(this._id.value));
     return updatedUser;
@@ -275,6 +292,7 @@ export class UserAccount extends AggregateRoot {
       isActive: this._isActive.value,
       keycloakId: this._keycloakId?.value ?? null,
       avatarUrl: this._avatarUrl.getValue(),
+      greetingMessage: this._greetingMessage.getValue(),
     };
   }
 
@@ -293,6 +311,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 
@@ -312,6 +331,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       new UserAccountAvatarUrl(newAvatarUrl),
+      this._greetingMessage,
     );
 
     // Aplica el evento de dominio
@@ -325,6 +345,24 @@ export class UserAccount extends AggregateRoot {
     );
 
     return updatedUser;
+  }
+
+  public updateGreetingMessage(message: string | null): UserAccount {
+    return new UserAccount(
+      this._id,
+      this._email,
+      this._name,
+      this._password,
+      this._createdAt,
+      UserAccountUpdatedAt.create(new Date()),
+      this._lastLoginAt,
+      this._roles,
+      this._companyId,
+      this._isActive,
+      this._keycloakId,
+      this._avatarUrl,
+      UserAccountGreetingMessage.fromInput(message),
+    );
   }
 
   // Método para verificar si el usuario está vinculado con Keycloak
@@ -346,6 +384,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 
@@ -365,6 +404,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
 
     // Aplica el evento de dominio
@@ -394,6 +434,7 @@ export class UserAccount extends AggregateRoot {
       this._isActive,
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 
@@ -414,6 +455,7 @@ export class UserAccount extends AggregateRoot {
       new UserAccountIsActive(true),
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 
@@ -434,6 +476,7 @@ export class UserAccount extends AggregateRoot {
       new UserAccountIsActive(false),
       this._keycloakId,
       this._avatarUrl,
+      this._greetingMessage,
     );
   }
 }

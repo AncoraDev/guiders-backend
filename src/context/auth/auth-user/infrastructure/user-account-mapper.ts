@@ -21,6 +21,7 @@ export class UserAccountMapper {
       isActive: userAccountEntity.isActive ?? true,
       keycloakId: userAccountEntity.keycloakId,
       avatarUrl: userAccountEntity.avatarUrl,
+      greetingMessage: userAccountEntity.greetingMessage ?? null,
     });
   }
 
@@ -39,6 +40,7 @@ export class UserAccountMapper {
     userAccountEntity.keycloakId =
       userAccount.keycloakId.getOrNull()?.value ?? null;
     userAccountEntity.avatarUrl = userAccount.avatarUrl.getOrNull();
+    userAccountEntity.greetingMessage = userAccount.greetingMessage;
     return userAccountEntity;
   }
 }

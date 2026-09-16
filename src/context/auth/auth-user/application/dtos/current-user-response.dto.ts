@@ -61,4 +61,14 @@ export class CurrentUserResponseDto {
       'https://guiders-avatars-dev.s3.eu-north-1.amazonaws.com/avatars/user-id-123456.jpg',
   })
   avatarUrl: string | null;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    description:
+      'Mensaje de saludo al pulsar Saludar. Null = texto por defecto del cliente.',
+    example: '¡Hola! ¿En qué puedo ayudarte?',
+  })
+  greetingMessage: string | null;
 }
