@@ -22,6 +22,7 @@ import { Result, ok, err, okVoid } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Criteria, Filter, Operator } from 'src/context/shared/domain/criteria';
 import { MessageSchema } from '../../schemas/message.schema';
+import { ChatSchema } from '../../schemas/chat.schema';
 import { MessageMapper } from '../../mappers/message.mapper';
 
 /**
@@ -43,6 +44,8 @@ export class MongoMessageRepositoryImpl implements IMessageRepository {
   constructor(
     @InjectModel(MessageSchema.name)
     private readonly messageModel: Model<MessageSchema>,
+    @InjectModel(ChatSchema.name)
+    private readonly chatModel: Model<ChatSchema>,
     private readonly messageMapper: MessageMapper,
   ) {}
 
@@ -59,6 +62,11 @@ export class MongoMessageRepositoryImpl implements IMessageRepository {
         .sort({ sequenceNumber: -1 });
 
       schema.sequenceNumber = lastMessage ? lastMessage.sequenceNumber + 1 : 1;
+      schema.senderType = await this.resolveSenderType(
+        message.chatId.value,
+        schema.senderId,
+        schema.senderType,
+      );
 
       await this.messageModel.create(schema);
       return okVoid();
@@ -69,6 +77,31 @@ export class MongoMessageRepositoryImpl implements IMessageRepository {
         ),
       );
     }
+  }
+
+  /**
+   * Resuelve si el remitente es el visitante del chat o un comercial.
+   *
+   * El dominio solo guarda senderId, y el mapper no puede distinguir roles a
+   * partir de un UUID: comparar contra el visitorId del chat es la única fuente
+   * fiable. Sin esto todos los mensajes se guardaban como 'visitor', lo que
+   * rompía los contadores de no leídos y el renderizado en Console y el SDK.
+   */
+  private async resolveSenderType(
+    chatId: string,
+    senderId: string,
+    mappedType: string,
+  ): Promise<string> {
+    if (mappedType === 'system' || mappedType === 'ai') {
+      return mappedType;
+    }
+
+    const chat = await this.chatModel.findOne({ id: chatId }, { visitorId: 1 });
+    if (!chat) {
+      return mappedType;
+    }
+
+    return chat.visitorId === senderId ? 'visitor' : 'commercial';
   }
 
   /**
