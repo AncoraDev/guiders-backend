@@ -22,6 +22,7 @@ export class UserAccountMapper {
       keycloakId: userAccountEntity.keycloakId,
       avatarUrl: userAccountEntity.avatarUrl,
       greetingMessage: userAccountEntity.greetingMessage ?? null,
+      cannedReplies: userAccountEntity.cannedReplies ?? [],
     });
   }
 
@@ -41,6 +42,7 @@ export class UserAccountMapper {
       userAccount.keycloakId.getOrNull()?.value ?? null;
     userAccountEntity.avatarUrl = userAccount.avatarUrl.getOrNull();
     userAccountEntity.greetingMessage = userAccount.greetingMessage;
+    userAccountEntity.cannedReplies = userAccount.cannedReplies;
     return userAccountEntity;
   }
 }

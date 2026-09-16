@@ -8,6 +8,7 @@ import {
   Logger,
   Post,
   Patch,
+  Put,
   Headers,
   UnauthorizedException,
   HttpCode,
@@ -28,6 +29,9 @@ import { AcceptInviteCommand } from '../../application/commands/accept-invite.co
 import { UpdateUserAvatarCommand } from '../../application/commands/update-user-avatar.command';
 import { UpdateUserGreetingMessageCommand } from '../../application/commands/update-user-greeting-message.command';
 import { UpdateGreetingMessageDto } from '../../application/dtos/update-greeting-message.dto';
+import { UpdateUserCannedRepliesCommand } from '../../application/commands/update-user-canned-replies.command';
+import { UpdateCannedRepliesDto } from '../../application/dtos/update-canned-replies.dto';
+import { CannedReplyPrimitives } from 'src/context/shared/domain/canned-reply';
 import {
   AuthGuard,
   AuthenticatedRequest,
@@ -670,6 +674,7 @@ export class AuthUserController {
         keycloakId: user.keycloakId ?? null,
         avatarUrl: user.avatarUrl ?? null,
         greetingMessage: user.greetingMessage ?? null,
+        cannedReplies: user.cannedReplies ?? [],
       };
     } catch (error) {
       this.logger.error('Error fetching current user (/me)', error);
@@ -743,6 +748,57 @@ export class AuthUserController {
     return { greetingMessage: result.unwrap() };
   }
 
+  @Put('me/canned-replies')
+  @ApiOperation({
+    summary: 'Actualizar frases rápidas del comercial',
+    description:
+      'Reemplaza las frases que aparecen en el menú / de Atención.',
+  })
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateCannedRepliesDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Frases actualizadas',
+  })
+  @ApiValidationError('Frases no válidas')
+  @Roles(['admin', 'commercial'])
+  @UseGuards(DualAuthGuard, RolesGuard)
+  async updateCannedReplies(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCannedRepliesDto,
+  ): Promise<{ cannedReplies: CannedReplyPrimitives[] }> {
+    const rawUserId: string | undefined = req.user?.id;
+    if (!rawUserId) {
+      throw new HttpException(
+        'No se encontró el usuario en el contexto',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    let backendUserId = rawUserId;
+    const keycloakResult = await this.queryBus.execute(
+      new FindUserByKeycloakIdQuery(rawUserId),
+    );
+    if (keycloakResult.isOk()) {
+      backendUserId = keycloakResult.value.id;
+    }
+
+    const result: Result<CannedReplyPrimitives[], DomainError> =
+      await this.commandBus.execute(
+        new UpdateUserCannedRepliesCommand(backendUserId, body.items ?? []),
+      );
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrado')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return { cannedReplies: result.unwrap() };
+  }
+
   @Get(':keycloakId')
   @ApiOperation({
     summary: 'Obtener usuario por Keycloak ID',
@@ -810,6 +866,7 @@ export class AuthUserController {
         keycloakId: userPrimitives.keycloakId ?? null,
         avatarUrl: userPrimitives.avatarUrl ?? null,
         greetingMessage: userPrimitives.greetingMessage ?? null,
+        cannedReplies: userPrimitives.cannedReplies ?? [],
       };
     } catch (error) {
       this.logger.error(

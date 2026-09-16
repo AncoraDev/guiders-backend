@@ -71,4 +71,19 @@ export class CurrentUserResponseDto {
     example: '¡Hola! ¿En qué puedo ayudarte?',
   })
   greetingMessage: string | null;
+
+  @ApiProperty({
+    type: 'array',
+    required: false,
+    description: 'Frases rápidas del comercial para el menú /',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        title: { type: 'string' },
+        body: { type: 'string' },
+      },
+    },
+  })
+  cannedReplies: { id: string; title: string; body: string }[];
 }

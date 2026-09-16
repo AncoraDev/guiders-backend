@@ -19,6 +19,7 @@ import {
 } from '../../../domain/errors/company.error';
 import { CompanyMapper } from './company.mapper';
 import { domainLookupCandidates } from 'src/context/shared/domain/domain-matching.util';
+import { CannedReplyPrimitives } from 'src/context/shared/domain/canned-reply';
 
 // Implementación TypeORM del repositorio de Company
 @Injectable()
@@ -144,6 +145,26 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
       return err(
         new CompanyPersistenceError(
           'Error al actualizar la empresa: ' +
+            (error instanceof Error ? error.message : String(error)),
+        ),
+      );
+    }
+  }
+
+  async updateCannedReplies(
+    id: Uuid,
+    replies: CannedReplyPrimitives[],
+  ): Promise<Result<void, DomainError>> {
+    try {
+      await this.companyRepo.update(
+        { id: id.getValue() },
+        { cannedReplies: replies, updatedAt: new Date() },
+      );
+      return okVoid();
+    } catch (error) {
+      return err(
+        new CompanyPersistenceError(
+          'Error al guardar las frases de la empresa: ' +
             (error instanceof Error ? error.message : String(error)),
         ),
       );

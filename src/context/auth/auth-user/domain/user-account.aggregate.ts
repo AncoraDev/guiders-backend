@@ -18,6 +18,8 @@ import { UserAccountName } from './value-objects/user-account-name';
 import { UserAccountKeycloakId } from './value-objects/user-account-keycloak-id';
 import { UserAccountAvatarUrl } from './value-objects/user-account-avatar-url';
 import { UserAccountGreetingMessage } from './value-objects/user-account-greeting-message';
+import { UserAccountCannedReplies } from './value-objects/user-account-canned-replies';
+import { CannedReplyPrimitives } from 'src/context/shared/domain/canned-reply';
 
 export interface UserAccountPrimitives {
   id: string;
@@ -33,6 +35,7 @@ export interface UserAccountPrimitives {
   keycloakId: string | null; // Referencia al ID de usuario en Keycloak
   avatarUrl: string | null; // URL del avatar en S3
   greetingMessage?: string | null; // Saludo personalizado (Saludar)
+  cannedReplies?: CannedReplyPrimitives[];
 }
 
 export class UserAccount extends AggregateRoot {
@@ -50,6 +53,7 @@ export class UserAccount extends AggregateRoot {
   private readonly _keycloakId: UserAccountKeycloakId | null;
   private readonly _avatarUrl: UserAccountAvatarUrl;
   private readonly _greetingMessage: UserAccountGreetingMessage;
+  private readonly _cannedReplies: UserAccountCannedReplies;
 
   private constructor(
     id: UserAccountId,
@@ -67,6 +71,7 @@ export class UserAccount extends AggregateRoot {
     greetingMessage: UserAccountGreetingMessage = new UserAccountGreetingMessage(
       null,
     ),
+    cannedReplies: UserAccountCannedReplies = UserAccountCannedReplies.empty(),
   ) {
     super();
     this._id = id;
@@ -82,6 +87,7 @@ export class UserAccount extends AggregateRoot {
     this._keycloakId = keycloakId;
     this._avatarUrl = avatarUrl;
     this._greetingMessage = greetingMessage;
+    this._cannedReplies = cannedReplies;
   }
 
   // Métodos estáticos de fábrica
@@ -96,6 +102,7 @@ export class UserAccount extends AggregateRoot {
     keycloakId?: UserAccountKeycloakId | null;
     avatarUrl?: UserAccountAvatarUrl;
     greetingMessage?: UserAccountGreetingMessage;
+    cannedReplies?: UserAccountCannedReplies;
   }): UserAccount {
     const now = new Date();
     const user = new UserAccount(
@@ -112,6 +119,7 @@ export class UserAccount extends AggregateRoot {
       params.keycloakId ?? null,
       params.avatarUrl ?? new UserAccountAvatarUrl(null),
       params.greetingMessage ?? new UserAccountGreetingMessage(null),
+      params.cannedReplies ?? UserAccountCannedReplies.empty(),
     );
     // Aplica el evento de dominio al crear el usuario
     user.apply(
@@ -136,6 +144,7 @@ export class UserAccount extends AggregateRoot {
     keycloakId?: string | null;
     avatarUrl?: string | null;
     greetingMessage?: string | null;
+    cannedReplies?: CannedReplyPrimitives[];
   }): UserAccount {
     const newUser = new UserAccount(
       UserAccountId.create(params.id),
@@ -153,6 +162,7 @@ export class UserAccount extends AggregateRoot {
         : null,
       new UserAccountAvatarUrl(params.avatarUrl ?? null),
       UserAccountGreetingMessage.fromInput(params.greetingMessage),
+      UserAccountCannedReplies.fromInput(params.cannedReplies ?? []),
     );
 
     return newUser;
@@ -217,6 +227,10 @@ export class UserAccount extends AggregateRoot {
     return this._greetingMessage.getValue();
   }
 
+  get cannedReplies(): CannedReplyPrimitives[] {
+    return this._cannedReplies.getValue();
+  }
+
   // Métodos públicos
   public equals(userAccount: UserAccount): boolean {
     return (
@@ -254,6 +268,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 
@@ -273,6 +288,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
     this.apply(new UserPasswordUpdatedEvent(this._id.value));
     return updatedUser;
@@ -293,6 +309,7 @@ export class UserAccount extends AggregateRoot {
       keycloakId: this._keycloakId?.value ?? null,
       avatarUrl: this._avatarUrl.getValue(),
       greetingMessage: this._greetingMessage.getValue(),
+      cannedReplies: this._cannedReplies.getValue(),
     };
   }
 
@@ -312,6 +329,7 @@ export class UserAccount extends AggregateRoot {
       keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 
@@ -332,6 +350,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       new UserAccountAvatarUrl(newAvatarUrl),
       this._greetingMessage,
+      this._cannedReplies,
     );
 
     // Aplica el evento de dominio
@@ -362,6 +381,26 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       UserAccountGreetingMessage.fromInput(message),
+      this._cannedReplies,
+    );
+  }
+
+  public updateCannedReplies(items: CannedReplyPrimitives[]): UserAccount {
+    return new UserAccount(
+      this._id,
+      this._email,
+      this._name,
+      this._password,
+      this._createdAt,
+      UserAccountUpdatedAt.create(new Date()),
+      this._lastLoginAt,
+      this._roles,
+      this._companyId,
+      this._isActive,
+      this._keycloakId,
+      this._avatarUrl,
+      this._greetingMessage,
+      UserAccountCannedReplies.fromInput(items),
     );
   }
 
@@ -385,6 +424,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 
@@ -405,6 +445,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
 
     // Aplica el evento de dominio
@@ -435,6 +476,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 
@@ -456,6 +498,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 
@@ -477,6 +520,7 @@ export class UserAccount extends AggregateRoot {
       this._keycloakId,
       this._avatarUrl,
       this._greetingMessage,
+      this._cannedReplies,
     );
   }
 }

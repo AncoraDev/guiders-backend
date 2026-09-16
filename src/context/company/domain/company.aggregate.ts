@@ -5,6 +5,8 @@ import { CompanySites } from './value-objects/company-sites';
 import { CompanyCreatedEvent } from './events/company-created.event';
 import { Uuid } from '../../shared/domain/value-objects/uuid';
 import { SitePrimitives } from './entities/site';
+import { CompanyCannedReplies } from './value-objects/company-canned-replies';
+import { CannedReplyPrimitives } from '../../shared/domain/canned-reply';
 
 // Entidad principal del contexto Company
 export class Company extends AggregateRoot {
@@ -14,6 +16,7 @@ export class Company extends AggregateRoot {
   private readonly sites: CompanySites;
   private readonly createdAt: Date;
   private readonly updatedAt: Date;
+  private readonly cannedReplies: CompanyCannedReplies;
 
   // Constructor privado para forzar el uso de los métodos de fábrica
   private constructor(props: {
@@ -22,6 +25,7 @@ export class Company extends AggregateRoot {
     sites: CompanySites;
     createdAt: Date;
     updatedAt: Date;
+    cannedReplies?: CompanyCannedReplies;
   }) {
     super();
     this.id = props.id;
@@ -29,6 +33,7 @@ export class Company extends AggregateRoot {
     this.sites = props.sites;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+    this.cannedReplies = props.cannedReplies ?? CompanyCannedReplies.empty();
   }
 
   // Método de fábrica para crear una nueva empresa (desde value objects)
@@ -60,6 +65,7 @@ export class Company extends AggregateRoot {
     sites: SitePrimitives[];
     createdAt: string;
     updatedAt: string;
+    cannedReplies?: CannedReplyPrimitives[];
   }): Company {
     return new Company({
       id: new Uuid(primitives.id),
@@ -67,6 +73,9 @@ export class Company extends AggregateRoot {
       sites: CompanySites.fromPrimitives(primitives.sites),
       createdAt: new Date(primitives.createdAt),
       updatedAt: new Date(primitives.updatedAt),
+      cannedReplies: CompanyCannedReplies.fromInput(
+        primitives.cannedReplies ?? [],
+      ),
     });
   }
 
@@ -77,6 +86,7 @@ export class Company extends AggregateRoot {
     sites: SitePrimitives[];
     createdAt: string;
     updatedAt: string;
+    cannedReplies: CannedReplyPrimitives[];
   } {
     return {
       id: this.id.getValue(),
@@ -84,6 +94,7 @@ export class Company extends AggregateRoot {
       sites: this.sites.toPrimitives(),
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
+      cannedReplies: this.cannedReplies.getValue(),
     };
   }
 
@@ -104,6 +115,10 @@ export class Company extends AggregateRoot {
     return this.updatedAt;
   }
 
+  public getCannedReplies(): CannedReplyPrimitives[] {
+    return this.cannedReplies.getValue();
+  }
+
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
     return new Company({
       id: this.id,
@@ -111,6 +126,18 @@ export class Company extends AggregateRoot {
       sites,
       createdAt: this.createdAt,
       updatedAt: new Date(),
+      cannedReplies: this.cannedReplies,
+    });
+  }
+
+  public updateCannedReplies(items: CannedReplyPrimitives[]): Company {
+    return new Company({
+      id: this.id,
+      companyName: this.companyName,
+      sites: this.sites,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+      cannedReplies: CompanyCannedReplies.fromInput(items),
     });
   }
 }

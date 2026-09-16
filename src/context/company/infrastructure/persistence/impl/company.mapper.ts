@@ -55,6 +55,7 @@ export class CompanyMapper {
       sites: sites,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
+      cannedReplies: entity.cannedReplies ?? [],
     });
   }
 
@@ -73,6 +74,7 @@ export class CompanyMapper {
 
     entity.createdAt = new Date(primitives.createdAt);
     entity.updatedAt = new Date(primitives.updatedAt);
+    entity.cannedReplies = primitives.cannedReplies ?? [];
     return entity;
   }
 }

@@ -53,4 +53,7 @@ export class UserAccountEntity {
 
   @Column({ type: 'text', nullable: true })
   greetingMessage: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  cannedReplies: { id: string; title: string; body: string }[];
 }

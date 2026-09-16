@@ -29,4 +29,11 @@ export class CompanyTypeOrmEntity {
     default: () => 'CURRENT_TIMESTAMP',
   })
   updatedAt: Date;
+
+  @Column({
+    name: 'canned_replies',
+    type: 'jsonb',
+    default: () => "'[]'",
+  })
+  cannedReplies: { id: string; title: string; body: string }[];
 }

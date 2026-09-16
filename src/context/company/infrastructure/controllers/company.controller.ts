@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UseGuards,
   Req,
+  Put,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -41,6 +42,10 @@ import {
 } from '../../../shared/infrastructure/swagger';
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import { GetCompanyCannedRepliesQuery } from '../../application/queries/get-company-canned-replies.query';
+import { UpdateCompanyCannedRepliesCommand } from '../../application/commands/update-company-canned-replies.command';
+import { UpdateCompanyCannedRepliesDto } from '../../application/dtos/update-company-canned-replies.dto';
+import { CannedReplyPrimitives } from '../../../shared/domain/canned-reply';
 
 @ApiTags('companies')
 @ApiAuthErrors()
@@ -227,5 +232,73 @@ export class CompanyController {
       },
       host,
     );
+  }
+
+  @Get('me/company/canned-replies')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin', 'commercial', 'supervisor'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Frases rápidas del equipo',
+    description: 'Lista las frases compartidas de la empresa del usuario.',
+  })
+  @ApiResponse({ status: 200, description: 'Frases del equipo' })
+  async getMyCompanyCannedReplies(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ cannedReplies: CannedReplyPrimitives[] }> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const replies = await this.queryBus.execute<
+      GetCompanyCannedRepliesQuery,
+      CannedReplyPrimitives[] | null
+    >(new GetCompanyCannedRepliesQuery(companyId));
+
+    if (replies === null) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    return { cannedReplies: replies };
+  }
+
+  @Put('me/company/canned-replies')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Actualizar frases rápidas del equipo',
+    description: 'Solo el admin puede sustituir las frases compartidas.',
+  })
+  @ApiResponse({ status: 200, description: 'Frases del equipo actualizadas' })
+  @ApiValidationError('Frases no válidas')
+  async updateMyCompanyCannedReplies(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCompanyCannedRepliesDto,
+  ): Promise<{ cannedReplies: CannedReplyPrimitives[] }> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const result = await this.commandBus.execute<
+      UpdateCompanyCannedRepliesCommand,
+      Result<CannedReplyPrimitives[], DomainError>
+    >(new UpdateCompanyCannedRepliesCommand(companyId, body.items ?? []));
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrada')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return { cannedReplies: result.unwrap() };
   }
 }
