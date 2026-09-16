@@ -30,7 +30,7 @@ export class MessageResponseDto {
 
   @ApiProperty({
     description: 'Tipo de mensaje',
-    enum: ['text', 'image', 'file', 'system', 'ai'],
+    enum: ['text', 'image', 'file', 'system', 'ai', 'interactive'],
     example: 'text',
   })
   type: string;
@@ -50,6 +50,15 @@ export class MessageResponseDto {
     fromUserId?: string;
     toUserId?: string;
     reason?: string;
+    requestId?: string;
+    status?: 'pending' | 'submitted' | 'confirmed';
+    data?: {
+      nombre?: string;
+      apellidos?: string;
+      email?: string;
+      telefono?: string;
+      poblacion?: string;
+    };
   };
 
   @ApiProperty({

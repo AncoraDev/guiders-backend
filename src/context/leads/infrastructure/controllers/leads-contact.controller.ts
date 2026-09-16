@@ -102,6 +102,7 @@ export class LeadsContactController {
         dni: dto.dni,
         poblacion: dto.poblacion,
         additionalData: dto.additionalData,
+        extractedFromChatId: dto.extractedFromChatId,
       }),
     );
 

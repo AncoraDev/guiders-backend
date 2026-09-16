@@ -217,7 +217,7 @@ describe('ValidateDomainApiKeyAdapter', () => {
       const normalizedDomain = (adapter as any).normalizeDomain(
         '127.0.0.1:8083',
       );
-      expect(normalizedDomain).toBe('127.0.0.1');
+      expect(normalizedDomain).toBe('localhost');
     });
 
     it('debe manejar correctamente dominios con www. en el medio', () => {

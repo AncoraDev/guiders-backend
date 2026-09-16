@@ -11,6 +11,7 @@ export enum MessageTypeEnum {
   TRANSFER = 'TRANSFER', // Notificación de transferencia
   ASSIGNMENT = 'ASSIGNMENT', // Notificación de asignación
   AI = 'AI', // Mensajes generados por IA
+  INTERACTIVE = 'INTERACTIVE', // Formularios / acciones en el hilo
 }
 
 /**
@@ -25,6 +26,7 @@ export class MessageType extends PrimitiveValueObject<string> {
   static readonly TRANSFER = new MessageType(MessageTypeEnum.TRANSFER);
   static readonly ASSIGNMENT = new MessageType(MessageTypeEnum.ASSIGNMENT);
   static readonly AI = new MessageType(MessageTypeEnum.AI);
+  static readonly INTERACTIVE = new MessageType(MessageTypeEnum.INTERACTIVE);
 
   constructor(value: string) {
     super(
@@ -101,7 +103,8 @@ export class MessageType extends PrimitiveValueObject<string> {
       this.value === MessageTypeEnum.SYSTEM.toString() ||
       this.value === MessageTypeEnum.TRANSFER.toString() ||
       this.value === MessageTypeEnum.ASSIGNMENT.toString() ||
-      this.value === MessageTypeEnum.AI.toString()
+      this.value === MessageTypeEnum.AI.toString() ||
+      this.value === MessageTypeEnum.INTERACTIVE.toString()
     );
   }
 

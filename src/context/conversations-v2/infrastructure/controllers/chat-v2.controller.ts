@@ -66,6 +66,10 @@ import { AssignChatToCommercialCommand } from '../../application/commands/assign
 import { TransferChatToCommercialCommand } from '../../application/commands/transfer-chat-to-commercial.command';
 import { RequestAgentCommand } from '../../application/commands/request-agent.command';
 import { RequestAgentDto } from '../../application/dtos/request-agent.dto';
+import { RequestContactDataCommand } from '../../application/commands/request-contact-data.command';
+import { SubmitContactDataCommand } from '../../application/commands/submit-contact-data.command';
+import { SubmitContactDataDto } from '../../application/dtos/submit-contact-data.dto';
+import { MessageResponseDto } from '../../application/dtos/message-response.dto';
 import { OpenChatViewCommand } from '../../application/commands/open-chat-view.command';
 import { CloseChatViewCommand } from '../../application/commands/close-chat-view.command';
 import { ResetChatUnreadCountCommand } from '../../application/commands/reset-chat-unread-count.command';
@@ -1310,6 +1314,42 @@ export class ChatV2Controller {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Post(':chatId/contact-request')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiOperation({
+    summary: 'Solicitar datos de contacto al visitante',
+  })
+  @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiResponse({ status: 201, type: MessageResponseDto })
+  async requestContactData(
+    @Param('chatId') chatId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MessageResponseDto> {
+    return this.commandBus.execute(
+      new RequestContactDataCommand(chatId, req.user.id),
+    );
+  }
+
+  @Post(':chatId/contact-submit')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['visitor'])
+  @ApiOperation({
+    summary: 'Enviar datos de contacto solicitados',
+  })
+  @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiBody({ type: SubmitContactDataDto })
+  @ApiResponse({ status: 201, type: MessageResponseDto })
+  async submitContactData(
+    @Param('chatId') chatId: string,
+    @Body() body: SubmitContactDataDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MessageResponseDto> {
+    return this.commandBus.execute(
+      new SubmitContactDataCommand(chatId, req.user.id, body),
+    );
   }
 
   /**

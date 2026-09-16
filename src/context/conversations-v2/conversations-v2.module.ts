@@ -11,6 +11,7 @@ import { CommercialModule } from '../commercial/commercial.module';
 import { WebSocketModule } from 'src/websocket/websocket.module';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { AuthUserModule } from '../auth/auth-user/infrastructure/auth-user.module';
+import { LeadsModule } from '../leads/leads.module';
 
 // Controllers
 import { ChatV2Controller } from './infrastructure/controllers/chat-v2.controller';
@@ -62,6 +63,8 @@ import { ResetChatUnreadCountCommandHandler } from './application/commands/reset
 import { StartTypingCommandHandler } from './application/commands/start-typing.command-handler';
 import { StopTypingCommandHandler } from './application/commands/stop-typing.command-handler';
 import { RequestAgentCommandHandler } from './application/commands/request-agent.command-handler';
+import { RequestContactDataCommandHandler } from './application/commands/request-contact-data.command-handler';
+import { SubmitContactDataCommandHandler } from './application/commands/submit-contact-data.command-handler';
 import { OpenChatViewCommandHandler } from './application/commands/open-chat-view.command-handler';
 import { CloseChatViewCommandHandler } from './application/commands/close-chat-view.command-handler';
 
@@ -106,6 +109,7 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     forwardRef(() => VisitorsV2Module), // Para acceso al VisitorV2Repository
     CommercialModule, // Para acceso al Commercial heartbeat service
     AuthUserModule, // Para acceso a UserAccount queries
+    forwardRef(() => LeadsModule), // Datos de contacto ya guardados
     MongooseModule.forFeature([
       { name: ChatSchema.name, schema: ChatSchemaDefinition },
       { name: MessageSchema.name, schema: MessageSchemaDefinition },
@@ -178,6 +182,8 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     StartTypingCommandHandler,
     StopTypingCommandHandler,
     RequestAgentCommandHandler,
+    RequestContactDataCommandHandler,
+    SubmitContactDataCommandHandler,
     OpenChatViewCommandHandler,
     CloseChatViewCommandHandler,
     // CloseChatCommandHandler,

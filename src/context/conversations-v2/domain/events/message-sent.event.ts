@@ -25,6 +25,15 @@ export interface MessageSentData {
     fromUserId?: string;
     toUserId?: string;
     reason?: string;
+    requestId?: string;
+    status?: 'pending' | 'submitted' | 'confirmed';
+    data?: {
+      nombre?: string;
+      apellidos?: string;
+      email?: string;
+      telefono?: string;
+      poblacion?: string;
+    };
   };
   attachment?: {
     url: string;

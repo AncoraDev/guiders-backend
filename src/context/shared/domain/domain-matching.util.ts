@@ -13,14 +13,15 @@
 export function normalizeDomainForMatching(domain: string): string {
   const withoutWww = domain.trim().replace(/^www\./i, '').toLowerCase();
   const lastColon = withoutWww.lastIndexOf(':');
-  if (lastColon === -1) {
-    return withoutWww;
+  let host = withoutWww;
+  if (lastColon !== -1) {
+    const maybePort = withoutWww.slice(lastColon + 1);
+    if (/^\d+$/.test(maybePort)) {
+      host = withoutWww.slice(0, lastColon);
+    }
   }
-  const maybePort = withoutWww.slice(lastColon + 1);
-  if (/^\d+$/.test(maybePort)) {
-    return withoutWww.slice(0, lastColon);
-  }
-  return withoutWww;
+  // En local, 127.0.0.1 y localhost son el mismo sitio (demo PHP :8083).
+  return host === '127.0.0.1' ? 'localhost' : host;
 }
 
 /**
@@ -37,5 +38,9 @@ export function domainLookupCandidates(domain: string): string[] {
   const trimmed = domain.trim();
   const withoutWww = trimmed.replace(/^www\./i, '');
   const hostOnly = normalizeDomainForMatching(trimmed);
-  return [...new Set([trimmed, withoutWww, hostOnly].filter(Boolean))];
+  const candidates = [trimmed, withoutWww, hostOnly];
+  if (hostOnly === 'localhost') {
+    candidates.push('localhost', '127.0.0.1');
+  }
+  return [...new Set(candidates.filter(Boolean))];
 }

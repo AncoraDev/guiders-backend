@@ -8,11 +8,22 @@ import { MessageSentEvent } from '../events/message-sent.event';
 /**
  * Datos del sistema para mensajes especiales
  */
+export interface ContactRequestPayload {
+  nombre?: string;
+  apellidos?: string;
+  email?: string;
+  telefono?: string;
+  poblacion?: string;
+}
+
 export interface SystemData {
-  action?: string; // 'assigned', 'transferred', 'joined', 'left'
+  action?: string; // 'assigned', 'transferred', 'joined', 'left', 'contact_request', 'contact_submission'
   fromUserId?: string;
   toUserId?: string;
   reason?: string;
+  requestId?: string;
+  status?: 'pending' | 'submitted' | 'confirmed';
+  data?: ContactRequestPayload;
 }
 
 /**
@@ -308,6 +319,31 @@ export class Message extends AggregateRoot {
       isFirstResponse: false,
       isAI: true,
       aiMetadata: params.aiMetadata,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  /**
+   * Crea un mensaje interactivo visible para visitante y comercial.
+   */
+  public static createInteractiveMessage(params: {
+    chatId: string;
+    content: string;
+    systemData: SystemData;
+    senderId?: string;
+  }): Message {
+    const now = new Date();
+
+    return Message.create({
+      id: MessageId.generate(),
+      chatId: ChatId.create(params.chatId),
+      senderId: params.senderId ?? 'system',
+      content: new MessageContent(params.content),
+      type: MessageType.INTERACTIVE,
+      systemData: params.systemData,
+      isInternal: false,
+      isFirstResponse: false,
       createdAt: now,
       updatedAt: now,
     });

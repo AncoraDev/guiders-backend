@@ -72,8 +72,8 @@ export class MessageMapper {
       };
     }
 
-    // Para mensajes del sistema
-    if (message.type.isSystem() && messagePrimitives.systemData) {
+    // Para mensajes del sistema / interactivos
+    if (messagePrimitives.systemData) {
       schema.systemInfo = {
         action: messagePrimitives.systemData.action || 'unknown',
         previousValue: undefined,
@@ -111,13 +111,7 @@ export class MessageMapper {
       senderId: schema.senderId,
       content: schema.content.text,
       type: schema.type,
-      systemData: schema.systemInfo
-        ? {
-            action: schema.systemInfo.action,
-            fromUserId: schema.systemInfo.triggeredBy,
-            reason: schema.systemInfo.automationRule,
-          }
-        : undefined,
+      systemData: this.mapSystemData(schema),
       attachment: schema.fileInfo
         ? {
             url: schema.fileInfo.url,
@@ -196,6 +190,35 @@ export class MessageMapper {
     schema.deletedAt = deletedAt;
     schema.updatedAt = new Date();
     return schema;
+  }
+
+  private mapSystemData(schema: MessageSchema) {
+    const metadata = schema.content?.metadata;
+    if (metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0) {
+      return metadata as {
+        action?: string;
+        fromUserId?: string;
+        toUserId?: string;
+        reason?: string;
+        requestId?: string;
+        status?: 'pending' | 'submitted' | 'confirmed';
+        data?: {
+          nombre?: string;
+          apellidos?: string;
+          email?: string;
+          telefono?: string;
+          poblacion?: string;
+        };
+      };
+    }
+    if (!schema.systemInfo) {
+      return undefined;
+    }
+    return {
+      action: schema.systemInfo.action,
+      fromUserId: schema.systemInfo.triggeredBy,
+      reason: schema.systemInfo.automationRule,
+    };
   }
 
   /**

@@ -21,7 +21,8 @@ npm run serve
 | Perfil | Usuario | Password |
 |--------|---------|----------|
 | Admin (Demo Company) | `admin@rmotion.com` | `Admin123!` |
-| Comercial (Demo Company) | `comercial@rmotion.com` | `Comercial123!` |
+| Comercial 1 (Demo Company) | `comercial1@rmotion.com` | `Comercial123!` |
+| Comercial 2 (Demo Company) | `comercial2@rmotion.com` | `Comercial123!` |
 
 ### Admin
 
@@ -54,17 +55,19 @@ npm run docker:up
 |--------|---------|----------|
 | Admin (realm master) | `admin` | `admin123` |
 
-### WordPress (visitante)
+### Visitante (SDK)
 
-http://localhost:8090
+http://127.0.0.1:8083
 
-Sin login. Es la web del cliente con el widget.
+Sin login. Web de prueba con el widget (`guiders-sdk`).
 
 ```bash
 cd guiders-sdk
 npm install              # primera vez
-npm start                # WordPress + webpack del SDK
+npm run demo             # php :8083
 ```
+
+WordPress (plugin) es opcional: `npm start` → http://localhost:8090
 
 ### API
 
