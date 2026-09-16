@@ -35,7 +35,7 @@
     "docs:watch": "node scripts/watch-api-docs.js",
     "docs:validate": "node scripts/validate-api-docs.js",
     "docs:agents:validate": "node scripts/validate-agents.js",
-    "docs:agents:open": "open AGENTS-VALIDATION-REPORT.html",
+    "docs:agents:open": "open .tmp/AGENTS-VALIDATION-REPORT.html",
     "openapi:generate": "ts-node -r tsconfig-paths/register scripts/generate-openapi.ts",
     "openapi:lint": "redocly lint docs/api/openapi.yaml",
     "openapi:bundle": "redocly bundle docs/api/openapi.yaml -o docs/api/openapi.bundled.yaml",

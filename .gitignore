@@ -28,12 +28,8 @@ lerna-debug.log*
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# IDE - VSCode / Cursor
+.vscode/
 
 # dotenv environment variable files
 .env
@@ -61,6 +57,12 @@ data
 
 #coverage test
 coverage
+
+# Local generated / debug
+.playwright-mcp
+/mongodb-binaries
+.tmp
+AGENTS-VALIDATION-REPORT.html
 
 # .env.e2e se commitea intencionalmente — credenciales públicas para entorno efímero de CI
 # NO añadir .env.e2e a este archivo

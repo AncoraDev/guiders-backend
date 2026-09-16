@@ -27,6 +27,8 @@ Cada bounded context tiene además su propio `src/context/<ctx>/AGENTS.md`.
 
 También: [`api/`](./api/), [`diagrams/`](./diagrams/), [`automation/`](./automation/).
 
+Diagrama de clases del contexto tiempo real: [`diagrams/realtime-context-class-diagram.mmd`](./diagrams/realtime-context-class-diagram.mmd).
+
 ---
 
 ## Consentimiento / GDPR

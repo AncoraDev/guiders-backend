@@ -20,7 +20,8 @@ npm run serve
 
 | Perfil | Usuario | Password |
 |--------|---------|----------|
-| Comercial (Demo Company) | `isa@rmotion.com` | `Admin123!` |
+| Admin (Demo Company) | `admin@rmotion.com` | `Admin123!` |
+| Comercial (Demo Company) | `comercial@rmotion.com` | `Comercial123!` |
 
 ### Admin
 

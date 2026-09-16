@@ -314,7 +314,11 @@ class AgentsValidator {
 </html>
     `.trim();
 
-    const reportPath = path.join(PROJECT_ROOT, 'AGENTS-VALIDATION-REPORT.html');
+    const tmpDir = path.join(PROJECT_ROOT, '.tmp');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir);
+    }
+    const reportPath = path.join(tmpDir, 'AGENTS-VALIDATION-REPORT.html');
     fs.writeFileSync(reportPath, html);
     console.log(`\n📄 Reporte generado en: ${reportPath}`);
   }
