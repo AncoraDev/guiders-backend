@@ -92,6 +92,13 @@ export class NotifyCommercialAssignedOnCommercialAssignedEventHandler
         payload,
       );
 
+      // Visitante: aunque no haya hecho join a chat:{id} (PENDING silencioso).
+      this.websocketGateway.emitToRoom(
+        `visitor:${visitorId}`,
+        'chat:commercial-assigned',
+        payload,
+      );
+
       // Destinatario: sala personal (aunque no haya abierto el chat aún)
       this.websocketGateway.emitToRoom(
         `commercial:${commercialId}`,
@@ -113,7 +120,7 @@ export class NotifyCommercialAssignedOnCommercialAssignedEventHandler
       }
 
       this.logger.log(
-        `Notificación enviada a chat:${chatId} y commercial:${commercialId}`,
+        `Notificación enviada a chat:${chatId}, visitor:${visitorId} y commercial:${commercialId}`,
       );
     } catch (error) {
       const errorObj = error as Error;
