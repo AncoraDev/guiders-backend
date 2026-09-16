@@ -122,9 +122,9 @@ export class KeycloakAdminService {
   }
 
   /**
-   * Crea usuario en Keycloak con contraseña temporal.
-   * No envía email: el operador entrega las credenciales y Keycloak
-   * exige UPDATE_PASSWORD en el primer login.
+   * Crea usuario en Keycloak con contraseña definitiva.
+   * El operador entrega las credenciales; el usuario entra con ellas
+   * sin que Keycloak pida cambiar la contraseña.
    */
   async createUser(params: {
     email: string;
@@ -157,7 +157,7 @@ export class KeycloakAdminService {
           lastName,
           enabled: params.enabled ?? true,
           emailVerified: true,
-          requiredActions: ['UPDATE_PASSWORD'],
+          requiredActions: [],
           ...(attributes ? { attributes } : {}),
         }),
       });
@@ -180,7 +180,7 @@ export class KeycloakAdminService {
         );
       }
 
-      const pwd = await this.setTemporaryPassword(
+      const pwd = await this.setPermanentPassword(
         keycloakId,
         params.temporaryPassword,
         token,
@@ -247,10 +247,14 @@ export class KeycloakAdminService {
   async setPermanentPassword(
     keycloakId: string,
     password: string,
+    existingToken?: string,
   ): Promise<Result<void, DomainError>> {
-    const tokenResult = await this.getAdminToken();
-    if (tokenResult.isErr()) return err(tokenResult.error);
-    const token = tokenResult.unwrap();
+    let token = existingToken;
+    if (!token) {
+      const tokenResult = await this.getAdminToken();
+      if (tokenResult.isErr()) return err(tokenResult.error);
+      token = tokenResult.unwrap();
+    }
 
     try {
       const res = await fetch(

@@ -116,7 +116,7 @@ export class CreateCompanyWithAdminCommandHandler
 
     const companyIdValue = companyId.getValue();
 
-    // Admin del cliente: Keycloak + password temporal (sin email)
+    // Admin del cliente: Keycloak + password definitiva (sin email)
     const adminResult = await this.commandBus.execute<
       CreateCompanyUserCommand,
       Result<{ userId: string }, DomainError>
