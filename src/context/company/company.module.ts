@@ -10,6 +10,7 @@ import { CompanySiteTypeOrmEntity } from './infrastructure/persistence/typeorm/c
 import { companyRepositoryProvider } from './infrastructure/persistence/impl/company.repository.impl';
 import { CreateCompanyCommandHandler } from './application/commands/create-company-command.handler';
 import { CreateCompanyWithAdminCommandHandler } from './application/commands/create-company-with-admin-command.handler';
+import { UpdateCompanyCommandHandler } from './application/commands/update-company-command.handler';
 import { FindCompanyByDomainQueryHandler } from './application/queries/find-company-by-domain.query-handler';
 import { ResolveSiteByHostQueryHandler } from './application/queries/resolve-site-by-host.query-handler';
 import { GetCompanySitesQueryHandler } from './application/queries/get-company-sites.query-handler';
@@ -39,6 +40,7 @@ import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
     companyRepositoryProvider,
     CreateCompanyCommandHandler,
     CreateCompanyWithAdminCommandHandler,
+    UpdateCompanyCommandHandler,
     FindCompanyByDomainQueryHandler,
     ResolveSiteByHostQueryHandler,
     GetCompanySitesQueryHandler,

@@ -2,9 +2,11 @@
 
 Índice único de la documentación del repositorio. En la raíz solo quedan:
 
-- [`README.md`](../README.md) — producto e instalación
+- [`README.md`](../README.md) — arranque local (resumen)
 - [`AGENTS.md`](../AGENTS.md) — instrucciones generales para agentes
 - [`CLAUDE.md`](../CLAUDE.md) — arquitectura y reglas de desarrollo
+
+Descripción larga del producto: [`producto.md`](./producto.md).
 
 Cada bounded context tiene además su propio `src/context/<ctx>/AGENTS.md`.
 

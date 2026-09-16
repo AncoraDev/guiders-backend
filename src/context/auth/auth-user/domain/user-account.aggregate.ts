@@ -332,6 +332,23 @@ export class UserAccount extends AggregateRoot {
     return this._keycloakId !== null;
   }
 
+  public updateEmail(newEmail: string): UserAccount {
+    return new UserAccount(
+      this._id,
+      UserAccountEmail.create(newEmail),
+      this._name,
+      this._password,
+      this._createdAt,
+      this._updatedAt,
+      this._lastLoginAt,
+      this._roles,
+      this._companyId,
+      this._isActive,
+      this._keycloakId,
+      this._avatarUrl,
+    );
+  }
+
   // Método para actualizar el nombre del usuario
   public updateName(newName: string): UserAccount {
     const previousName = this._name.getValue();

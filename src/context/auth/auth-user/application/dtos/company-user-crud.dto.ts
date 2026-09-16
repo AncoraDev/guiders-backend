@@ -14,9 +14,10 @@ export class CreateCompanyUserRequestDto {
   @IsString({ message: 'El nombre debe ser una cadena de texto' })
   firstName: string;
 
-  @ApiProperty({ example: 'García López' })
+  @ApiPropertyOptional({ example: 'García López' })
+  @IsOptional()
   @IsString({ message: 'Los apellidos deben ser una cadena de texto' })
-  lastName: string;
+  lastName?: string;
 
   @ApiProperty({ example: 'ana@empresa.com' })
   @IsEmail({}, { message: 'El email no es válido' })
@@ -53,6 +54,11 @@ export class UpdateCompanyUserRequestDto {
   @IsString({ message: 'El nombre debe ser una cadena de texto' })
   name?: string;
 
+  @ApiPropertyOptional({ example: 'ana@empresa.com' })
+  @IsOptional()
+  @IsEmail({}, { message: 'El email no es válido' })
+  email?: string;
+
   @ApiPropertyOptional({
     example: ['admin', 'commercial'],
     type: [String],
@@ -62,6 +68,16 @@ export class UpdateCompanyUserRequestDto {
   @ArrayMinSize(1, { message: 'Debes asignar al menos un rol' })
   @IsString({ each: true, message: 'Cada rol debe ser una cadena de texto' })
   roles?: string[];
+
+  @ApiPropertyOptional({
+    example: 'Admin123!',
+    description:
+      'Contraseña definitiva (mín. 6). El usuario entra con ella; no se pide cambio en el login.',
+  })
+  @IsOptional()
+  @IsString({ message: 'La contraseña debe ser una cadena de texto' })
+  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
+  password?: string;
 }
 
 export class SetCompanyUserActiveRequestDto {

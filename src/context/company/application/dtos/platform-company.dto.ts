@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import { SiteDto } from './create-company.dto';
 import { CompanySiteDto } from './get-company-sites-response.dto';
 
 /** Resumen de company para listado platform */
@@ -83,6 +85,23 @@ export class PlatformCreateCompanyResponseDto {
 
   @ApiProperty()
   adminUserId!: string;
+}
+
+/** Body para actualizar company (nombre y sitios) */
+export class UpdateCompanyDto {
+  @ApiProperty({ description: 'Nombre de la empresa' })
+  @IsString({ message: 'El nombre de la empresa es obligatorio' })
+  @IsNotEmpty({ message: 'El nombre de la empresa es obligatorio' })
+  companyName!: string;
+
+  @ApiProperty({
+    description: 'Sitios web de la empresa',
+    type: [SiteDto],
+  })
+  @IsArray({ message: 'Se debe proporcionar al menos un sitio' })
+  @ValidateNested({ each: true })
+  @Type(() => SiteDto)
+  sites!: SiteDto[];
 }
 
 /** Body para crear API key widget en una company */

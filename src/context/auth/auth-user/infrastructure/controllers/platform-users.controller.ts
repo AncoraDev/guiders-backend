@@ -53,6 +53,7 @@ import { FindOneUserByIdQuery } from '../../application/read/find-one-user-by-id
 import {
   CannotModifySelfError,
   CompanyUserEmailExistsError,
+  CompanyUserKeycloakMissingError,
   CompanyUserNotFoundError,
   InvalidCompanyUserDataError,
   InvalidCompanyUserPasswordError,
@@ -105,12 +106,11 @@ export class PlatformUsersController {
     if (
       !body?.companyId ||
       !body?.firstName?.trim() ||
-      !body?.lastName?.trim() ||
       !body?.email?.trim() ||
       !body?.temporaryPassword
     ) {
       throw new HttpException(
-        'companyId, firstName, lastName, email y temporaryPassword son obligatorios',
+        'companyId, firstName, email y temporaryPassword son obligatorios',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -120,7 +120,7 @@ export class PlatformUsersController {
         new CreateCompanyUserCommand(
           body.companyId,
           body.firstName,
-          body.lastName,
+          body.lastName ?? '',
           body.email,
           body.roles ?? [],
           body.temporaryPassword,
@@ -137,7 +137,8 @@ export class PlatformUsersController {
   @Patch(':userId')
   @ApiOperation({
     summary: 'Actualizar usuario de cualquier company',
-    description: 'Actualiza nombre y/o roles (BD + Keycloak)',
+    description:
+      'Actualiza nombre, email, roles y/o contraseña definitiva (BD + Keycloak)',
   })
   @ApiParam({ name: 'userId', description: 'ID del usuario en Guiders' })
   @ApiBody({ type: UpdateCompanyUserRequestDto })
@@ -153,6 +154,8 @@ export class PlatformUsersController {
         userId,
         body?.name,
         body?.roles,
+        body?.email,
+        body?.password,
       ),
     );
 
@@ -246,6 +249,7 @@ export class PlatformUsersController {
       error instanceof InvalidCompanyUserRolesError ||
       error instanceof InvalidCompanyUserPasswordError ||
       error instanceof InvalidCompanyUserDataError ||
+      error instanceof CompanyUserKeycloakMissingError ||
       error instanceof CannotModifySelfError
     ) {
       return new HttpException(error.message, HttpStatus.BAD_REQUEST);

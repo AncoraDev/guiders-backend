@@ -21,9 +21,10 @@ export class CreatePlatformUserRequestDto {
   @IsString({ message: 'El nombre debe ser una cadena de texto' })
   firstName: string;
 
-  @ApiProperty({ example: 'García López' })
+  @ApiPropertyOptional({ example: 'García López' })
+  @IsOptional()
   @IsString({ message: 'Los apellidos deben ser una cadena de texto' })
-  lastName: string;
+  lastName?: string;
 
   @ApiProperty({ example: 'ana@empresa.com' })
   @IsEmail({}, { message: 'El email no es válido' })

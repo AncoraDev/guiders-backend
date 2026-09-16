@@ -13,3 +13,15 @@ export class AdminCredentialsRequiredError extends DomainError {
     super(message);
   }
 }
+
+export class InvalidCompanyDataError extends DomainError {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export class CompanyDomainTakenError extends DomainError {
+  constructor(domain: string) {
+    super(`El dominio ${domain} ya está en uso por otra company`);
+  }
+}

@@ -6,6 +6,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +29,7 @@ import {
 } from 'src/context/shared/infrastructure/swagger';
 import { CreateCompanyDto } from '../../application/dtos/create-company.dto';
 import { CreateCompanyWithAdminCommand } from '../../application/commands/create-company-with-admin.command';
+import { UpdateCompanyCommand } from '../../application/commands/update-company.command';
 import {
   CreateCompanyWithAdminResult,
 } from '../../application/commands/create-company-with-admin-command.handler';
@@ -38,6 +40,7 @@ import {
   PlatformCompanySummaryDto,
   PlatformCreateApiKeyDto,
   PlatformCreateCompanyResponseDto,
+  UpdateCompanyDto,
 } from '../../application/dtos/platform-company.dto';
 import { ApiKeyService } from 'src/context/auth/api-key/infrastructure/api-key.service';
 import { Result } from 'src/context/shared/domain/result';
@@ -46,7 +49,12 @@ import {
   CompanyUserEmailExistsError,
   InvalidCompanyUserRolesError,
 } from 'src/context/auth/auth-user/application/errors/company-user.errors';
-import { AdminEmailRequiredError } from '../../application/errors/company-platform.errors';
+import {
+  AdminEmailRequiredError,
+  CompanyDomainTakenError,
+  InvalidCompanyDataError,
+} from '../../application/errors/company-platform.errors';
+import { CompanyNotFoundError } from '../../domain/errors/company.error';
 
 /**
  * API platform para el equipo Guiders (superadmin).
@@ -148,6 +156,42 @@ export class PlatformCompaniesController {
     return { companyId: value.companyId, adminUserId: value.adminUserId };
   }
 
+  @Patch(':companyId')
+  @ApiOperation({
+    summary: 'Actualizar datos de un cliente',
+    description: 'Actualiza el nombre y los sitios / dominios de la company.',
+  })
+  @ApiParam({ name: 'companyId', description: 'UUID de la empresa' })
+  @ApiResponse({ status: 200, type: PlatformCompanyDetailDto })
+  @ApiNotFoundError('Empresa')
+  @ApiValidationError()
+  async updateCompany(
+    @Param('companyId') companyId: string,
+    @Body() dto: UpdateCompanyDto,
+  ): Promise<PlatformCompanyDetailDto> {
+    const result = await this.commandBus.execute<
+      UpdateCompanyCommand,
+      Result<void, DomainError>
+    >(
+      new UpdateCompanyCommand(
+        companyId,
+        dto.companyName,
+        (dto.sites ?? []).map((site) => ({
+          id: site.id,
+          name: site.name,
+          canonicalDomain: site.canonicalDomain,
+          domainAliases: site.domainAliases || [],
+        })),
+      ),
+    );
+
+    if (result.isErr()) {
+      throw this.mapUpdateError(result.error);
+    }
+
+    return this.getCompany(companyId);
+  }
+
   @Get(':companyId/api-keys')
   @ApiOperation({ summary: 'Listar API keys widget de una company' })
   @ApiParam({ name: 'companyId' })
@@ -192,6 +236,22 @@ export class PlatformCompaniesController {
     }
     return new HttpException(
       error.message || 'Error al crear la empresa',
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  private mapUpdateError(error: DomainError): HttpException {
+    if (error instanceof CompanyNotFoundError) {
+      return new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
+    if (error instanceof CompanyDomainTakenError) {
+      return new HttpException(error.message, HttpStatus.CONFLICT);
+    }
+    if (error instanceof InvalidCompanyDataError) {
+      return new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+    return new HttpException(
+      error.message || 'Error al actualizar la empresa',
       HttpStatus.BAD_REQUEST,
     );
   }

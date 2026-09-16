@@ -70,4 +70,29 @@ describe('Company', () => {
       expect(events[0]).toBeInstanceOf(CompanyCreatedEvent);
     });
   });
+
+  describe('updateDetails', () => {
+    it('debe actualizar nombre y sitios sin emitir evento de creación', () => {
+      const company = Company.fromPrimitives({
+        id: validId.getValue(),
+        companyName: validName.getValue(),
+        sites: validSites.toPrimitives(),
+        createdAt: validCreatedAt.toISOString(),
+        updatedAt: validUpdatedAt.toISOString(),
+      });
+
+      const nextName = new CompanyName('Empresa Actualizada');
+      const updated = company.updateDetails(nextName, validSites);
+
+      expect(updated.getCompanyName().getValue()).toBe('Empresa Actualizada');
+      expect(updated.getId().getValue()).toBe(validId.getValue());
+      expect(updated.getCreatedAt().toISOString()).toBe(
+        validCreatedAt.toISOString(),
+      );
+      expect(updated.getUpdatedAt().getTime()).toBeGreaterThanOrEqual(
+        validUpdatedAt.getTime(),
+      );
+      expect(updated.getUncommittedEvents()).toHaveLength(0);
+    });
+  });
 });

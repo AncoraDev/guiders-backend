@@ -46,11 +46,9 @@ export class CreateCompanyUserCommandHandler
     if (rolesError) return err(rolesError);
 
     const firstName = command.firstName.trim();
-    const lastName = command.lastName.trim();
-    if (!firstName || !lastName) {
-      return err(
-        new InvalidCompanyUserDataError('Nombre y apellidos son obligatorios'),
-      );
+    const lastName = command.lastName?.trim() ?? '';
+    if (!firstName) {
+      return err(new InvalidCompanyUserDataError('El nombre es obligatorio'));
     }
 
     const password = command.temporaryPassword?.trim() ?? '';

@@ -103,4 +103,14 @@ export class Company extends AggregateRoot {
   public getUpdatedAt(): Date {
     return this.updatedAt;
   }
+
+  public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
+    return new Company({
+      id: this.id,
+      companyName,
+      sites,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+    });
+  }
 }

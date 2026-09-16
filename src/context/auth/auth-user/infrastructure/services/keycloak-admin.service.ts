@@ -241,6 +241,79 @@ export class KeycloakAdminService {
     }
   }
 
+  /**
+   * Establece contraseña definitiva (el usuario entra con ella, sin UPDATE_PASSWORD).
+   */
+  async setPermanentPassword(
+    keycloakId: string,
+    password: string,
+  ): Promise<Result<void, DomainError>> {
+    const tokenResult = await this.getAdminToken();
+    if (tokenResult.isErr()) return err(tokenResult.error);
+    const token = tokenResult.unwrap();
+
+    try {
+      const res = await fetch(
+        `${this.adminBase}/users/${keycloakId}/reset-password`,
+        {
+          method: 'PUT',
+          headers: this.headers(token),
+          body: JSON.stringify({
+            type: 'password',
+            value: password,
+            temporary: false,
+          }),
+        },
+      );
+      if (!res.ok) {
+        return err(
+          new KeycloakAdminError(
+            `Error asignando contraseña: ${res.status} ${await res.text()}`,
+          ),
+        );
+      }
+
+      const getRes = await fetch(`${this.adminBase}/users/${keycloakId}`, {
+        headers: this.headers(token),
+      });
+      if (getRes.ok) {
+        const user = (await getRes.json()) as Record<string, unknown>;
+        const actions = Array.isArray(user.requiredActions)
+          ? (user.requiredActions as string[]).filter(
+              (action) => action !== 'UPDATE_PASSWORD',
+            )
+          : [];
+        const putRes = await fetch(`${this.adminBase}/users/${keycloakId}`, {
+          method: 'PUT',
+          headers: this.headers(token),
+          body: JSON.stringify({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            enabled: user.enabled,
+            emailVerified: user.emailVerified,
+            requiredActions: actions,
+            attributes: user.attributes,
+          }),
+        });
+        if (!putRes.ok) {
+          this.logger.warn(
+            `Contraseña fijada pero no se pudo quitar UPDATE_PASSWORD: ${putRes.status}`,
+          );
+        }
+      }
+
+      return ok(undefined);
+    } catch (e) {
+      this.logger.error('Error setPermanentPassword Keycloak', e);
+      return err(
+        new KeycloakAdminError('Error asignando contraseña en Keycloak'),
+      );
+    }
+  }
+
   /** Envía email de Keycloak para UPDATE_PASSWORD */
   async sendUpdatePasswordEmail(
     keycloakId: string,
@@ -335,10 +408,22 @@ export class KeycloakAdminService {
         );
       }
       const user = (await getRes.json()) as Record<string, unknown>;
-      const patch: Record<string, unknown> = { ...user };
+      // No reenviar el GET entero: userProfileMetadata/access y un
+      // username distinto provocan 400 (username es read-only en el realm).
+      const patch: Record<string, unknown> = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        enabled: user.enabled,
+        emailVerified: user.emailVerified,
+        requiredActions: user.requiredActions,
+        attributes: user.attributes,
+      };
       if (params.email) {
         patch.email = params.email;
-        patch.username = params.email;
+        patch.emailVerified = true;
       }
       if (params.name) {
         const parts = params.name.trim().split(/\s+/);

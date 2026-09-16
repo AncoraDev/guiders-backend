@@ -7,6 +7,7 @@ export const COMPANY_REPOSITORY = Symbol('CompanyRepository');
 // Define los métodos principales del repositorio de empresas
 export interface CompanyRepository {
   save(company: Company): Promise<Result<void, DomainError>>;
+  update(company: Company): Promise<Result<void, DomainError>>;
   findById(id: Uuid): Promise<Result<Company, DomainError>>;
   delete(id: Uuid): Promise<Result<void, DomainError>>;
   findAll(): Promise<Result<Company[], DomainError>>;

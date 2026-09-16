@@ -92,6 +92,7 @@ import { DomainError } from 'src/context/shared/domain/domain.error';
 import {
   CannotModifySelfError,
   CompanyUserEmailExistsError,
+  CompanyUserKeycloakMissingError,
   CompanyUserNotFoundError,
   InvalidCompanyUserDataError,
   InvalidCompanyUserPasswordError,
@@ -433,12 +434,11 @@ export class AuthUserController {
     }
     if (
       !body?.firstName?.trim() ||
-      !body?.lastName?.trim() ||
       !body?.email?.trim() ||
       !body?.temporaryPassword
     ) {
       throw new HttpException(
-        'firstName, lastName, email y temporaryPassword son obligatorios',
+        'firstName, email y temporaryPassword son obligatorios',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -448,7 +448,7 @@ export class AuthUserController {
         new CreateCompanyUserCommand(
           companyId,
           body.firstName,
-          body.lastName,
+          body.lastName ?? '',
           body.email,
           body.roles ?? [],
           body.temporaryPassword,
@@ -465,7 +465,8 @@ export class AuthUserController {
   @Patch('company-users/:userId')
   @ApiOperation({
     summary: 'Actualizar usuario de la compañía',
-    description: 'Actualiza nombre y/o roles (BD + Keycloak)',
+    description:
+      'Actualiza nombre, email, roles y/o contraseña definitiva (BD + Keycloak)',
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'userId', description: 'ID del usuario en Guiders' })
@@ -489,6 +490,8 @@ export class AuthUserController {
         userId,
         body?.name,
         body?.roles,
+        body?.email,
+        body?.password,
       ),
     );
 
@@ -581,6 +584,7 @@ export class AuthUserController {
       error instanceof InvalidCompanyUserRolesError ||
       error instanceof InvalidCompanyUserPasswordError ||
       error instanceof InvalidCompanyUserDataError ||
+      error instanceof CompanyUserKeycloakMissingError ||
       error instanceof CannotModifySelfError
     ) {
       return new HttpException(error.message, HttpStatus.BAD_REQUEST);

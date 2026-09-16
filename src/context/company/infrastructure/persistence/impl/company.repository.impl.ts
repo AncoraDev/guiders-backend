@@ -12,6 +12,7 @@ import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Criteria } from 'src/context/shared/domain/criteria';
 import { CriteriaConverter } from 'src/context/shared/infrastructure/criteria-converter/criteria-converter';
 import { CompanyTypeOrmEntity } from '../entity/company-typeorm.entity';
+import { CompanySiteTypeOrmEntity } from '../typeorm/company-site.entity';
 import {
   CompanyPersistenceError,
   CompanyNotFoundError,
@@ -130,11 +131,14 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
     }
   }
 
-  // Actualiza una empresa existente
+  // Actualiza una empresa existente (reemplaza sites para no dejar huérfanos)
   async update(company: Company): Promise<Result<void, DomainError>> {
     try {
       const entity = CompanyMapper.toPersistence(company);
-      await this.companyRepo.save(entity);
+      await this.companyRepo.manager.transaction(async (em) => {
+        await em.delete(CompanySiteTypeOrmEntity, { companyId: entity.id });
+        await em.save(CompanyTypeOrmEntity, entity);
+      });
       return okVoid();
     } catch (error) {
       return err(
