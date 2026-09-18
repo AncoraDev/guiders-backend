@@ -49,7 +49,7 @@ describe('RequestContactDataCommandHandler', () => {
         {
           provide: EventPublisher,
           useValue: {
-            mergeObjectContext: jest.fn((aggregate) => {
+            mergeObjectContext: jest.fn((aggregate: { commit: () => void }) => {
               aggregate.commit = commit;
               return aggregate;
             }),

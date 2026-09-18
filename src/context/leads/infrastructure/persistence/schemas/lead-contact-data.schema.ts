@@ -44,6 +44,15 @@ export class LeadContactDataSchema {
   @Prop({ type: String, required: false })
   poblacion?: string;
 
+  @Prop({ type: Boolean, required: false })
+  acceptedPrivacyPolicy?: boolean;
+
+  @Prop({ type: Boolean, required: false })
+  acceptedMarketing?: boolean;
+
+  @Prop({ type: Date, required: false })
+  consentAcceptedAt?: Date;
+
   @Prop({ type: Object, required: false, default: {} })
   additionalData?: Record<string, unknown>;
 

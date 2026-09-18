@@ -13,6 +13,8 @@ export class SaveLeadContactDataCommand {
       telefono?: string;
       dni?: string;
       poblacion?: string;
+      acceptedPrivacyPolicy?: boolean;
+      acceptedMarketing?: boolean;
       additionalData?: Record<string, unknown>;
       extractedFromChatId?: string;
     },

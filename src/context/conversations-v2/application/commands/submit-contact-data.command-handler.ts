@@ -7,6 +7,9 @@ import {
 } from '@nestjs/cqrs';
 import { SubmitContactDataCommand } from './submit-contact-data.command';
 import { RecordConsentCommand } from 'src/context/consent/application/commands/record-consent.command';
+import { getCurrentConsentVersion } from 'src/context/consent/domain/config/consent-version.config';
+import { ConsentError } from 'src/context/consent/domain/errors/consent.error';
+import { Result } from 'src/context/shared/domain/result';
 import {
   CHAT_V2_REPOSITORY,
   IChatRepository,
@@ -48,9 +51,7 @@ export class SubmitContactDataCommandHandler
 
     const chat = chatResult.unwrap();
     if (chat.visitorId.value !== command.visitorId) {
-      throw new BadRequestException(
-        'El visitante no pertenece a este chat',
-      );
+      throw new BadRequestException('El visitante no pertenece a este chat');
     }
 
     const existing = await this.messageRepository.findByType(
@@ -64,9 +65,7 @@ export class SubmitContactDataCommandHandler
 
     const pending = findOpenContactRequest(existing.unwrap());
     if (!pending) {
-      throw new BadRequestException(
-        'No hay una solicitud de datos pendiente',
-      );
+      throw new BadRequestException('No hay una solicitud de datos pendiente');
     }
 
     const nombre = command.data.nombre?.trim() ?? '';
@@ -79,9 +78,7 @@ export class SubmitContactDataCommandHandler
       );
     }
     if (command.data.acceptedPrivacyPolicy !== true) {
-      throw new BadRequestException(
-        'Debes aceptar la política de privacidad',
-      );
+      throw new BadRequestException('Debes aceptar la política de privacidad');
     }
 
     const requestId = pending.systemData?.requestId;
@@ -148,32 +145,45 @@ export class SubmitContactDataCommandHandler
       chatId: command.chatId,
       companyId,
     };
+
+    await this.recordConsent(command, 'privacy_policy', metadata);
+    if (acceptedMarketing) {
+      await this.recordConsent(command, 'marketing', metadata);
+    }
+  }
+
+  /**
+   * El consentimiento se registra en el contexto consent con la versión vigente
+   * de la política. Un fallo aquí no invalida los datos ya guardados, pero se
+   * deja constancia en el log porque afecta al rastro de RGPD.
+   */
+  private async recordConsent(
+    command: SubmitContactDataCommand,
+    consentType: 'privacy_policy' | 'marketing',
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
     try {
-      await this.commandBus.execute(
+      const result = await this.commandBus.execute<
+        RecordConsentCommand,
+        Result<string, ConsentError>
+      >(
         new RecordConsentCommand(
           command.visitorId,
-          'privacy_policy',
-          'contact-form',
+          consentType,
+          getCurrentConsentVersion(),
           command.ipAddress,
           command.userAgent,
           metadata,
         ),
       );
-      if (acceptedMarketing) {
-        await this.commandBus.execute(
-          new RecordConsentCommand(
-            command.visitorId,
-            'marketing',
-            'contact-form',
-            command.ipAddress,
-            command.userAgent,
-            metadata,
-          ),
+      if (result.isErr()) {
+        this.logger.error(
+          `No se pudo registrar el consentimiento ${consentType} del formulario: ${result.error.message}`,
         );
       }
     } catch (error) {
       this.logger.error(
-        `Error al registrar consentimientos del formulario: ${
+        `Error al registrar el consentimiento ${consentType} del formulario: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

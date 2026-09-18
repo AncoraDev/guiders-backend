@@ -80,6 +80,7 @@ export class SaveLeadContactDataCommandHandler
         telefono: input.telefono ?? existing.telefono,
         dni: input.dni ?? existing.dni,
         poblacion: input.poblacion ?? existing.poblacion,
+        ...this.resolveConsent(input, existing),
         additionalData: {
           ...existing.additionalData,
           ...input.additionalData,
@@ -157,7 +158,10 @@ export class SaveLeadContactDataCommandHandler
 
       const visitor = visitorResult.unwrap();
 
-      if (!visitor.getLifecycle().isAnon() && !visitor.getLifecycle().isEngaged()) {
+      if (
+        !visitor.getLifecycle().isAnon() &&
+        !visitor.getLifecycle().isEngaged()
+      ) {
         return;
       }
 
@@ -200,9 +204,35 @@ export class SaveLeadContactDataCommandHandler
       telefono: input.telefono,
       dni: input.dni,
       poblacion: input.poblacion,
+      ...this.resolveConsent(input),
       additionalData: input.additionalData ?? {},
       extractedFromChatId: input.extractedFromChatId,
       extractedAt: now,
+    };
+  }
+
+  /**
+   * Los consentimientos solo se sobrescriben cuando llegan en la petición y la
+   * fecha se sella la primera vez que el visitante acepta la privacidad, para no
+   * perder el momento original en ediciones posteriores del comercial.
+   */
+  private resolveConsent(
+    input: SaveLeadContactDataCommand['input'],
+    existing?: LeadContactDataPrimitives,
+  ): Pick<
+    LeadContactDataPrimitives,
+    'acceptedPrivacyPolicy' | 'acceptedMarketing' | 'consentAcceptedAt'
+  > {
+    const justAccepted =
+      input.acceptedPrivacyPolicy === true && !existing?.acceptedPrivacyPolicy;
+
+    return {
+      acceptedPrivacyPolicy:
+        input.acceptedPrivacyPolicy ?? existing?.acceptedPrivacyPolicy,
+      acceptedMarketing: input.acceptedMarketing ?? existing?.acceptedMarketing,
+      consentAcceptedAt: justAccepted
+        ? new Date()
+        : existing?.consentAcceptedAt,
     };
   }
 }

@@ -21,6 +21,12 @@ export interface LeadContactDataPrimitives {
   telefono?: string;
   dni?: string;
   poblacion?: string;
+  /** El visitante aceptó la política de privacidad al enviar sus datos */
+  acceptedPrivacyPolicy?: boolean;
+  /** El visitante aceptó recibir comunicaciones comerciales */
+  acceptedMarketing?: boolean;
+  /** Momento en que el visitante aceptó las políticas */
+  consentAcceptedAt?: Date;
   additionalData?: Record<string, unknown>;
   extractedFromChatId?: string;
   extractedAt: Date;

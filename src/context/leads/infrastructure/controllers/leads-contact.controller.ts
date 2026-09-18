@@ -101,6 +101,8 @@ export class LeadsContactController {
         telefono: dto.telefono,
         dni: dto.dni,
         poblacion: dto.poblacion,
+        acceptedPrivacyPolicy: dto.acceptedPrivacyPolicy,
+        acceptedMarketing: dto.acceptedMarketing,
         additionalData: dto.additionalData,
         extractedFromChatId: dto.extractedFromChatId,
       }),

@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { CommandBus, EventPublisher } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getCurrentConsentVersion } from 'src/context/consent/domain/config/consent-version.config';
+import { ConsentVersion } from 'src/context/consent/domain/value-objects/consent-version';
 import { ok, okVoid } from 'src/context/shared/domain/result';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
@@ -49,7 +51,9 @@ describe('SubmitContactDataCommandHandler', () => {
       ),
       save: jest.fn().mockResolvedValue(okVoid()),
     };
-    commandBus = { execute: jest.fn().mockResolvedValue(undefined) };
+    commandBus = {
+      execute: jest.fn().mockResolvedValue(ok(Uuid.random().value)),
+    };
     commit = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -152,6 +156,26 @@ describe('SubmitContactDataCommandHandler', () => {
     );
     expect(commandBus.execute.mock.calls[1][0].consentType).toBe('marketing');
     expect(commit).toHaveBeenCalled();
+  });
+
+  it('registra el consentimiento con la versión vigente de la política', async () => {
+    await handler.execute(
+      new SubmitContactDataCommand(
+        chatId,
+        visitorId,
+        validData,
+        '127.0.0.1',
+        'jest',
+      ),
+    );
+
+    const version: string = commandBus.execute.mock.calls[0][0].version;
+    expect(version).toBe(getCurrentConsentVersion());
+    expect(() => ConsentVersion.fromString(version)).not.toThrow();
+    expect(commandBus.execute.mock.calls[0][0].metadata).toMatchObject({
+      source: 'contact_form',
+      chatId,
+    });
   });
 
   it('no registra marketing si el check opcional está desmarcado', async () => {

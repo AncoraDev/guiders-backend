@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsString,
   IsOptional,
   IsEmail,
@@ -75,6 +76,22 @@ export class SaveLeadContactDataDto {
   poblacion?: string;
 
   @ApiPropertyOptional({
+    description: 'El visitante aceptó la política de privacidad',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  acceptedPrivacyPolicy?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'El visitante aceptó recibir comunicaciones comerciales',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  acceptedMarketing?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Datos adicionales en formato libre',
     example: { preferencia: 'email', horario: 'manana' },
   })
@@ -128,6 +145,21 @@ export class LeadContactDataResponseDto {
   @ApiPropertyOptional({ description: 'Poblacion del contacto' })
   poblacion?: string;
 
+  @ApiPropertyOptional({
+    description: 'El visitante aceptó la política de privacidad',
+  })
+  acceptedPrivacyPolicy?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'El visitante aceptó recibir comunicaciones comerciales',
+  })
+  acceptedMarketing?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Fecha en la que el visitante aceptó las políticas',
+  })
+  consentAcceptedAt?: string;
+
   @ApiPropertyOptional({ description: 'Datos adicionales' })
   additionalData?: Record<string, unknown>;
 
@@ -159,6 +191,9 @@ export class LeadContactDataResponseDto {
     dto.telefono = data.telefono;
     dto.dni = data.dni;
     dto.poblacion = data.poblacion;
+    dto.acceptedPrivacyPolicy = data.acceptedPrivacyPolicy;
+    dto.acceptedMarketing = data.acceptedMarketing;
+    dto.consentAcceptedAt = data.consentAcceptedAt?.toISOString();
     dto.additionalData = data.additionalData;
     dto.extractedFromChatId = data.extractedFromChatId;
     dto.extractedAt =
