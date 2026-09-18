@@ -9,6 +9,8 @@ export type ConnectionSessionEndReason =
   | 'manual'
   | 'logout'
   | 'browser_close'
+  /** Se perdió el WebSocket sin que la Console avisara. */
+  | 'connection_lost'
   | 'unknown';
 
 export interface CommercialConnectionSessionPrimitives {
@@ -24,8 +26,12 @@ export interface CommercialConnectionSessionPrimitives {
 
 export interface ConnectionSessionSearchParams {
   companyId: string;
-  /** Si se indica, filtra por este comercial (siempre dentro de companyId). */
-  commercialId?: string;
+  /**
+   * Si se indica, filtra por estos comerciales (siempre dentro de companyId).
+   * Un comercial puede tener sesiones guardadas con su id de Keycloak y con su
+   * id interno, así que se admite más de un identificador.
+   */
+  commercialIds?: string[];
   from?: Date;
   to?: Date;
   endReason?: ConnectionSessionEndReason;
@@ -63,6 +69,13 @@ export interface CommercialConnectionSessionRepository {
   }): Promise<
     Result<CommercialConnectionSessionPrimitives | null, DomainError>
   >;
+
+  /**
+   * Sesiones sin cerrar, de la más antigua a la más reciente.
+   */
+  listOpenSessions(
+    limit?: number,
+  ): Promise<Result<CommercialConnectionSessionPrimitives[], DomainError>>;
 
   /**
    * Búsqueda paginada con filtros (siempre scoped por companyId).

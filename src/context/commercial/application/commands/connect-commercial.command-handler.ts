@@ -146,10 +146,11 @@ export class ConnectCommercialCommandHandler
         const sessionResult = await this.sessionRepository.openSession({
           commercialId: command.commercialId,
           companyId,
-          commercialDisplayName: command.name || null,
+          // realName viene del UserAccount; command.name suele ser el email.
+          commercialDisplayName: realName || command.name || null,
         });
         if (sessionResult.isErr()) {
-          this.logger.warn(
+          this.logger.error(
             `No se pudo abrir sesión: ${sessionResult.error.message}`,
           );
         }

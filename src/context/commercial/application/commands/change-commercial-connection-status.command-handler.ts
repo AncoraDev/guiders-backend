@@ -11,6 +11,10 @@ import {
 } from '../../domain/commercial.repository';
 import { CommercialId } from '../../domain/value-objects/commercial-id';
 import { CommercialConnectionStatus } from '../../domain/value-objects/commercial-connection-status';
+import {
+  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
+  CommercialConnectionSessionRepository,
+} from '../../domain/commercial-connection-session.repository';
 
 /**
  * Handler para el comando ChangeCommercialConnectionStatusCommand
@@ -29,6 +33,8 @@ export class ChangeCommercialConnectionStatusCommandHandler
     private readonly connectionService: CommercialConnectionDomainService,
     @Inject(COMMERCIAL_REPOSITORY)
     private readonly commercialRepository: CommercialRepository,
+    @Inject(COMMERCIAL_CONNECTION_SESSION_REPOSITORY)
+    private readonly sessionRepository: CommercialConnectionSessionRepository,
     private readonly publisher: EventPublisher,
   ) {}
 
@@ -46,6 +52,11 @@ export class ChangeCommercialConnectionStatusCommandHandler
       // Recuperar companyId desde Redis para actualizar sets por tenant correctamente
       const companyId =
         await this.connectionService.getCompanyIdByCommercial(commercialId);
+
+      // Solo offline termina la conexión; away y busy siguen siendo sesión activa.
+      if (newStatus.isOffline()) {
+        await this.closeOpenSession(command.commercialId);
+      }
 
       // Actualizar estado en el domain service propagando companyId (puede ser undefined)
       await this.connectionService.setConnectionStatus(
@@ -90,6 +101,24 @@ export class ChangeCommercialConnectionStatusCommandHandler
         error,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Cierra la sesión abierta del comercial. El registro de conexiones es un
+   * histórico, así que un fallo aquí se registra pero no aborta el cambio de
+   * estado.
+   */
+  private async closeOpenSession(commercialId: string): Promise<void> {
+    const closeResult = await this.sessionRepository.closeOpenSession({
+      commercialId,
+      endReason: 'manual',
+    });
+
+    if (closeResult.isErr()) {
+      this.logger.error(
+        `No se pudo cerrar la sesión de conexión de ${commercialId}: ${closeResult.error.message}`,
+      );
     }
   }
 }

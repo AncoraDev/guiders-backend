@@ -31,6 +31,7 @@ import {
 import { CommercialConnectionStatus } from '../context/commercial/domain/value-objects/commercial-connection-status';
 import { VisitorLastActivity } from '../context/visitors-v2/domain/value-objects/visitor-last-activity';
 import { CommercialLastActivity } from '../context/commercial/domain/value-objects/commercial-last-activity';
+import { DisconnectCommercialCommand } from '../context/commercial/application/commands/disconnect-commercial.command';
 import { PresenceChangedEvent } from '../context/shared/domain/events/presence-changed.event';
 
 interface TestMessage {
@@ -1280,6 +1281,27 @@ export class WebSocketGatewayBasic
     userId: string,
     tenantId?: string,
   ): Promise<void> {
+    // Con CommandBus se reutiliza la desconexión completa: además de Redis,
+    // cierra la sesión de conexión abierta para que no quede huérfana.
+    if (this.commandBus) {
+      try {
+        await this.commandBus.execute(
+          new DisconnectCommercialCommand(userId, 'connection_lost', tenantId),
+        );
+        this.logger.log(
+          `Comercial ${userId} marcado como OFFLINE por caída de WebSocket`,
+        );
+        return;
+      } catch (error) {
+        this.logger.error(
+          `Error al desconectar comercial ${userId} tras caída de WebSocket: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    // Fallback: solo Redis si no hay CommandBus disponible
     if (!this.commercialConnectionService) return;
 
     const commercialId = new CommercialId(userId);
@@ -1319,6 +1341,18 @@ export class WebSocketGatewayBasic
     this.logger.log(
       `Comercial ${userId} marcado como OFFLINE (previo: ${previousStatus})`,
     );
+  }
+
+  /**
+   * Indica si el usuario tiene al menos un socket vivo. El barrido de sesiones
+   * lo usa para no cerrar la conexión de un comercial que sigue en la Console
+   * aunque su clave de Redis haya expirado.
+   */
+  isUserConnected(userId: string): boolean {
+    for (const user of this.clientUsers.values()) {
+      if (user.userId === userId) return true;
+    }
+    return false;
   }
 
   // Método para enviar mensajes broadcast (legacy - mantener por compatibilidad)

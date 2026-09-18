@@ -34,10 +34,9 @@ import { RolesGuard } from '../../../shared/infrastructure/guards/role.guard';
 import { Roles } from '../../../shared/infrastructure/roles.decorator';
 import { Public } from '../../../shared/infrastructure/decorators/public.decorator';
 import { AuthenticatedRequest } from '../../../shared/infrastructure/guards/auth.guard';
-import {
-  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
-  CommercialConnectionSessionRepository,
-} from '../../domain/commercial-connection-session.repository';
+import { ConnectionSessionSearchResult } from '../../domain/commercial-connection-session.repository';
+import { DomainError } from 'src/context/shared/domain/domain.error';
+import { Result } from 'src/context/shared/domain/result';
 
 // DTOs
 import {
@@ -60,6 +59,7 @@ import { GetCommercialConnectionStatusQuery } from '../../application/queries/ge
 import { GetAvailableCommercialsQuery } from '../../application/queries/get-available-commercials.query';
 import { GetOnlineCommercialsQuery } from '../../application/queries/get-online-commercials.query';
 import { GetCommercialAvailabilityBySiteQuery } from '../../application/queries/get-commercial-availability-by-site.query';
+import { ListConnectionSessionsQuery } from '../../application/queries/list-connection-sessions.query';
 
 // Commands
 import { ConnectCommercialCommand } from '../../application/commands/connect-commercial.command';
@@ -104,8 +104,6 @@ export class CommercialController {
     private readonly apiKeyValidator: ValidateDomainApiKey,
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: CompanyRepository,
-    @Inject(COMMERCIAL_CONNECTION_SESSION_REPOSITORY)
-    private readonly sessionRepository: CommercialConnectionSessionRepository,
   ) {}
 
   /**
@@ -147,7 +145,7 @@ export class CommercialController {
   @ApiQuery({
     name: 'endReason',
     required: false,
-    description: 'manual | logout | browser_close | unknown',
+    description: 'manual | logout | browser_close | connection_lost | unknown',
   })
   @ApiQuery({
     name: 'status',
@@ -170,9 +168,6 @@ export class CommercialController {
       throw new BadRequestException('El usuario no tiene companyId asociado');
     }
 
-    const roles = req.user.roles || [];
-    const isAdmin = roles.some((r) => ['admin', 'supervisor'].includes(r));
-
     const parsedPage = Math.max(1, Number(page) || 1);
     const parsedLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
 
@@ -180,6 +175,7 @@ export class CommercialController {
       'manual',
       'logout',
       'browser_close',
+      'connection_lost',
       'unknown',
     ] as const;
     const parsedReason =
@@ -205,21 +201,26 @@ export class CommercialController {
       }
     }
 
-    // Comercial: siempre propio. Admin: compañía completa o filtro por agente.
-    const scopedCommercialId = isAdmin
-      ? commercialId || undefined
-      : req.user.id;
-
-    const result = await this.sessionRepository.search({
-      companyId,
-      commercialId: scopedCommercialId,
-      from: parsedFrom,
-      to: parsedTo,
-      endReason: parsedReason,
-      status: parsedStatus,
-      page: parsedPage,
-      limit: parsedLimit,
-    });
+    // El alcance (comercial: solo propio, admin: compañía) vive en el handler.
+    const result = await this.queryBus.execute<
+      ListConnectionSessionsQuery,
+      Result<ConnectionSessionSearchResult, DomainError>
+    >(
+      new ListConnectionSessionsQuery(
+        companyId,
+        req.user.id,
+        req.user.roles || [],
+        {
+          commercialId: commercialId || undefined,
+          from: parsedFrom,
+          to: parsedTo,
+          endReason: parsedReason,
+          status: parsedStatus,
+          page: parsedPage,
+          limit: parsedLimit,
+        },
+      ),
+    );
 
     if (result.isErr()) {
       throw new InternalServerErrorException(result.error.message);

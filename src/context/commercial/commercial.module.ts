@@ -16,6 +16,7 @@ import { GetOnlineCommercialsQueryHandler } from './application/queries/get-onli
 import { GetCommercialConnectionStatusQueryHandler } from './application/queries/get-commercial-connection-status.query-handler';
 import { GetCommercialByIdQueryHandler } from './application/queries/get-commercial-by-id.query-handler';
 import { GetCommercialAvailabilityBySiteQueryHandler } from './application/queries/get-commercial-availability-by-site.query-handler';
+import { ListConnectionSessionsQueryHandler } from './application/queries/list-connection-sessions.query-handler';
 
 // Application - Commands
 import { ConnectCommercialCommandHandler } from './application/commands/connect-commercial.command-handler';
@@ -43,6 +44,7 @@ import { CommercialSchemaDefinition } from './infrastructure/persistence/schemas
 import { CommercialConnectionSessionSchemaDefinition } from './infrastructure/persistence/schemas/commercial-connection-session.schema';
 import { COMMERCIAL_CONNECTION_SESSION_REPOSITORY } from './domain/commercial-connection-session.repository';
 import { MongoCommercialConnectionSessionRepositoryImpl } from './infrastructure/persistence/impl/mongo-commercial-connection-session.repository.impl';
+import { StaleConnectionSessionScheduler } from './infrastructure/schedulers/stale-connection-session.scheduler';
 
 // External dependencies needed by controller
 import { AuthVisitorModule } from '../auth/auth-visitor/infrastructure/auth-visitor.module';
@@ -98,6 +100,7 @@ import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
     GetCommercialConnectionStatusQueryHandler,
     GetCommercialByIdQueryHandler,
     GetCommercialAvailabilityBySiteQueryHandler,
+    ListConnectionSessionsQueryHandler,
 
     // Command Handlers
     ConnectCommercialCommandHandler,
@@ -115,6 +118,9 @@ import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
     // Schedulers — CommercialInactivityScheduler desactivado:
     // presencia es manual (toggle Console); no away/offline por inactividad.
+    // El barrido de sesiones huérfanas sí se necesita: cubre reinicios del
+    // backend y desconexiones que no llegan a avisar.
+    StaleConnectionSessionScheduler,
 
     // Servicios compartidos necesarios para AuthGuard
     TokenVerifyService,

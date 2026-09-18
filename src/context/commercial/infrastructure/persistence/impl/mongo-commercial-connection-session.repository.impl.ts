@@ -75,6 +75,19 @@ export class MongoCommercialConnectionSessionRepositoryImpl
         this.toPrimitives(doc.toObject() as unknown as Record<string, unknown>),
       );
     } catch (error) {
+      // El índice único de sesión abierta puede rechazar una carrera entre dos
+      // conexiones simultáneas: la sesión que ganó es igual de válida.
+      if (this.isDuplicateKeyError(error)) {
+        const open = await this.model
+          .findOne({ commercialId: params.commercialId, endedAt: null })
+          .lean()
+          .exec();
+        if (open) {
+          return ok(
+            this.toPrimitives(open as unknown as Record<string, unknown>),
+          );
+        }
+      }
       this.logger.error('Error abriendo sesión de conexión', error);
       return err(new SessionPersistenceError('No se pudo abrir la sesión'));
     }
@@ -121,6 +134,29 @@ export class MongoCommercialConnectionSessionRepositoryImpl
     }
   }
 
+  async listOpenSessions(
+    limit = 200,
+  ): Promise<Result<CommercialConnectionSessionPrimitives[], DomainError>> {
+    try {
+      const rows = await this.model
+        .find({ endedAt: null })
+        .sort({ startedAt: 1 })
+        .limit(limit)
+        .lean()
+        .exec();
+      return ok(
+        rows.map((r) =>
+          this.toPrimitives(r as unknown as Record<string, unknown>),
+        ),
+      );
+    } catch (error) {
+      this.logger.error('Error listando sesiones abiertas', error);
+      return err(
+        new SessionPersistenceError('No se pudieron listar sesiones abiertas'),
+      );
+    }
+  }
+
   async search(
     params: ConnectionSessionSearchParams,
   ): Promise<Result<ConnectionSessionSearchResult, DomainError>> {
@@ -133,8 +169,11 @@ export class MongoCommercialConnectionSessionRepositoryImpl
         companyId: params.companyId,
       };
 
-      if (params.commercialId) {
-        filter.commercialId = params.commercialId;
+      if (params.commercialIds?.length) {
+        filter.commercialId =
+          params.commercialIds.length === 1
+            ? params.commercialIds[0]
+            : { $in: params.commercialIds };
       }
 
       if (params.from || params.to) {
@@ -227,6 +266,14 @@ export class MongoCommercialConnectionSessionRepositoryImpl
       this.logger.error('Error listando sesiones por company', error);
       return err(new SessionPersistenceError('No se pudieron listar sesiones'));
     }
+  }
+
+  private isDuplicateKeyError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      (error as { code?: number }).code === 11000
+    );
   }
 
   private toPrimitives(

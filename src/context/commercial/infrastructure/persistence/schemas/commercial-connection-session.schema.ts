@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { ConnectionSessionEndReason } from '../../../domain/commercial-connection-session.repository';
 
 /**
  * Sesiones de conexión manual de comerciales (start/end + duración).
@@ -34,10 +35,17 @@ export class CommercialConnectionSessionSchema extends Document {
   @Prop({
     required: false,
     type: String,
-    enum: ['manual', 'logout', 'browser_close', 'unknown'],
+    enum: [
+      'manual',
+      'logout',
+      'browser_close',
+      'connection_lost',
+      'unknown',
+      null,
+    ],
     default: null,
   })
-  endReason?: 'manual' | 'logout' | 'browser_close' | 'unknown' | null;
+  endReason?: ConnectionSessionEndReason | null;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -50,6 +58,16 @@ CommercialConnectionSessionSchemaDefinition.index({
   commercialId: 1,
   endedAt: 1,
 });
+// Un comercial solo puede tener una sesión abierta; el índice evita duplicados
+// si llegan dos peticiones de conexión a la vez.
+CommercialConnectionSessionSchemaDefinition.index(
+  { commercialId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { endedAt: null },
+    name: 'unique_open_session_per_commercial',
+  },
+);
 CommercialConnectionSessionSchemaDefinition.index({
   companyId: 1,
   startedAt: -1,

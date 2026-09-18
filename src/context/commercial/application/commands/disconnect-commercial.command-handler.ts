@@ -53,7 +53,7 @@ export class DisconnectCommercialCommandHandler
         endReason: command.endReason,
       });
       if (closeResult.isErr()) {
-        this.logger.warn(
+        this.logger.error(
           `No se pudo cerrar sesión: ${closeResult.error.message}`,
         );
       }
