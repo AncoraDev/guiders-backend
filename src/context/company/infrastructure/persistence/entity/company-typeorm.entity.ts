@@ -36,4 +36,15 @@ export class CompanyTypeOrmEntity {
     default: () => "'[]'",
   })
   cannedReplies: { id: string; title: string; body: string }[];
+
+  @Column({
+    name: 'contact_form_legal',
+    type: 'jsonb',
+    default: () => "'{}'",
+  })
+  contactFormLegal: {
+    privacyPolicyUrl?: string;
+    privacyCheckboxLabel?: string;
+    marketingCheckboxLabel?: string;
+  };
 }

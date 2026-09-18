@@ -4,6 +4,7 @@ import { Uuid } from '../../shared/domain/value-objects/uuid';
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { CannedReplyPrimitives } from '../../shared/domain/canned-reply';
+import { ContactFormLegalPrimitives } from './value-objects/company-contact-form-legal';
 export const COMPANY_REPOSITORY = Symbol('CompanyRepository');
 // Define los métodos principales del repositorio de empresas
 export interface CompanyRepository {
@@ -12,6 +13,10 @@ export interface CompanyRepository {
   updateCannedReplies(
     id: Uuid,
     replies: CannedReplyPrimitives[],
+  ): Promise<Result<void, DomainError>>;
+  updateContactFormLegal(
+    id: Uuid,
+    legal: ContactFormLegalPrimitives,
   ): Promise<Result<void, DomainError>>;
   findById(id: Uuid): Promise<Result<Company, DomainError>>;
   delete(id: Uuid): Promise<Result<void, DomainError>>;

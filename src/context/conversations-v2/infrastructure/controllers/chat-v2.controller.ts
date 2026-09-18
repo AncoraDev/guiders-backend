@@ -68,7 +68,11 @@ import { RequestAgentCommand } from '../../application/commands/request-agent.co
 import { RequestAgentDto } from '../../application/dtos/request-agent.dto';
 import { RequestContactDataCommand } from '../../application/commands/request-contact-data.command';
 import { SubmitContactDataCommand } from '../../application/commands/submit-contact-data.command';
+import { CancelContactDataCommand } from '../../application/commands/cancel-contact-data.command';
+import { ConfirmContactDataCommand } from '../../application/commands/confirm-contact-data.command';
+import { RequestContactDataDto } from '../../application/dtos/request-contact-data.dto';
 import { SubmitContactDataDto } from '../../application/dtos/submit-contact-data.dto';
+import { ConfirmContactDataDto } from '../../application/dtos/confirm-contact-data.dto';
 import { MessageResponseDto } from '../../application/dtos/message-response.dto';
 import { OpenChatViewCommand } from '../../application/commands/open-chat-view.command';
 import { CloseChatViewCommand } from '../../application/commands/close-chat-view.command';
@@ -979,24 +983,26 @@ export class ChatV2Controller {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const chats = result?.value || [];
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      return chats.map((chat: { toPrimitives: () => Record<string, unknown> }) => {
-        const p = chat.toPrimitives();
-        return {
-          id: p.id,
-          status: p.status,
-          priority: p.priority,
-          visitorId: p.visitorId,
-          assignedCommercialId: p.assignedCommercialId,
-          totalMessages: p.totalMessages,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          visitorInfo: p.visitorInfo,
-          metadata: p.metadata,
-          companyId: p.companyId,
-          lastMessagePreview: p.lastMessageContent,
-          lastMessageDate: p.lastMessageDate,
-        };
-      });
+      return chats.map(
+        (chat: { toPrimitives: () => Record<string, unknown> }) => {
+          const p = chat.toPrimitives();
+          return {
+            id: p.id,
+            status: p.status,
+            priority: p.priority,
+            visitorId: p.visitorId,
+            assignedCommercialId: p.assignedCommercialId,
+            totalMessages: p.totalMessages,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            visitorInfo: p.visitorInfo,
+            metadata: p.metadata,
+            companyId: p.companyId,
+            lastMessagePreview: p.lastMessageContent,
+            lastMessageDate: p.lastMessageDate,
+          };
+        },
+      );
     } catch (error) {
       this.logger.error('Error al obtener cola de chats pendientes:', error);
       throw new HttpException(
@@ -1323,13 +1329,15 @@ export class ChatV2Controller {
     summary: 'Solicitar datos de contacto al visitante',
   })
   @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiBody({ type: RequestContactDataDto })
   @ApiResponse({ status: 201, type: MessageResponseDto })
   async requestContactData(
     @Param('chatId') chatId: string,
+    @Body() body: RequestContactDataDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
     return this.commandBus.execute(
-      new RequestContactDataCommand(chatId, req.user.id),
+      new RequestContactDataCommand(chatId, req.user.id, body?.preface),
     );
   }
 
@@ -1347,8 +1355,57 @@ export class ChatV2Controller {
     @Body() body: SubmitContactDataDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipAddress =
+      (typeof forwarded === 'string' ? forwarded.split(',')[0] : '') ||
+      req.ip ||
+      '';
     return this.commandBus.execute(
-      new SubmitContactDataCommand(chatId, req.user.id, body),
+      new SubmitContactDataCommand(
+        chatId,
+        req.user.id,
+        body,
+        ipAddress.trim(),
+        typeof req.headers['user-agent'] === 'string'
+          ? req.headers['user-agent']
+          : undefined,
+      ),
+    );
+  }
+
+  @Post(':chatId/contact-cancel')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['visitor'])
+  @ApiOperation({
+    summary: 'Cancelar o rechazar la solicitud de datos de contacto',
+  })
+  @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiResponse({ status: 201, type: MessageResponseDto })
+  async cancelContactData(
+    @Param('chatId') chatId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MessageResponseDto> {
+    return this.commandBus.execute(
+      new CancelContactDataCommand(chatId, req.user.id),
+    );
+  }
+
+  @Post(':chatId/contact-confirm')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiOperation({
+    summary: 'Confirmar los datos de contacto recibidos del visitante',
+  })
+  @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiBody({ type: ConfirmContactDataDto })
+  @ApiResponse({ status: 201, type: MessageResponseDto })
+  async confirmContactData(
+    @Param('chatId') chatId: string,
+    @Body() body: ConfirmContactDataDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MessageResponseDto> {
+    return this.commandBus.execute(
+      new ConfirmContactDataCommand(chatId, req.user.id, body?.requestId),
     );
   }
 

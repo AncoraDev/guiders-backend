@@ -88,7 +88,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
         `Notificando mensaje a todos los participantes del chat: ${chatId}`,
       );
 
-      this.websocketGateway.emitToRoom(`chat:${chatId}`, 'message:new', {
+      const payload = {
         messageId: messageData.messageId,
         chatId: messageData.chatId,
         senderId: messageData.senderId,
@@ -102,11 +102,10 @@ export class NotifyMessageSentOnMessageSentEventHandler
         attachment: messageData.attachment,
         isAI: messageData.isAI,
         aiMetadata: messageData.aiMetadata,
-      });
+      };
 
-      // Si es la primera respuesta del comercial, notificar estado de chat actualizado
-      if (event.isFirstResponse()) {
-      // Si es la primera respuesta del comercial, notificar estado de chat actualizado
+      this.websocketGateway.emitToRoom(`chat:${chatId}`, 'message:new', payload);
+
       if (event.isFirstResponse()) {
         this.logger.log(
           `Primera respuesta del comercial detectada, notificando cambio de estado del chat: ${chatId}`,
@@ -128,5 +127,26 @@ export class NotifyMessageSentOnMessageSentEventHandler
       );
       // No lanzamos el error para no afectar el flujo principal
     }
+  }
+
+  private async emitToTenantIfPendingVisitor(
+    event: MessageSentEvent,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    if (event.isInternal()) return;
+
+    const chatResult = await this.chatRepository.findById(
+      ChatId.create(event.getChatId()),
+    );
+    if (chatResult.isErr()) return;
+
+    const chat = chatResult.unwrap();
+    if (!chat.status.isPending()) return;
+
+    this.websocketGateway.emitToRoom(`tenant:${chat.companyId}`, 'message:new', {
+      ...payload,
+      queue: 'pendientes',
+      senderType: payload.senderType ?? 'VISITOR',
+    });
   }
 }

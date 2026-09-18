@@ -16,14 +16,24 @@ export interface ContactRequestPayload {
   poblacion?: string;
 }
 
+export interface ContactFormLegalSnapshot {
+  privacyPolicyUrl: string;
+  privacyCheckboxLabel: string;
+  marketingCheckboxLabel: string;
+}
+
 export interface SystemData {
-  action?: string; // 'assigned', 'transferred', 'joined', 'left', 'contact_request', 'contact_submission'
+  action?: string; // 'assigned', 'transferred', 'joined', 'left', 'contact_request', 'contact_submission', 'contact_cancellation', 'contact_confirmation'
   fromUserId?: string;
   toUserId?: string;
   reason?: string;
   requestId?: string;
-  status?: 'pending' | 'submitted' | 'confirmed';
+  status?: 'pending' | 'submitted' | 'confirmed' | 'cancelled';
   data?: ContactRequestPayload;
+  preface?: string;
+  legal?: ContactFormLegalSnapshot;
+  acceptedPrivacyPolicy?: boolean;
+  acceptedMarketing?: boolean;
 }
 
 /**

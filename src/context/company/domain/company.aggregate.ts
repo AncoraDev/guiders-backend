@@ -7,6 +7,10 @@ import { Uuid } from '../../shared/domain/value-objects/uuid';
 import { SitePrimitives } from './entities/site';
 import { CompanyCannedReplies } from './value-objects/company-canned-replies';
 import { CannedReplyPrimitives } from '../../shared/domain/canned-reply';
+import {
+  CompanyContactFormLegal,
+  ContactFormLegalPrimitives,
+} from './value-objects/company-contact-form-legal';
 
 // Entidad principal del contexto Company
 export class Company extends AggregateRoot {
@@ -17,6 +21,7 @@ export class Company extends AggregateRoot {
   private readonly createdAt: Date;
   private readonly updatedAt: Date;
   private readonly cannedReplies: CompanyCannedReplies;
+  private readonly contactFormLegal: CompanyContactFormLegal;
 
   // Constructor privado para forzar el uso de los métodos de fábrica
   private constructor(props: {
@@ -26,6 +31,7 @@ export class Company extends AggregateRoot {
     createdAt: Date;
     updatedAt: Date;
     cannedReplies?: CompanyCannedReplies;
+    contactFormLegal?: CompanyContactFormLegal;
   }) {
     super();
     this.id = props.id;
@@ -34,6 +40,8 @@ export class Company extends AggregateRoot {
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
     this.cannedReplies = props.cannedReplies ?? CompanyCannedReplies.empty();
+    this.contactFormLegal =
+      props.contactFormLegal ?? CompanyContactFormLegal.empty();
   }
 
   // Método de fábrica para crear una nueva empresa (desde value objects)
@@ -66,6 +74,7 @@ export class Company extends AggregateRoot {
     createdAt: string;
     updatedAt: string;
     cannedReplies?: CannedReplyPrimitives[];
+    contactFormLegal?: ContactFormLegalPrimitives | Record<string, unknown>;
   }): Company {
     return new Company({
       id: new Uuid(primitives.id),
@@ -75,6 +84,9 @@ export class Company extends AggregateRoot {
       updatedAt: new Date(primitives.updatedAt),
       cannedReplies: CompanyCannedReplies.fromInput(
         primitives.cannedReplies ?? [],
+      ),
+      contactFormLegal: CompanyContactFormLegal.fromPersistence(
+        primitives.contactFormLegal,
       ),
     });
   }
@@ -87,6 +99,7 @@ export class Company extends AggregateRoot {
     createdAt: string;
     updatedAt: string;
     cannedReplies: CannedReplyPrimitives[];
+    contactFormLegal: ContactFormLegalPrimitives;
   } {
     return {
       id: this.id.getValue(),
@@ -95,6 +108,7 @@ export class Company extends AggregateRoot {
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
       cannedReplies: this.cannedReplies.getValue(),
+      contactFormLegal: this.contactFormLegal.getValue(),
     };
   }
 
@@ -119,6 +133,10 @@ export class Company extends AggregateRoot {
     return this.cannedReplies.getValue();
   }
 
+  public getContactFormLegal(): ContactFormLegalPrimitives {
+    return this.contactFormLegal.getValue();
+  }
+
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
     return new Company({
       id: this.id,
@@ -127,6 +145,7 @@ export class Company extends AggregateRoot {
       createdAt: this.createdAt,
       updatedAt: new Date(),
       cannedReplies: this.cannedReplies,
+      contactFormLegal: this.contactFormLegal,
     });
   }
 
@@ -138,6 +157,21 @@ export class Company extends AggregateRoot {
       createdAt: this.createdAt,
       updatedAt: new Date(),
       cannedReplies: CompanyCannedReplies.fromInput(items),
+      contactFormLegal: this.contactFormLegal,
+    });
+  }
+
+  public updateContactFormLegal(
+    legal: ContactFormLegalPrimitives,
+  ): Company {
+    return new Company({
+      id: this.id,
+      companyName: this.companyName,
+      sites: this.sites,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+      cannedReplies: this.cannedReplies,
+      contactFormLegal: CompanyContactFormLegal.fromInput(legal),
     });
   }
 }

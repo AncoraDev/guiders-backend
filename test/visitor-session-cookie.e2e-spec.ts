@@ -158,6 +158,7 @@ describe('Visitor Session Cookie Fallback E2E', () => {
       findAll: jest.fn(),
       update: jest.fn(),
       updateCannedReplies: jest.fn(),
+      updateContactFormLegal: jest.fn(),
     };
 
     mockCommercialRepository = {

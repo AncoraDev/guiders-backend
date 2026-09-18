@@ -12,6 +12,8 @@ import { WebSocketModule } from 'src/websocket/websocket.module';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { AuthUserModule } from '../auth/auth-user/infrastructure/auth-user.module';
 import { LeadsModule } from '../leads/leads.module';
+import { CompanyModule } from '../company/company.module';
+import { ConsentModule } from '../consent/consent.module';
 
 // Controllers
 import { ChatV2Controller } from './infrastructure/controllers/chat-v2.controller';
@@ -65,6 +67,8 @@ import { StopTypingCommandHandler } from './application/commands/stop-typing.com
 import { RequestAgentCommandHandler } from './application/commands/request-agent.command-handler';
 import { RequestContactDataCommandHandler } from './application/commands/request-contact-data.command-handler';
 import { SubmitContactDataCommandHandler } from './application/commands/submit-contact-data.command-handler';
+import { CancelContactDataCommandHandler } from './application/commands/cancel-contact-data.command-handler';
+import { ConfirmContactDataCommandHandler } from './application/commands/confirm-contact-data.command-handler';
 import { OpenChatViewCommandHandler } from './application/commands/open-chat-view.command-handler';
 import { CloseChatViewCommandHandler } from './application/commands/close-chat-view.command-handler';
 
@@ -110,6 +114,8 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     CommercialModule, // Para acceso al Commercial heartbeat service
     AuthUserModule, // Para acceso a UserAccount queries
     forwardRef(() => LeadsModule), // Datos de contacto ya guardados
+    CompanyModule, // Snapshot legal del formulario de contacto
+    ConsentModule, // Registro RGPD / marketing al enviar el formulario
     MongooseModule.forFeature([
       { name: ChatSchema.name, schema: ChatSchemaDefinition },
       { name: MessageSchema.name, schema: MessageSchemaDefinition },
@@ -184,6 +190,8 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     RequestAgentCommandHandler,
     RequestContactDataCommandHandler,
     SubmitContactDataCommandHandler,
+    CancelContactDataCommandHandler,
+    ConfirmContactDataCommandHandler,
     OpenChatViewCommandHandler,
     CloseChatViewCommandHandler,
     // CloseChatCommandHandler,

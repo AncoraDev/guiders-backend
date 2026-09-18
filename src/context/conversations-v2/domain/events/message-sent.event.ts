@@ -26,7 +26,15 @@ export interface MessageSentData {
     toUserId?: string;
     reason?: string;
     requestId?: string;
-    status?: 'pending' | 'submitted' | 'confirmed';
+    status?: 'pending' | 'submitted' | 'confirmed' | 'cancelled';
+    preface?: string;
+    legal?: {
+      privacyPolicyUrl: string;
+      privacyCheckboxLabel: string;
+      marketingCheckboxLabel: string;
+    };
+    acceptedPrivacyPolicy?: boolean;
+    acceptedMarketing?: boolean;
     data?: {
       nombre?: string;
       apellidos?: string;

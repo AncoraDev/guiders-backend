@@ -74,6 +74,7 @@ describe('CompanyController (e2e)', () => {
       findByDomain: jest.fn(),
       update: jest.fn(),
       updateCannedReplies: jest.fn(),
+      updateContactFormLegal: jest.fn(),
     };
 
     // Configurar respuestas del mock

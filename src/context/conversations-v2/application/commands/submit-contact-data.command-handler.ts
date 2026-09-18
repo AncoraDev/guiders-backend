@@ -1,6 +1,12 @@
 import { BadRequestException, Inject, Logger } from '@nestjs/common';
-import { CommandHandler, EventPublisher, ICommandHandler } from '@nestjs/cqrs';
+import {
+  CommandBus,
+  CommandHandler,
+  EventPublisher,
+  ICommandHandler,
+} from '@nestjs/cqrs';
 import { SubmitContactDataCommand } from './submit-contact-data.command';
+import { RecordConsentCommand } from 'src/context/consent/application/commands/record-consent.command';
 import {
   CHAT_V2_REPOSITORY,
   IChatRepository,
@@ -13,6 +19,7 @@ import { Message } from '../../domain/entities/message.aggregate';
 import { ChatId } from '../../domain/value-objects/chat-id';
 import { MessageType } from '../../domain/value-objects/message-type';
 import { MessageResponseDto } from '../dtos/message-response.dto';
+import { findOpenContactRequest } from './find-open-contact-request';
 
 @CommandHandler(SubmitContactDataCommand)
 export class SubmitContactDataCommandHandler
@@ -26,6 +33,7 @@ export class SubmitContactDataCommandHandler
     @Inject(MESSAGE_V2_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
     private readonly publisher: EventPublisher,
+    private readonly commandBus: CommandBus,
   ) {}
 
   async execute(
@@ -54,22 +62,7 @@ export class SubmitContactDataCommandHandler
       throw new Error(existing.error.message);
     }
 
-    const messages = existing.unwrap();
-    const submittedIds = new Set(
-      messages
-        .filter((message) => message.systemData?.action === 'contact_submission')
-        .map((message) => message.systemData?.requestId)
-        .filter((id): id is string => !!id),
-    );
-    const pending = messages.find((message) => {
-      const data = message.systemData;
-      return (
-        data?.action === 'contact_request' &&
-        data.status === 'pending' &&
-        !!data.requestId &&
-        !submittedIds.has(data.requestId)
-      );
-    });
+    const pending = findOpenContactRequest(existing.unwrap());
     if (!pending) {
       throw new BadRequestException(
         'No hay una solicitud de datos pendiente',
@@ -79,13 +72,20 @@ export class SubmitContactDataCommandHandler
     const nombre = command.data.nombre?.trim() ?? '';
     const email = command.data.email?.trim() ?? '';
     const telefono = command.data.telefono?.trim() ?? '';
-    if (!nombre || !email || !telefono) {
+    const poblacion = command.data.poblacion?.trim() ?? '';
+    if (!nombre || !email || !telefono || !poblacion) {
       throw new BadRequestException(
-        'Nombre, email y teléfono son obligatorios',
+        'Nombre, email, teléfono y población son obligatorios',
+      );
+    }
+    if (command.data.acceptedPrivacyPolicy !== true) {
+      throw new BadRequestException(
+        'Debes aceptar la política de privacidad',
       );
     }
 
     const requestId = pending.systemData?.requestId;
+    const acceptedMarketing = command.data.acceptedMarketing === true;
     const submission = Message.createInteractiveMessage({
       chatId: command.chatId,
       senderId: command.visitorId,
@@ -95,12 +95,15 @@ export class SubmitContactDataCommandHandler
         requestId,
         status: 'submitted',
         fromUserId: command.visitorId,
+        acceptedPrivacyPolicy: true,
+        acceptedMarketing,
+        legal: pending.systemData?.legal,
         data: {
           nombre,
           email,
           telefono,
           apellidos: command.data.apellidos?.trim() || undefined,
-          poblacion: command.data.poblacion?.trim() || undefined,
+          poblacion,
         },
       },
     });
@@ -111,6 +114,8 @@ export class SubmitContactDataCommandHandler
       throw new Error(`Error al guardar los datos: ${saved.error.message}`);
     }
     aggregate.commit();
+
+    await this.recordConsents(command, chat.companyId, acceptedMarketing);
 
     this.logger.log(
       `Datos de contacto enviados en chat ${command.chatId} (request ${requestId})`,
@@ -131,5 +136,47 @@ export class SubmitContactDataCommandHandler
       createdAt: primitives.createdAt.toISOString(),
       updatedAt: primitives.updatedAt.toISOString(),
     };
+  }
+
+  private async recordConsents(
+    command: SubmitContactDataCommand,
+    companyId: string,
+    acceptedMarketing: boolean,
+  ): Promise<void> {
+    const metadata = {
+      source: 'contact_form',
+      chatId: command.chatId,
+      companyId,
+    };
+    try {
+      await this.commandBus.execute(
+        new RecordConsentCommand(
+          command.visitorId,
+          'privacy_policy',
+          'contact-form',
+          command.ipAddress,
+          command.userAgent,
+          metadata,
+        ),
+      );
+      if (acceptedMarketing) {
+        await this.commandBus.execute(
+          new RecordConsentCommand(
+            command.visitorId,
+            'marketing',
+            'contact-form',
+            command.ipAddress,
+            command.userAgent,
+            metadata,
+          ),
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error al registrar consentimientos del formulario: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }

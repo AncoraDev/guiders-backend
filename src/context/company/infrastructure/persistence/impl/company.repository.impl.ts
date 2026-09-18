@@ -20,6 +20,7 @@ import {
 import { CompanyMapper } from './company.mapper';
 import { domainLookupCandidates } from 'src/context/shared/domain/domain-matching.util';
 import { CannedReplyPrimitives } from 'src/context/shared/domain/canned-reply';
+import { ContactFormLegalPrimitives } from '../../../domain/value-objects/company-contact-form-legal';
 
 // Implementación TypeORM del repositorio de Company
 @Injectable()
@@ -165,6 +166,26 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
       return err(
         new CompanyPersistenceError(
           'Error al guardar las frases de la empresa: ' +
+            (error instanceof Error ? error.message : String(error)),
+        ),
+      );
+    }
+  }
+
+  async updateContactFormLegal(
+    id: Uuid,
+    legal: ContactFormLegalPrimitives,
+  ): Promise<Result<void, DomainError>> {
+    try {
+      await this.companyRepo.update(
+        { id: id.getValue() },
+        { contactFormLegal: legal, updatedAt: new Date() },
+      );
+      return okVoid();
+    } catch (error) {
+      return err(
+        new CompanyPersistenceError(
+          'Error al guardar los textos legales del formulario: ' +
             (error instanceof Error ? error.message : String(error)),
         ),
       );

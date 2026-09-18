@@ -28,6 +28,31 @@ npm run docker:ps
 
 Los volúmenes que montan scripts usan rutas `../scripts/...` (relativas a este directorio).
 
+### Cuidado: un Postgres nativo puede tapar al del compose
+
+Si tienes un Postgres instalado en el sistema (por ejemplo `brew services start postgresql@16`),
+escuchará en `127.0.0.1:5432` y `[::1]:5432`, mientras el contenedor publica `*:5432`. Como el
+`.env` usa `DATABASE_HOST=localhost`, **la app se conecta al Postgres nativo, no al contenedor**.
+
+Consecuencia práctica: `docker exec postgres psql -U postgres -d guiders` inspecciona **otra**
+base de datos distinta a la que usa NestJS, así que las migraciones o los `ALTER TABLE` que
+lances por ahí no tienen ningún efecto sobre la app.
+
+Para saber contra qué base de datos estás trabajando:
+
+```bash
+# Quién escucha realmente en el 5432
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+
+# La base de datos que ve la app (misma ruta que DATABASE_HOST=localhost)
+psql -h 127.0.0.1 -p 5432 -U postgres -d guiders -c '\dt'
+```
+
+Si aparece un proceso `postgres` propio junto a `com.docker`, párralo
+(`brew services stop postgresql@16`) o cambia `DATABASE_PORT` para apuntar sin ambigüedad al
+contenedor. Ejecuta siempre `npm run typeorm:migrate:run` contra la base de datos que resuelve
+`DATABASE_HOST`.
+
 ## Build de imagen
 
 ```bash

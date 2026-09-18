@@ -1,6 +1,16 @@
-import { ConflictException, Inject, Logger } from '@nestjs/common';
-import { CommandHandler, EventPublisher, ICommandHandler } from '@nestjs/cqrs';
+import { Inject, Logger } from '@nestjs/common';
+import {
+  CommandHandler,
+  EventPublisher,
+  ICommandHandler,
+  QueryBus,
+} from '@nestjs/cqrs';
 import { RequestContactDataCommand } from './request-contact-data.command';
+import { GetCompanyContactFormLegalQuery } from 'src/context/company/application/queries/get-company-contact-form-legal.query';
+import {
+  CompanyContactFormLegal,
+  ContactFormLegalPrimitives,
+} from 'src/context/company/domain/value-objects/company-contact-form-legal';
 import {
   CHAT_V2_REPOSITORY,
   IChatRepository,
@@ -11,13 +21,8 @@ import {
 } from '../../domain/message.repository';
 import { Message } from '../../domain/entities/message.aggregate';
 import { ChatId } from '../../domain/value-objects/chat-id';
-import { MessageType } from '../../domain/value-objects/message-type';
 import { MessageResponseDto } from '../dtos/message-response.dto';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
-import {
-  ILeadContactDataRepository,
-  LEAD_CONTACT_DATA_REPOSITORY,
-} from 'src/context/leads/domain/lead-contact-data.repository';
 
 @CommandHandler(RequestContactDataCommand)
 export class RequestContactDataCommandHandler
@@ -30,9 +35,8 @@ export class RequestContactDataCommandHandler
     private readonly chatRepository: IChatRepository,
     @Inject(MESSAGE_V2_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
-    @Inject(LEAD_CONTACT_DATA_REPOSITORY)
-    private readonly contactDataRepository: ILeadContactDataRepository,
     private readonly publisher: EventPublisher,
+    private readonly queryBus: QueryBus,
   ) {}
 
   async execute(
@@ -46,66 +50,22 @@ export class RequestContactDataCommandHandler
     }
 
     const chat = chatResult.unwrap();
-    const storedContact = await this.contactDataRepository.findByVisitorId(
-      chat.visitorId.getValue(),
-      chat.companyId,
-    );
-    if (storedContact.isOk()) {
-      const contact = storedContact.unwrap();
-      const hasName = !!contact?.nombre?.trim();
-      const hasContact =
-        !!contact?.email?.trim() || !!contact?.telefono?.trim();
-      if (hasName && hasContact) {
-        throw new ConflictException(
-          'Ya existen datos de contacto para este visitante',
-        );
-      }
-    }
-
-    const existing = await this.messageRepository.findByType(
-      MessageType.INTERACTIVE,
-      ChatId.create(command.chatId),
-      50,
-    );
-    if (existing.isOk()) {
-      const messages = existing.unwrap();
-      const submittedIds = new Set(
-        messages
-          .filter((message) => message.systemData?.action === 'contact_submission')
-          .map((message) => message.systemData?.requestId)
-          .filter((id): id is string => !!id),
-      );
-      if (submittedIds.size > 0) {
-        throw new ConflictException(
-          'El visitante ya envió sus datos de contacto en este chat',
-        );
-      }
-      const pending = messages.find((message) => {
-        const data = message.systemData;
-        return (
-          data?.action === 'contact_request' &&
-          data.status === 'pending' &&
-          !!data.requestId &&
-          !submittedIds.has(data.requestId)
-        );
-      });
-      if (pending) {
-        throw new ConflictException(
-          'Ya hay una solicitud de datos pendiente en este chat',
-        );
-      }
-    }
-
     const requestId = Uuid.random().value;
+    const preface =
+      command.preface?.trim() ||
+      'Para atenderte mejor, necesitamos unos datos.';
+    const legal = await this.resolveLegalSnapshot(chat.companyId);
     const message = Message.createInteractiveMessage({
       chatId: command.chatId,
       senderId: command.commercialId,
-      content: 'Solicitud de datos de contacto',
+      content: preface,
       systemData: {
         action: 'contact_request',
         requestId,
         status: 'pending',
         fromUserId: command.commercialId,
+        preface,
+        legal,
       },
     });
 
@@ -135,5 +95,26 @@ export class RequestContactDataCommandHandler
       createdAt: primitives.createdAt.toISOString(),
       updatedAt: primitives.updatedAt.toISOString(),
     };
+  }
+
+  private async resolveLegalSnapshot(
+    companyId: string,
+  ): Promise<ContactFormLegalPrimitives> {
+    try {
+      const legal = await this.queryBus.execute<
+        GetCompanyContactFormLegalQuery,
+        ContactFormLegalPrimitives | null
+      >(new GetCompanyContactFormLegalQuery(companyId));
+      if (legal) {
+        return legal;
+      }
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron cargar textos legales de company ${companyId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    return CompanyContactFormLegal.empty().getValue();
   }
 }

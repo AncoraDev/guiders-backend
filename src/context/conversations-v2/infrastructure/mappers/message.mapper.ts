@@ -201,7 +201,7 @@ export class MessageMapper {
         toUserId?: string;
         reason?: string;
         requestId?: string;
-        status?: 'pending' | 'submitted' | 'confirmed';
+        status?: 'pending' | 'submitted' | 'confirmed' | 'cancelled';
         data?: {
           nombre?: string;
           apellidos?: string;

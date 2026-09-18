@@ -46,6 +46,10 @@ import { GetCompanyCannedRepliesQuery } from '../../application/queries/get-comp
 import { UpdateCompanyCannedRepliesCommand } from '../../application/commands/update-company-canned-replies.command';
 import { UpdateCompanyCannedRepliesDto } from '../../application/dtos/update-company-canned-replies.dto';
 import { CannedReplyPrimitives } from '../../../shared/domain/canned-reply';
+import { GetCompanyContactFormLegalQuery } from '../../application/queries/get-company-contact-form-legal.query';
+import { UpdateCompanyContactFormLegalCommand } from '../../application/commands/update-company-contact-form-legal.command';
+import { UpdateCompanyContactFormLegalDto } from '../../application/dtos/update-company-contact-form-legal.dto';
+import { ContactFormLegalPrimitives } from '../../domain/value-objects/company-contact-form-legal';
 
 @ApiTags('companies')
 @ApiAuthErrors()
@@ -300,5 +304,74 @@ export class CompanyController {
     }
 
     return { cannedReplies: result.unwrap() };
+  }
+
+  @Get('me/company/contact-form-legal')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Textos legales del formulario de contacto',
+    description:
+      'URL y textos de los checks RGPD y comunicaciones del concesionario.',
+  })
+  @ApiResponse({ status: 200, description: 'Ajustes legales del formulario' })
+  async getMyCompanyContactFormLegal(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ContactFormLegalPrimitives> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const legal = await this.queryBus.execute<
+      GetCompanyContactFormLegalQuery,
+      ContactFormLegalPrimitives | null
+    >(new GetCompanyContactFormLegalQuery(companyId));
+
+    if (legal === null) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    return legal;
+  }
+
+  @Put('me/company/contact-form-legal')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Actualizar textos legales del formulario de contacto',
+    description: 'Solo el admin del concesionario puede cambiar estos textos.',
+  })
+  @ApiResponse({ status: 200, description: 'Ajustes legales actualizados' })
+  @ApiValidationError('Datos legales no válidos')
+  async updateMyCompanyContactFormLegal(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCompanyContactFormLegalDto,
+  ): Promise<ContactFormLegalPrimitives> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const result = await this.commandBus.execute<
+      UpdateCompanyContactFormLegalCommand,
+      Result<ContactFormLegalPrimitives, DomainError>
+    >(new UpdateCompanyContactFormLegalCommand(companyId, body));
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrada')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return result.unwrap();
   }
 }

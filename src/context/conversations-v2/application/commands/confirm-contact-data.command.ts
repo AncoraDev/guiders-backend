@@ -1,9 +1,9 @@
 import { ICommand } from '@nestjs/cqrs';
 
-export class RequestContactDataCommand implements ICommand {
+export class ConfirmContactDataCommand implements ICommand {
   constructor(
     public readonly chatId: string,
     public readonly commercialId: string,
-    public readonly preface?: string,
+    public readonly requestId: string,
   ) {}
 }
