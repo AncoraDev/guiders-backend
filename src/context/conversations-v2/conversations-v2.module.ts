@@ -67,6 +67,7 @@ import { StopTypingCommandHandler } from './application/commands/stop-typing.com
 import { RequestAgentCommandHandler } from './application/commands/request-agent.command-handler';
 import { RequestContactDataCommandHandler } from './application/commands/request-contact-data.command-handler';
 import { SubmitContactDataCommandHandler } from './application/commands/submit-contact-data.command-handler';
+import { SubmitLeadCaptureCommandHandler } from './application/commands/submit-lead-capture.command-handler';
 import { CancelContactDataCommandHandler } from './application/commands/cancel-contact-data.command-handler';
 import { ConfirmContactDataCommandHandler } from './application/commands/confirm-contact-data.command-handler';
 import { OpenChatViewCommandHandler } from './application/commands/open-chat-view.command-handler';
@@ -190,6 +191,7 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     RequestAgentCommandHandler,
     RequestContactDataCommandHandler,
     SubmitContactDataCommandHandler,
+    SubmitLeadCaptureCommandHandler,
     CancelContactDataCommandHandler,
     ConfirmContactDataCommandHandler,
     OpenChatViewCommandHandler,

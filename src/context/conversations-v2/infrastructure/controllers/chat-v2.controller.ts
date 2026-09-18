@@ -68,10 +68,12 @@ import { RequestAgentCommand } from '../../application/commands/request-agent.co
 import { RequestAgentDto } from '../../application/dtos/request-agent.dto';
 import { RequestContactDataCommand } from '../../application/commands/request-contact-data.command';
 import { SubmitContactDataCommand } from '../../application/commands/submit-contact-data.command';
+import { SubmitLeadCaptureCommand } from '../../application/commands/submit-lead-capture.command';
 import { CancelContactDataCommand } from '../../application/commands/cancel-contact-data.command';
 import { ConfirmContactDataCommand } from '../../application/commands/confirm-contact-data.command';
 import { RequestContactDataDto } from '../../application/dtos/request-contact-data.dto';
 import { SubmitContactDataDto } from '../../application/dtos/submit-contact-data.dto';
+import { SubmitLeadCaptureDto } from '../../application/dtos/submit-lead-capture.dto';
 import { ConfirmContactDataDto } from '../../application/dtos/confirm-contact-data.dto';
 import { MessageResponseDto } from '../../application/dtos/message-response.dto';
 import { OpenChatViewCommand } from '../../application/commands/open-chat-view.command';
@@ -1362,6 +1364,40 @@ export class ChatV2Controller {
       '';
     return this.commandBus.execute(
       new SubmitContactDataCommand(
+        chatId,
+        req.user.id,
+        body,
+        ipAddress.trim(),
+        typeof req.headers['user-agent'] === 'string'
+          ? req.headers['user-agent']
+          : undefined,
+      ),
+    );
+  }
+
+  @Post(':chatId/lead-capture')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['visitor'])
+  @ApiOperation({
+    summary: 'Enviar los datos recogidos por el asistente de captación',
+    description:
+      'El visitante completa el guion cuando no hay comerciales conectados. Guarda el lead, registra el consentimiento y deja el resumen en el hilo.',
+  })
+  @ApiParam({ name: 'chatId', description: 'ID del chat' })
+  @ApiBody({ type: SubmitLeadCaptureDto })
+  @ApiResponse({ status: 201, type: MessageResponseDto })
+  async submitLeadCapture(
+    @Param('chatId') chatId: string,
+    @Body() body: SubmitLeadCaptureDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MessageResponseDto> {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipAddress =
+      (typeof forwarded === 'string' ? forwarded.split(',')[0] : '') ||
+      req.ip ||
+      '';
+    return this.commandBus.execute(
+      new SubmitLeadCaptureCommand(
         chatId,
         req.user.id,
         body,

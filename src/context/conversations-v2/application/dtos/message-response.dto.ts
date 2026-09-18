@@ -67,6 +67,15 @@ export class MessageResponseDto {
       telefono?: string;
       poblacion?: string;
     };
+    // Captación sin agentes: guion recorrido y respuestas del visitante
+    flowId?: string;
+    answers?: {
+      stepId: string;
+      prompt: string;
+      answer: string;
+      field?: string;
+    }[];
+    capturedWithoutAgent?: boolean;
   };
 
   @ApiProperty({

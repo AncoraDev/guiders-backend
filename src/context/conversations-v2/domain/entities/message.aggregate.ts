@@ -22,8 +22,18 @@ export interface ContactFormLegalSnapshot {
   marketingCheckboxLabel: string;
 }
 
+/** Respuesta que dio el visitante en un paso del guion de captación. */
+export interface LeadCaptureAnswer {
+  stepId: string;
+  prompt: string;
+  /** Lo que eligió o escribió el visitante, tal como se le mostrará al comercial */
+  answer: string;
+  /** Campo del lead donde acabó la respuesta, si el paso apuntaba a uno */
+  field?: string;
+}
+
 export interface SystemData {
-  action?: string; // 'assigned', 'transferred', 'joined', 'left', 'contact_request', 'contact_submission', 'contact_cancellation', 'contact_confirmation'
+  action?: string; // 'assigned', 'transferred', 'joined', 'left', 'contact_request', 'contact_submission', 'contact_cancellation', 'contact_confirmation', 'lead_capture_submission'
   fromUserId?: string;
   toUserId?: string;
   reason?: string;
@@ -34,6 +44,11 @@ export interface SystemData {
   legal?: ContactFormLegalSnapshot;
   acceptedPrivacyPolicy?: boolean;
   acceptedMarketing?: boolean;
+  /** Guion recorrido en la captación sin agentes */
+  flowId?: string;
+  answers?: LeadCaptureAnswer[];
+  /** El visitante dejó sus datos sin que hubiera ningún comercial conectado */
+  capturedWithoutAgent?: boolean;
 }
 
 /**

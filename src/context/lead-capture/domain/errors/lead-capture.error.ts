@@ -1,0 +1,23 @@
+import { DomainError } from 'src/context/shared/domain/domain.error';
+
+export class LeadCaptureError extends DomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LeadCaptureError';
+  }
+}
+
+/** El guion no cumple las reglas que lo hacen recorrible por el visitante. */
+export class InvalidLeadCaptureFlowError extends LeadCaptureError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidLeadCaptureFlowError';
+  }
+}
+
+export class LeadCaptureFlowPersistenceError extends LeadCaptureError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LeadCaptureFlowPersistenceError';
+  }
+}

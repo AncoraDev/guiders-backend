@@ -10,5 +10,7 @@
 			"path": "../guiders-sdk"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"vsicons.presets.nestjs": true
+	}
 }
