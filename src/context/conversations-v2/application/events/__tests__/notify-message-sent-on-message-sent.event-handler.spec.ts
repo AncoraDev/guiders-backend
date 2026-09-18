@@ -2,10 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotifyMessageSentOnMessageSentEventHandler } from '../notify-message-sent-on-message-sent.event-handler';
 import { MessageSentEvent } from '../../../domain/events/message-sent.event';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
+import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
+import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 
 describe('NotifyMessageSentOnMessageSentEventHandler', () => {
   let handler: NotifyMessageSentOnMessageSentEventHandler;
   let mockGateway: jest.Mocked<WebSocketGatewayBasic>;
+  let mockChatRepository: { findById: jest.Mock };
 
   beforeEach(async () => {
     // Mock del WebSocket Gateway
@@ -14,12 +17,23 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       emitToRooms: jest.fn(),
     } as unknown as jest.Mocked<WebSocketGatewayBasic>;
 
+    mockChatRepository = {
+      findById: jest.fn().mockResolvedValue({
+        isErr: () => true,
+        isOk: () => false,
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotifyMessageSentOnMessageSentEventHandler,
         {
           provide: 'WEBSOCKET_GATEWAY',
           useValue: mockGateway,
+        },
+        {
+          provide: CHAT_V2_REPOSITORY,
+          useValue: mockChatRepository,
         },
       ],
     }).compile();
@@ -206,6 +220,51 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
             fileSize: 1024000,
             mimeType: 'application/pdf',
           },
+        }),
+      );
+    });
+
+    it('debe replicar el mensaje PENDING a la sala del tenant', async () => {
+      const chatId = Uuid.random().value;
+      const companyId = Uuid.random().value;
+      const messageId = Uuid.random().value;
+      const senderId = Uuid.random().value;
+
+      mockChatRepository.findById.mockResolvedValue({
+        isErr: () => false,
+        isOk: () => true,
+        unwrap: () => ({
+          companyId,
+          status: { isPending: () => true },
+        }),
+      });
+
+      const event = new MessageSentEvent({
+        message: {
+          messageId,
+          chatId,
+          senderId,
+          content: 'Hola, busco información',
+          type: 'text',
+          isFirstResponse: false,
+          isInternal: false,
+          isAI: false,
+          sentAt: new Date('2025-10-03T10:00:00Z'),
+        },
+      });
+
+      await handler.handle(event);
+
+      expect(mockGateway.emitToRoom).toHaveBeenCalledTimes(2);
+      expect(mockGateway.emitToRoom).toHaveBeenNthCalledWith(
+        2,
+        `tenant:${companyId}`,
+        'message:new',
+        expect.objectContaining({
+          messageId,
+          chatId,
+          queue: 'pendientes',
+          senderType: 'VISITOR',
         }),
       );
     });

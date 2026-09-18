@@ -2,6 +2,11 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
 import { MessageSentEvent } from '../../domain/events/message-sent.event';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
+import {
+  CHAT_V2_REPOSITORY,
+  IChatRepository,
+} from '../../domain/chat.repository';
+import { ChatId } from '../../domain/value-objects/chat-id';
 
 /**
  * Event handler que notifica vía WebSocket cuando se envía un mensaje.
@@ -10,6 +15,8 @@ import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
  * 1. Escucha el evento MessageSentEvent
  * 2. Emite notificación a la sala del chat correspondiente
  * 3. Todos los participantes del chat (visitante y comercial) reciben la notificación
+ * 4. Si el chat está PENDING (cola), también emite a tenant:{companyId} para
+ *    que Console muestre notificación de escritorio sin haber unido esa sala.
  *
  * Nota: el campo unreadMessagesCount ya NO se incluye aquí. El valor confirmado
  * se propaga por separado mediante UnreadCountUpdatedEvent →
@@ -29,9 +36,11 @@ export class NotifyMessageSentOnMessageSentEventHandler
   constructor(
     @Inject('WEBSOCKET_GATEWAY')
     private readonly websocketGateway: WebSocketGatewayBasic,
+    @Inject(CHAT_V2_REPOSITORY)
+    private readonly chatRepository: IChatRepository,
   ) {}
 
-  handle(event: MessageSentEvent): void {
+  async handle(event: MessageSentEvent): Promise<void> {
     this.logger.log(
       `Procesando notificación de mensaje enviado: ${event.getMessageId()}`,
     );
@@ -97,6 +106,8 @@ export class NotifyMessageSentOnMessageSentEventHandler
 
       // Si es la primera respuesta del comercial, notificar estado de chat actualizado
       if (event.isFirstResponse()) {
+      // Si es la primera respuesta del comercial, notificar estado de chat actualizado
+      if (event.isFirstResponse()) {
         this.logger.log(
           `Primera respuesta del comercial detectada, notificando cambio de estado del chat: ${chatId}`,
         );
@@ -108,9 +119,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
         });
       }
 
-      this.logger.log(
-        `Notificación de mensaje enviada exitosamente a chat: ${chatId}`,
-      );
+      await this.emitToTenantIfPendingVisitor(event, payload);
     } catch (error) {
       const errorObj = error as Error;
       this.logger.error(
