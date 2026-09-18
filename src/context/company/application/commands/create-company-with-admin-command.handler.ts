@@ -76,9 +76,7 @@ export class CreateCompanyWithAdminCommandHandler
     }
 
     const firstName =
-      adminFirstName?.trim() ||
-      adminName?.trim().split(/\s+/)[0] ||
-      '';
+      adminFirstName?.trim() || adminName?.trim().split(/\s+/)[0] || '';
     const lastName =
       adminLastName?.trim() ||
       adminName?.trim().split(/\s+/).slice(1).join(' ') ||

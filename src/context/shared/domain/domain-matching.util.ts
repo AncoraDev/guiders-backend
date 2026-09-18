@@ -11,7 +11,10 @@
  * No intenta soportar IPv6 literales (no usados como dominios de sitio).
  */
 export function normalizeDomainForMatching(domain: string): string {
-  const withoutWww = domain.trim().replace(/^www\./i, '').toLowerCase();
+  const withoutWww = domain
+    .trim()
+    .replace(/^www\./i, '')
+    .toLowerCase();
   const lastColon = withoutWww.lastIndexOf(':');
   let host = withoutWww;
   if (lastColon !== -1) {

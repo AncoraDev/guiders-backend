@@ -21,9 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { CreateCompanyDto } from '../../application/dtos/create-company.dto';
 import { CreateCompanyWithAdminCommand } from '../../application/commands/create-company-with-admin.command';
-import {
-  CreateCompanyWithAdminResult,
-} from '../../application/commands/create-company-with-admin-command.handler';
+import { CreateCompanyWithAdminResult } from '../../application/commands/create-company-with-admin-command.handler';
 import { FindCompanyByDomainQuery } from '../../application/queries/find-company-by-domain.query';
 import { FindCompanyByDomainResponseDto } from '../../application/dtos/find-company-by-domain-response.dto';
 import { MyCompanyResponseDto } from '../../application/dtos/my-company-response.dto';

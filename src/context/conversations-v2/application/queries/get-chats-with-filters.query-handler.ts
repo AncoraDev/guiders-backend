@@ -112,11 +112,13 @@ export class GetChatsWithFiltersQueryHandler
       const requestingOnlyPending =
         Array.isArray(filters?.status) &&
         filters.status.length > 0 &&
-        filters.status.every(
-          (s) => String(s).toUpperCase() === 'PENDING',
-        );
+        filters.status.every((s) => String(s).toUpperCase() === 'PENDING');
 
-      if (userRoles.includes('commercial') && !isAdmin && !requestingOnlyPending) {
+      if (
+        userRoles.includes('commercial') &&
+        !isAdmin &&
+        !requestingOnlyPending
+      ) {
         // Los comerciales solo ven chats asignados a ellos o disponibles para ellos
         criteriaFilters.push(
           new Filter<Chat>('assignedCommercialId', Operator.EQUALS, userId),

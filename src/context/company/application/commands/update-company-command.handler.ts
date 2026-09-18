@@ -72,7 +72,9 @@ export class UpdateCompanyCommandHandler
             `El dominio canónico no es válido: ${site.canonicalDomain}`,
           );
         }
-        const invalidAlias = aliases.find((alias) => !CanonicalDomain.isValid(alias));
+        const invalidAlias = aliases.find(
+          (alias) => !CanonicalDomain.isValid(alias),
+        );
         if (invalidAlias) {
           throw new InvalidCompanyDataError(
             `El alias de dominio no es válido: ${invalidAlias}`,
@@ -123,9 +125,7 @@ export class UpdateCompanyCommandHandler
       }
     }
 
-    const updated = found
-      .unwrap()
-      .updateDetails(new CompanyName(name), sites);
+    const updated = found.unwrap().updateDetails(new CompanyName(name), sites);
 
     const saveResult = await this.companyRepository.update(updated);
     if (saveResult.isErr()) {

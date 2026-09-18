@@ -13,12 +13,16 @@ export class UserAccountGreetingMessage {
     }
   }
 
-  public static fromInput(raw: string | null | undefined): UserAccountGreetingMessage {
+  public static fromInput(
+    raw: string | null | undefined,
+  ): UserAccountGreetingMessage {
     if (raw === undefined || raw === null) {
       return new UserAccountGreetingMessage(null);
     }
     const trimmed = raw.trim();
-    return new UserAccountGreetingMessage(trimmed.length === 0 ? null : trimmed);
+    return new UserAccountGreetingMessage(
+      trimmed.length === 0 ? null : trimmed,
+    );
   }
 
   public getValue(): string | null {

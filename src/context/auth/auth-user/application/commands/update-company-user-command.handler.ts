@@ -45,7 +45,11 @@ export class UpdateCompanyUserCommandHandler
     }
 
     const nextPassword = command.password?.trim();
-    if (nextPassword !== undefined && nextPassword.length > 0 && nextPassword.length < 6) {
+    if (
+      nextPassword !== undefined &&
+      nextPassword.length > 0 &&
+      nextPassword.length < 6
+    ) {
       return err(
         new InvalidCompanyUserPasswordError(
           'La contraseña debe tener al menos 6 caracteres',

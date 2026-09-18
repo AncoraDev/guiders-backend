@@ -63,8 +63,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
             messageId: messageData.messageId,
             chatId: messageData.chatId,
             senderId: messageData.senderId,
-            senderType:
-              messageData.type === 'SYSTEM' ? 'SYSTEM' : undefined,
+            senderType: messageData.type === 'SYSTEM' ? 'SYSTEM' : undefined,
             content: messageData.content,
             type: messageData.type,
             systemData: messageData.systemData,
@@ -104,7 +103,11 @@ export class NotifyMessageSentOnMessageSentEventHandler
         aiMetadata: messageData.aiMetadata,
       };
 
-      this.websocketGateway.emitToRoom(`chat:${chatId}`, 'message:new', payload);
+      this.websocketGateway.emitToRoom(
+        `chat:${chatId}`,
+        'message:new',
+        payload,
+      );
 
       if (event.isFirstResponse()) {
         this.logger.log(
@@ -143,10 +146,14 @@ export class NotifyMessageSentOnMessageSentEventHandler
     const chat = chatResult.unwrap();
     if (!chat.status.isPending()) return;
 
-    this.websocketGateway.emitToRoom(`tenant:${chat.companyId}`, 'message:new', {
-      ...payload,
-      queue: 'pendientes',
-      senderType: payload.senderType ?? 'VISITOR',
-    });
+    this.websocketGateway.emitToRoom(
+      `tenant:${chat.companyId}`,
+      'message:new',
+      {
+        ...payload,
+        queue: 'pendientes',
+        senderType: payload.senderType ?? 'VISITOR',
+      },
+    );
   }
 }

@@ -40,7 +40,8 @@ export class PlatformUsersSummaryDto {
   inactive!: number;
 
   @ApiProperty({
-    description: 'Conteo por rol (un usuario con varios roles suma en cada uno)',
+    description:
+      'Conteo por rol (un usuario con varios roles suma en cada uno)',
     type: 'object',
     additionalProperties: { type: 'number' },
   })

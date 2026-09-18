@@ -161,9 +161,7 @@ export class Company extends AggregateRoot {
     });
   }
 
-  public updateContactFormLegal(
-    legal: ContactFormLegalPrimitives,
-  ): Company {
+  public updateContactFormLegal(legal: ContactFormLegalPrimitives): Company {
     return new Company({
       id: this.id,
       companyName: this.companyName,

@@ -51,6 +51,8 @@ export class CreatePlatformUserRequestDto {
       'Contraseña temporal (mín. 6). En el primer login Keycloak exige una nueva con política segura.',
   })
   @IsString({ message: 'La contraseña es obligatoria' })
-  @MinLength(6, { message: 'La contraseña temporal debe tener al menos 6 caracteres' })
+  @MinLength(6, {
+    message: 'La contraseña temporal debe tener al menos 6 caracteres',
+  })
   temporaryPassword: string;
 }

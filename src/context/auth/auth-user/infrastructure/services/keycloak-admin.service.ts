@@ -236,7 +236,9 @@ export class KeycloakAdminService {
     } catch (e) {
       this.logger.error('Error setTemporaryPassword Keycloak', e);
       return err(
-        new KeycloakAdminError('Error asignando contraseña temporal en Keycloak'),
+        new KeycloakAdminError(
+          'Error asignando contraseña temporal en Keycloak',
+        ),
       );
     }
   }
@@ -388,7 +390,9 @@ export class KeycloakAdminService {
       return ok(undefined);
     } catch (e) {
       this.logger.error('Error setEnabled Keycloak', e);
-      return err(new KeycloakAdminError('Error actualizando estado en Keycloak'));
+      return err(
+        new KeycloakAdminError('Error actualizando estado en Keycloak'),
+      );
     }
   }
 
@@ -449,7 +453,9 @@ export class KeycloakAdminService {
       return ok(undefined);
     } catch (e) {
       this.logger.error('Error updateUserProfile Keycloak', e);
-      return err(new KeycloakAdminError('Error actualizando perfil en Keycloak'));
+      return err(
+        new KeycloakAdminError('Error actualizando perfil en Keycloak'),
+      );
     }
   }
 
@@ -471,16 +477,12 @@ export class KeycloakAdminService {
       });
       if (!rolesRes.ok) {
         return err(
-          new KeycloakAdminError(
-            `Error listando roles KC: ${rolesRes.status}`,
-          ),
+          new KeycloakAdminError(`Error listando roles KC: ${rolesRes.status}`),
         );
       }
       const allRoles = (await rolesRes.json()) as KeycloakRole[];
 
-      const managedNames = new Set(
-        Object.values(this.backendToKcRoles).flat(),
-      );
+      const managedNames = new Set(Object.values(this.backendToKcRoles).flat());
 
       const currentRes = await fetch(
         `${this.adminBase}/users/${keycloakId}/role-mappings/realm`,
@@ -538,7 +540,9 @@ export class KeycloakAdminService {
       return ok(undefined);
     } catch (e) {
       this.logger.error('Error setRealmRoles Keycloak', e);
-      return err(new KeycloakAdminError('Error sincronizando roles en Keycloak'));
+      return err(
+        new KeycloakAdminError('Error sincronizando roles en Keycloak'),
+      );
     }
   }
 
@@ -562,7 +566,9 @@ export class KeycloakAdminService {
       return ok(undefined);
     } catch (e) {
       this.logger.error('Error deleteUser Keycloak', e);
-      return err(new KeycloakAdminError('Error eliminando usuario en Keycloak'));
+      return err(
+        new KeycloakAdminError('Error eliminando usuario en Keycloak'),
+      );
     }
   }
 

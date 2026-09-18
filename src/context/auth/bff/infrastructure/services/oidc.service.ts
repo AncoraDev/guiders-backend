@@ -423,7 +423,10 @@ export class OidcService implements OnModuleInit {
           opts.postLogoutRedirectUri,
         );
       }
-      logoutUrl.searchParams.set('client_id', this.getAppConfig(appKey).clientId);
+      logoutUrl.searchParams.set(
+        'client_id',
+        this.getAppConfig(appKey).clientId,
+      );
       if (opts?.idTokenHint) {
         logoutUrl.searchParams.set('id_token_hint', opts.idTokenHint);
       }

@@ -23,9 +23,7 @@ export class ListCompaniesQueryHandler
   ): Promise<PlatformCompanySummaryDto[]> {
     const result = await this.companyRepository.findAll();
     if (result.isErr()) {
-      this.logger.error(
-        `Error listando companies: ${result.error.message}`,
-      );
+      this.logger.error(`Error listando companies: ${result.error.message}`);
       return [];
     }
 

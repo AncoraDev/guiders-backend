@@ -61,23 +61,21 @@ export class GetVisitorPageHistoryQueryHandler
     const { events, totalCount } = eventsResult.unwrap();
     const total = totalCount;
     const pages: VisitorPageHistoryItemDto[] = events.map((event, i) => {
-      const metadata = event.getMetadata().getValue() as Record<string, unknown>;
+      const metadata = event.getMetadata().getValue() as Record<
+        string,
+        unknown
+      >;
       const pageMeta =
         metadata['page'] && typeof metadata['page'] === 'object'
           ? (metadata['page'] as Record<string, unknown>)
           : undefined;
 
       const url = String(
-        metadata['url'] ??
-          pageMeta?.['url'] ??
-          pageMeta?.['path'] ??
-          '',
+        metadata['url'] ?? pageMeta?.['url'] ?? pageMeta?.['path'] ?? '',
       ).trim();
 
       let path: string | undefined =
-        typeof pageMeta?.['path'] === 'string'
-          ? pageMeta['path']
-          : undefined;
+        typeof pageMeta?.['path'] === 'string' ? pageMeta['path'] : undefined;
 
       if (!path && url) {
         try {

@@ -44,7 +44,8 @@ export class SiteDto {
 // DTO para el administrador de la empresa
 export class AdminDto {
   @ApiProperty({
-    description: 'Nombre completo (legacy). Preferir adminFirstName + adminLastName',
+    description:
+      'Nombre completo (legacy). Preferir adminFirstName + adminLastName',
     required: false,
   })
   @IsOptional()
@@ -76,8 +77,12 @@ export class AdminDto {
       'Contraseña temporal del admin (mín. 6). En el primer login Keycloak exige una nueva segura.',
     example: 'admin123!',
   })
-  @IsString({ message: 'La contraseña temporal del administrador es obligatoria' })
-  @IsNotEmpty({ message: 'La contraseña temporal del administrador es obligatoria' })
+  @IsString({
+    message: 'La contraseña temporal del administrador es obligatoria',
+  })
+  @IsNotEmpty({
+    message: 'La contraseña temporal del administrador es obligatoria',
+  })
   @MinLength(6, {
     message: 'La contraseña temporal debe tener al menos 6 caracteres',
   })

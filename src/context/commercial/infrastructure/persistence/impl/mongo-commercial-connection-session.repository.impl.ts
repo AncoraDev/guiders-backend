@@ -48,10 +48,7 @@ export class MongoCommercialConnectionSessionRepositoryImpl
 
       if (existing) {
         // Actualizar display name si llega uno nuevo y la sesión abierta no lo tenía
-        if (
-          params.commercialDisplayName &&
-          !existing.commercialDisplayName
-        ) {
+        if (params.commercialDisplayName && !existing.commercialDisplayName) {
           existing.commercialDisplayName = params.commercialDisplayName;
           await existing.save();
         }
@@ -75,9 +72,7 @@ export class MongoCommercialConnectionSessionRepositoryImpl
       });
 
       return ok(
-        this.toPrimitives(
-          doc.toObject() as unknown as Record<string, unknown>,
-        ),
+        this.toPrimitives(doc.toObject() as unknown as Record<string, unknown>),
       );
     } catch (error) {
       this.logger.error('Error abriendo sesión de conexión', error);

@@ -21,7 +21,11 @@ import { VisitorLifecycleVO } from 'src/context/visitors-v2/domain/value-objects
 describe('meetsLeadCriteria', () => {
   it('requiere nombre y email', () => {
     expect(
-      meetsLeadCriteria({ nombre: 'Juan', email: 'a@b.com', telefono: undefined }),
+      meetsLeadCriteria({
+        nombre: 'Juan',
+        email: 'a@b.com',
+        telefono: undefined,
+      }),
     ).toBe(true);
   });
 
@@ -33,19 +37,31 @@ describe('meetsLeadCriteria', () => {
 
   it('rechaza solo nombre', () => {
     expect(
-      meetsLeadCriteria({ nombre: 'Juan', email: undefined, telefono: undefined }),
+      meetsLeadCriteria({
+        nombre: 'Juan',
+        email: undefined,
+        telefono: undefined,
+      }),
     ).toBe(false);
   });
 
   it('rechaza email sin nombre', () => {
     expect(
-      meetsLeadCriteria({ nombre: undefined, email: 'a@b.com', telefono: undefined }),
+      meetsLeadCriteria({
+        nombre: undefined,
+        email: 'a@b.com',
+        telefono: undefined,
+      }),
     ).toBe(false);
   });
 
   it('rechaza espacios en blanco', () => {
     expect(
-      meetsLeadCriteria({ nombre: '  ', email: 'a@b.com', telefono: undefined }),
+      meetsLeadCriteria({
+        nombre: '  ',
+        email: 'a@b.com',
+        telefono: undefined,
+      }),
     ).toBe(false);
   });
 });

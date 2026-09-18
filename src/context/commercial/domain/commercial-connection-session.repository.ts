@@ -60,7 +60,9 @@ export interface CommercialConnectionSessionRepository {
     commercialId: string;
     endedAt?: Date;
     endReason?: ConnectionSessionEndReason;
-  }): Promise<Result<CommercialConnectionSessionPrimitives | null, DomainError>>;
+  }): Promise<
+    Result<CommercialConnectionSessionPrimitives | null, DomainError>
+  >;
 
   /**
    * Búsqueda paginada con filtros (siempre scoped por companyId).

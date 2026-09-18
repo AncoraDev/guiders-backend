@@ -41,9 +41,7 @@ import { RedisCommercialConnectionDomainService } from './infrastructure/connect
 // Schema imports
 import { CommercialSchemaDefinition } from './infrastructure/persistence/schemas/commercial.schema';
 import { CommercialConnectionSessionSchemaDefinition } from './infrastructure/persistence/schemas/commercial-connection-session.schema';
-import {
-  COMMERCIAL_CONNECTION_SESSION_REPOSITORY,
-} from './domain/commercial-connection-session.repository';
+import { COMMERCIAL_CONNECTION_SESSION_REPOSITORY } from './domain/commercial-connection-session.repository';
 import { MongoCommercialConnectionSessionRepositoryImpl } from './infrastructure/persistence/impl/mongo-commercial-connection-session.repository.impl';
 
 // External dependencies needed by controller

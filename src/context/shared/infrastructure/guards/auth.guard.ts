@@ -15,10 +15,7 @@ import { UserResponseDto } from 'src/context/auth/auth-user/application/dtos/use
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { QueryBus } from '@nestjs/cqrs';
-import {
-  getBffSessionCookieNames,
-  resolveBffAuthApp,
-} from '../bff-app-cookie';
+import { getBffSessionCookieNames, resolveBffAuthApp } from '../bff-app-cookie';
 
 export interface AuthenticatedRequest extends Request {
   user: {

@@ -194,7 +194,11 @@ export class MessageMapper {
 
   private mapSystemData(schema: MessageSchema) {
     const metadata = schema.content?.metadata;
-    if (metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0) {
+    if (
+      metadata &&
+      typeof metadata === 'object' &&
+      Object.keys(metadata).length > 0
+    ) {
       return metadata as {
         action?: string;
         fromUserId?: string;

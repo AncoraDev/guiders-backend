@@ -751,8 +751,7 @@ export class AuthUserController {
   @Put('me/canned-replies')
   @ApiOperation({
     summary: 'Actualizar frases rápidas del comercial',
-    description:
-      'Reemplaza las frases que aparecen en el menú / de Atención.',
+    description: 'Reemplaza las frases que aparecen en el menú / de Atención.',
   })
   @ApiBearerAuth()
   @ApiBody({ type: UpdateCannedRepliesDto })

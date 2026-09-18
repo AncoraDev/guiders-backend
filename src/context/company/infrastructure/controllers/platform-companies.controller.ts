@@ -30,9 +30,7 @@ import {
 import { CreateCompanyDto } from '../../application/dtos/create-company.dto';
 import { CreateCompanyWithAdminCommand } from '../../application/commands/create-company-with-admin.command';
 import { UpdateCompanyCommand } from '../../application/commands/update-company.command';
-import {
-  CreateCompanyWithAdminResult,
-} from '../../application/commands/create-company-with-admin-command.handler';
+import { CreateCompanyWithAdminResult } from '../../application/commands/create-company-with-admin-command.handler';
 import { ListCompaniesQuery } from '../../application/queries/list-companies.query';
 import { GetPlatformCompanyDetailQuery } from '../../application/queries/get-platform-company-detail.query';
 import {

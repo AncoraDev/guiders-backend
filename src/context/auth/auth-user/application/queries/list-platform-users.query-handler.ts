@@ -12,8 +12,7 @@ import {
 
 @QueryHandler(ListPlatformUsersQuery)
 export class ListPlatformUsersQueryHandler
-  implements
-    IQueryHandler<ListPlatformUsersQuery, PlatformUsersListResponseDto>
+  implements IQueryHandler<ListPlatformUsersQuery, PlatformUsersListResponseDto>
 {
   constructor(
     @Inject(USER_ACCOUNT_REPOSITORY)

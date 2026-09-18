@@ -1,9 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
-import {
-  BffAuthApp,
-  getBffSessionCookieNames,
-} from '../bff-app-cookie';
+import { BffAuthApp, getBffSessionCookieNames } from '../bff-app-cookie';
 
 export interface BffUserInfo {
   sub: string;

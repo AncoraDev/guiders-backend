@@ -45,8 +45,7 @@ export class LeadSearchProvider implements SearchProvider {
         const personName = [doc.nombre, doc.apellidos]
           .filter(Boolean)
           .join(' ');
-        const fullName =
-          doc.alias?.trim() || personName || 'Lead sin nombre';
+        const fullName = doc.alias?.trim() || personName || 'Lead sin nombre';
         return SearchResult.create({
           id: doc.id,
           scope: SearchScope.LEADS,

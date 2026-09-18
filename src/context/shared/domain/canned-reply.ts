@@ -33,8 +33,7 @@ export function parseCannedReplies(
       throw new Error(`La frase ${index + 1} no es válida`);
     }
     const record = item as Record<string, unknown>;
-    const title =
-      typeof record.title === 'string' ? record.title.trim() : '';
+    const title = typeof record.title === 'string' ? record.title.trim() : '';
     const body = typeof record.body === 'string' ? record.body.trim() : '';
 
     if (!title) {

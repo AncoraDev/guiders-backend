@@ -41,9 +41,7 @@ export class CancelContactDataCommandHandler
 
     const chat = chatResult.unwrap();
     if (chat.visitorId.value !== command.visitorId) {
-      throw new BadRequestException(
-        'El visitante no pertenece a este chat',
-      );
+      throw new BadRequestException('El visitante no pertenece a este chat');
     }
 
     const existing = await this.messageRepository.findByType(
@@ -57,9 +55,7 @@ export class CancelContactDataCommandHandler
 
     const pending = findOpenContactRequest(existing.unwrap());
     if (!pending) {
-      throw new BadRequestException(
-        'No hay una solicitud de datos pendiente',
-      );
+      throw new BadRequestException('No hay una solicitud de datos pendiente');
     }
 
     const requestId = pending.systemData?.requestId;
@@ -78,9 +74,7 @@ export class CancelContactDataCommandHandler
     const aggregate = this.publisher.mergeObjectContext(cancellation);
     const saved = await this.messageRepository.save(aggregate);
     if (saved.isErr()) {
-      throw new Error(
-        `Error al cancelar la solicitud: ${saved.error.message}`,
-      );
+      throw new Error(`Error al cancelar la solicitud: ${saved.error.message}`);
     }
     aggregate.commit();
 

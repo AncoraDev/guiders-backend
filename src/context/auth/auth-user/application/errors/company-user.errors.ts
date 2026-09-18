@@ -15,8 +15,7 @@ export class CompanyUserEmailExistsError extends DomainError {
 export class InvalidCompanyUserRolesError extends DomainError {
   constructor(message?: string) {
     super(
-      message ??
-        'Roles inválidos. Permitidos: admin, commercial, supervisor',
+      message ?? 'Roles inválidos. Permitidos: admin, commercial, supervisor',
     );
   }
 }
@@ -66,9 +65,7 @@ export function validateAssignableRoles(
   roles: string[],
 ): InvalidCompanyUserRolesError | null {
   if (!Array.isArray(roles) || roles.length === 0) {
-    return new InvalidCompanyUserRolesError(
-      'Debes asignar al menos un rol',
-    );
+    return new InvalidCompanyUserRolesError('Debes asignar al menos un rol');
   }
   const invalid = roles.filter(
     (r) => !(ASSIGNABLE_COMPANY_ROLES as readonly string[]).includes(r),

@@ -23,9 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { DualAuthGuard } from 'src/context/shared/infrastructure/guards/dual-auth.guard';
-import {
-  AuthenticatedRequest,
-} from 'src/context/shared/infrastructure/guards/auth.guard';
+import { AuthenticatedRequest } from 'src/context/shared/infrastructure/guards/auth.guard';
 import { RolesGuard } from 'src/context/shared/infrastructure/guards/role.guard';
 import { Roles } from 'src/context/shared/infrastructure/roles.decorator';
 import {

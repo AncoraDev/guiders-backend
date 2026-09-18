@@ -124,7 +124,11 @@ export class CommercialController {
     required: false,
     description: 'Solo admin/supervisor: filtrar por comercial',
   })
-  @ApiQuery({ name: 'page', required: false, description: 'Página (default 1)' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (default 1)',
+  })
   @ApiQuery({
     name: 'limit',
     required: false,
@@ -172,10 +176,14 @@ export class CommercialController {
     const parsedPage = Math.max(1, Number(page) || 1);
     const parsedLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
 
-    const allowedReasons = ['manual', 'logout', 'browser_close', 'unknown'] as const;
+    const allowedReasons = [
+      'manual',
+      'logout',
+      'browser_close',
+      'unknown',
+    ] as const;
     const parsedReason =
-      endReason &&
-      (allowedReasons as readonly string[]).includes(endReason)
+      endReason && (allowedReasons as readonly string[]).includes(endReason)
         ? (endReason as (typeof allowedReasons)[number])
         : undefined;
 

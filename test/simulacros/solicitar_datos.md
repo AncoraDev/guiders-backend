@@ -18,6 +18,7 @@ Frase de preface: `Por favor rellena este formulario, por favor`
 - [ ] El visitante puede **Cancelar**: Console muestra `El visitante ha cancelado el formulario`.
 - [ ] El comercial puede volver a enviar el formulario (visitante aún no es lead). En el widget solo queda la tarjeta nueva; la cancelada anterior ya no se pinta.
 - [ ] El visitante rellena (nombre, email, teléfono, población, privacidad) y envía. En el widget queda `Datos enviados` **sin tarjeta duplicada**.
+- [ ] El visitante no debe poder enviar los datos sin no marca la casilla check de "He leído y acepto la política de privacidad"
 - [ ] El comercial recibe los datos, los revisa y **Confirma**: toast `Datos de contacto guardados`, la tarjeta pasa a `Datos aplicados` y el visitante pasa a lead.
 - [ ] **Recargar Console** y reabrir la conversación: sigue mostrando `Datos aplicados`. El estado vive en el mensaje `contact_confirmation` (`POST /v2/chats/:chatId/contact-confirm`), no en memoria.
 - [ ] **Recargar la página del visitante** y reabrir el widget: sigue habiendo una sola tarjeta con el último estado.

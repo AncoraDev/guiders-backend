@@ -57,7 +57,10 @@ export class SetCompanyUserActiveCommandHandler
   }
 
   private isSelf(
-    user: { id: { getValue(): string }; keycloakId: { isPresent(): boolean; get(): { value: string } } },
+    user: {
+      id: { getValue(): string };
+      keycloakId: { isPresent(): boolean; get(): { value: string } };
+    },
     actorUserId: string,
     actorKeycloakId: string | null,
   ): boolean {

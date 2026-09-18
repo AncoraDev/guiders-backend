@@ -100,10 +100,7 @@ export class TransferChatToCommercialCommandHandler
         );
       }
 
-      if (
-        command.transferredBy &&
-        command.transferredBy !== currentAssignee
-      ) {
+      if (command.transferredBy && command.transferredBy !== currentAssignee) {
         return err(
           new TransferChatToCommercialError(
             'Solo el comercial asignado puede transferir este chat',
@@ -179,7 +176,8 @@ export class TransferChatToCommercialCommandHandler
           `Chat transferido pero falló el mensaje de sistema: ${saveMsgResult.error.message}`,
         );
       } else {
-        const messageCtx = this.eventPublisher.mergeObjectContext(systemMessage);
+        const messageCtx =
+          this.eventPublisher.mergeObjectContext(systemMessage);
         messageCtx.commit();
       }
 
