@@ -2,8 +2,10 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -33,8 +35,12 @@ import {
 import {
   SaveLeadContactDataDto,
   LeadContactDataResponseDto,
+  ListLeadContactDataQueryDto,
+  UpdateLeadFollowUpDto,
 } from '../../application/dtos/lead-contact-data.dto';
 import { SaveLeadContactDataCommand } from '../../application/commands/save-lead-contact-data.command';
+import { UpdateLeadFollowUpCommand } from '../../application/commands/update-lead-follow-up.command';
+import { LeadContactDataNotFoundError } from '../../domain/errors/leads.error';
 import {
   ILeadContactDataRepository,
   LEAD_CONTACT_DATA_REPOSITORY,
@@ -131,8 +137,9 @@ export class LeadsContactController {
   @Get('contact-data')
   @Roles(['admin', 'commercial'])
   @ApiOperation({
-    summary: 'Listar todos los datos de contacto',
-    description: 'Retorna todos los datos de contacto de la empresa',
+    summary: 'Listar datos de contacto',
+    description:
+      'Retorna los contactos de la empresa. source=assistant y status filtran la cola de leads automáticos.',
   })
   @ApiResponse({
     status: 200,
@@ -141,9 +148,11 @@ export class LeadsContactController {
   })
   async listContactData(
     @Req() req: AuthenticatedRequest,
+    @Query() query: ListLeadContactDataQueryDto,
   ): Promise<LeadContactDataResponseDto[]> {
     const result = await this.contactDataRepository.findByCompanyId(
       req.user.companyId,
+      { source: query.source, status: query.status },
     );
 
     if (result.isErr()) {
@@ -197,5 +206,52 @@ export class LeadsContactController {
     }
 
     return LeadContactDataResponseDto.fromPrimitives(contactData);
+  }
+
+  /**
+   * Marca el seguimiento de un lead automático.
+   * PATCH /leads/contact-data/:visitorId/follow-up
+   */
+  @Patch('contact-data/:visitorId/follow-up')
+  @Roles(['admin', 'commercial'])
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar el seguimiento del lead',
+    description:
+      'Pasa un lead automático a contactado o descartado para sacarlo de la cola.',
+  })
+  @ApiParam({
+    name: 'visitorId',
+    description: 'ID del visitor',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Seguimiento actualizado',
+    type: LeadContactDataResponseDto,
+  })
+  @ApiNotFoundError('Recurso', 'No se encontraron datos de contacto')
+  async updateFollowUp(
+    @Param('visitorId') visitorId: string,
+    @Body() dto: UpdateLeadFollowUpDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<LeadContactDataResponseDto> {
+    const result = await this.commandBus.execute(
+      new UpdateLeadFollowUpCommand({
+        visitorId,
+        companyId: req.user.companyId,
+        commercialId: req.user.sub,
+        status: dto.status,
+      }),
+    );
+
+    if (result.isErr()) {
+      if (result.error instanceof LeadContactDataNotFoundError) {
+        throw new NotFoundException(result.error.message);
+      }
+      throw new BadRequestException(result.error.message);
+    }
+
+    return LeadContactDataResponseDto.fromPrimitives(result.unwrap());
   }
 }

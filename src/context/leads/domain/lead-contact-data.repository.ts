@@ -1,6 +1,12 @@
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { LeadContactDataPrimitives } from './services/crm-sync.service';
+import { LeadFollowUpStatus } from './lead-follow-up';
+
+export interface LeadContactListFilters {
+  source?: 'assistant' | 'manual';
+  status?: LeadFollowUpStatus;
+}
 
 /**
  * Interface del repositorio de datos de contacto de leads
@@ -68,6 +74,7 @@ export interface ILeadContactDataRepository {
    */
   findByCompanyId(
     companyId: string,
+    filters?: LeadContactListFilters,
   ): Promise<Result<LeadContactDataPrimitives[], DomainError>>;
 }
 

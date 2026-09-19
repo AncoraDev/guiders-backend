@@ -5,9 +5,14 @@ import {
   IsOptional,
   IsEmail,
   IsObject,
+  IsIn,
   MaxLength,
 } from 'class-validator';
 import { LeadContactDataPrimitives } from '../../domain/services/crm-sync.service';
+import {
+  LEAD_FOLLOW_UP_STATUSES,
+  LeadFollowUpStatus,
+} from '../../domain/lead-follow-up';
 
 /**
  * DTO para guardar datos de contacto de un lead
@@ -109,6 +114,33 @@ export class SaveLeadContactDataDto {
   extractedFromChatId?: string;
 }
 
+export class ListLeadContactDataQueryDto {
+  @ApiPropertyOptional({
+    description: 'Origen de la captación',
+    enum: ['assistant', 'manual'],
+  })
+  @IsOptional()
+  @IsIn(['assistant', 'manual'])
+  source?: 'assistant' | 'manual';
+
+  @ApiPropertyOptional({
+    description: 'Estado de seguimiento de la cola',
+    enum: LEAD_FOLLOW_UP_STATUSES,
+  })
+  @IsOptional()
+  @IsIn(LEAD_FOLLOW_UP_STATUSES)
+  status?: LeadFollowUpStatus;
+}
+
+export class UpdateLeadFollowUpDto {
+  @ApiProperty({
+    description: 'Nuevo estado de seguimiento',
+    enum: LEAD_FOLLOW_UP_STATUSES,
+  })
+  @IsIn(LEAD_FOLLOW_UP_STATUSES)
+  status: LeadFollowUpStatus;
+}
+
 /**
  * DTO de respuesta con datos de contacto del lead
  */
@@ -174,6 +206,22 @@ export class LeadContactDataResponseDto {
   @ApiProperty({ description: 'Fecha de creacion' })
   createdAt: string;
 
+  @ApiPropertyOptional({
+    description: 'Estado de seguimiento del comercial',
+    enum: LEAD_FOLLOW_UP_STATUSES,
+  })
+  followUpStatus?: LeadFollowUpStatus;
+
+  @ApiPropertyOptional({
+    description: 'Momento en que se actualizó el seguimiento',
+  })
+  followUpAt?: string;
+
+  @ApiPropertyOptional({
+    description: 'Comercial que actualizó el seguimiento',
+  })
+  followUpBy?: string;
+
   @ApiProperty({ description: 'Fecha de ultima actualizacion' })
   updatedAt: string;
 
@@ -196,6 +244,9 @@ export class LeadContactDataResponseDto {
     dto.consentAcceptedAt = data.consentAcceptedAt?.toISOString();
     dto.additionalData = data.additionalData;
     dto.extractedFromChatId = data.extractedFromChatId;
+    dto.followUpStatus = data.followUpStatus;
+    dto.followUpAt = data.followUpAt?.toISOString();
+    dto.followUpBy = data.followUpBy;
     dto.extractedAt =
       data.extractedAt?.toISOString() ?? new Date().toISOString();
     dto.createdAt = data.createdAt?.toISOString() ?? new Date().toISOString();

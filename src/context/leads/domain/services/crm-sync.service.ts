@@ -1,5 +1,6 @@
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import { LeadFollowUpStatus } from '../lead-follow-up';
 
 /**
  * Tipos de CRM soportados
@@ -30,6 +31,9 @@ export interface LeadContactDataPrimitives {
   additionalData?: Record<string, unknown>;
   extractedFromChatId?: string;
   extractedAt: Date;
+  followUpStatus?: LeadFollowUpStatus;
+  followUpAt?: Date;
+  followUpBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

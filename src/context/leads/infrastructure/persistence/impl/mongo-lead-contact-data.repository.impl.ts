@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Result, ok, err, okVoid } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
-import { ILeadContactDataRepository } from '../../../domain/lead-contact-data.repository';
+import {
+  ILeadContactDataRepository,
+  LeadContactListFilters,
+} from '../../../domain/lead-contact-data.repository';
 import { LeadContactDataPrimitives } from '../../../domain/services/crm-sync.service';
 import {
   LeadContactDataSchema,
@@ -177,10 +180,11 @@ export class MongoLeadContactDataRepositoryImpl
 
   async findByCompanyId(
     companyId: string,
+    filters?: LeadContactListFilters,
   ): Promise<Result<LeadContactDataPrimitives[], DomainError>> {
     try {
       const docs = await this.model
-        .find({ companyId })
+        .find(this.buildListQuery(companyId, filters))
         .sort({ extractedAt: -1 })
         .lean();
       return ok(docs.map((doc) => this.toPrimitives(doc)));
@@ -191,6 +195,31 @@ export class MongoLeadContactDataRepositoryImpl
       );
       return err(new LeadsPersistenceError(error.message));
     }
+  }
+
+  private buildListQuery(
+    companyId: string,
+    filters?: LeadContactListFilters,
+  ): Record<string, unknown> {
+    const query: Record<string, unknown> = { companyId };
+
+    if (filters?.source === 'assistant') {
+      query['additionalData.leadCapture.capturedWithoutAgent'] = true;
+    } else if (filters?.source === 'manual') {
+      query['additionalData.leadCapture.capturedWithoutAgent'] = { $ne: true };
+    }
+
+    if (filters?.status === 'pending') {
+      query.$or = [
+        { followUpStatus: 'pending' },
+        { followUpStatus: { $exists: false } },
+        { followUpStatus: null },
+      ];
+    } else if (filters?.status) {
+      query.followUpStatus = filters.status;
+    }
+
+    return query;
   }
 
   private toSchema(data: LeadContactDataPrimitives): Record<string, unknown> {
@@ -211,6 +240,9 @@ export class MongoLeadContactDataRepositoryImpl
       additionalData: data.additionalData,
       extractedFromChatId: data.extractedFromChatId,
       extractedAt: data.extractedAt,
+      followUpStatus: data.followUpStatus,
+      followUpAt: data.followUpAt,
+      followUpBy: data.followUpBy,
     };
   }
 
@@ -232,6 +264,9 @@ export class MongoLeadContactDataRepositoryImpl
       additionalData: doc.additionalData,
       extractedFromChatId: doc.extractedFromChatId,
       extractedAt: doc.extractedAt,
+      followUpStatus: doc.followUpStatus,
+      followUpAt: doc.followUpAt,
+      followUpBy: doc.followUpBy,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };

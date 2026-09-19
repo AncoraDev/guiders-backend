@@ -145,6 +145,50 @@ describe('SaveLeadContactDataCommandHandler', () => {
   });
 
   describe('execute', () => {
+    it('un lead del asistente entra en la cola como pending', async () => {
+      repository.findByVisitorId.mockResolvedValue(ok(null));
+      repository.save.mockResolvedValue(okVoid());
+      const visitor = createAnonVisitorMock();
+      visitorRepository.findById.mockResolvedValue(ok(visitor as any));
+
+      const command = new SaveLeadContactDataCommand({
+        visitorId,
+        companyId,
+        nombre: 'Ana',
+        email: 'ana@test.com',
+        additionalData: {
+          leadCapture: { capturedWithoutAgent: true, answers: [] },
+        },
+      });
+
+      const result = await handler.execute(command);
+
+      expect(result.isOk()).toBe(true);
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ followUpStatus: 'pending' }),
+      );
+    });
+
+    it('un contacto guardado a mano también entra en pending', async () => {
+      repository.findByVisitorId.mockResolvedValue(ok(null));
+      repository.save.mockResolvedValue(okVoid());
+      const visitor = createAnonVisitorMock();
+      visitorRepository.findById.mockResolvedValue(ok(visitor as any));
+
+      const command = new SaveLeadContactDataCommand({
+        visitorId,
+        companyId,
+        nombre: 'Luis',
+        email: 'luis@test.com',
+      });
+
+      await handler.execute(command);
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ followUpStatus: 'pending' }),
+      );
+    });
+
     it('debe crear nuevos datos de contacto cuando no existen', async () => {
       repository.findByVisitorId.mockResolvedValue(ok(null));
       repository.save.mockResolvedValue(okVoid());

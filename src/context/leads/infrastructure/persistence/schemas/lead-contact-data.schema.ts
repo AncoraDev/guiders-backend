@@ -61,6 +61,21 @@ export class LeadContactDataSchema {
 
   @Prop({ type: Date, required: false, default: Date.now })
   extractedAt?: Date;
+
+  /** Cola de trabajo: pending solo para leads del asistente. */
+  @Prop({
+    type: String,
+    required: false,
+    enum: ['pending', 'contacted', 'dismissed'],
+    index: true,
+  })
+  followUpStatus?: 'pending' | 'contacted' | 'dismissed';
+
+  @Prop({ type: Date, required: false })
+  followUpAt?: Date;
+
+  @Prop({ type: String, required: false })
+  followUpBy?: string;
 }
 
 export type LeadContactDataDocument = HydratedDocument<LeadContactDataSchema>;
@@ -79,6 +94,12 @@ LeadContactDataSchemaDefinition.index(
   { email: 1, companyId: 1 },
   { sparse: true },
 );
+
+LeadContactDataSchemaDefinition.index({
+  companyId: 1,
+  followUpStatus: 1,
+  extractedAt: -1,
+});
 
 // Índice de texto para búsqueda global (alias, nombre, apellidos, email, teléfono)
 LeadContactDataSchemaDefinition.index(

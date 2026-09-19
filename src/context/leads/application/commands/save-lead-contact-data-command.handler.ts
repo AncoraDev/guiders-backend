@@ -88,6 +88,7 @@ export class SaveLeadContactDataCommandHandler
         extractedFromChatId:
           input.extractedFromChatId ?? existing.extractedFromChatId,
         extractedAt: new Date(),
+        followUpStatus: existing.followUpStatus ?? 'pending',
       };
 
       const updateResult = await this.repository.update(updatedData);
@@ -208,6 +209,7 @@ export class SaveLeadContactDataCommandHandler
       additionalData: input.additionalData ?? {},
       extractedFromChatId: input.extractedFromChatId,
       extractedAt: now,
+      followUpStatus: 'pending',
     };
   }
 

@@ -38,6 +38,7 @@ import { MongoCrmSyncRecordRepositoryImpl } from './infrastructure/persistence/i
 
 // Command Handlers
 import { SaveLeadContactDataCommandHandler } from './application/commands/save-lead-contact-data-command.handler';
+import { UpdateLeadFollowUpCommandHandler } from './application/commands/update-lead-follow-up.command-handler';
 import { SyncLeadToCrmCommandHandler } from './application/commands/sync-lead-to-crm-command.handler';
 import { SyncChatToCrmCommandHandler } from './application/commands/sync-chat-to-crm-command.handler';
 
@@ -64,6 +65,7 @@ import { VisitorsV2Module } from '../visitors-v2/visitors-v2.module';
 
 const CommandHandlers = [
   SaveLeadContactDataCommandHandler,
+  UpdateLeadFollowUpCommandHandler,
   SyncLeadToCrmCommandHandler,
   SyncChatToCrmCommandHandler,
 ];
