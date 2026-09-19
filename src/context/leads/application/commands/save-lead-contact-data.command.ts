@@ -17,6 +17,9 @@ export class SaveLeadContactDataCommand {
       acceptedMarketing?: boolean;
       additionalData?: Record<string, unknown>;
       extractedFromChatId?: string;
+      attributeCapture?: boolean;
+      capturedBy?: string;
+      capturedByName?: string;
     },
   ) {}
 }

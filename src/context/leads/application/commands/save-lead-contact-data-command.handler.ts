@@ -20,6 +20,7 @@ import {
   VISITOR_V2_REPOSITORY,
 } from 'src/context/visitors-v2/domain/visitor-v2.repository';
 import { VisitorId } from 'src/context/visitors-v2/domain/value-objects/visitor-id';
+import { resolveCommercialCapture } from '../../domain/lead-capture-attribution';
 
 /**
  * Criterio de Lead: nombre + (email o teléfono).
@@ -89,6 +90,16 @@ export class SaveLeadContactDataCommandHandler
           input.extractedFromChatId ?? existing.extractedFromChatId,
         extractedAt: new Date(),
         followUpStatus: existing.followUpStatus ?? 'pending',
+        ...resolveCommercialCapture({
+          existing,
+          additionalData: {
+            ...existing.additionalData,
+            ...input.additionalData,
+          },
+          attributeCapture: input.attributeCapture,
+          commercialId: input.capturedBy,
+          commercialName: input.capturedByName,
+        }),
       };
 
       const updateResult = await this.repository.update(updatedData);
@@ -210,6 +221,12 @@ export class SaveLeadContactDataCommandHandler
       extractedFromChatId: input.extractedFromChatId,
       extractedAt: now,
       followUpStatus: 'pending',
+      ...resolveCommercialCapture({
+        additionalData: input.additionalData,
+        attributeCapture: input.attributeCapture,
+        commercialId: input.capturedBy,
+        commercialName: input.capturedByName,
+      }),
     };
   }
 

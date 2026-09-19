@@ -7,10 +7,16 @@ import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
 import { MESSAGE_V2_REPOSITORY } from '../../../domain/message.repository';
 import { ConfirmContactDataCommand } from '../confirm-contact-data.command';
 import { ConfirmContactDataCommandHandler } from '../confirm-contact-data.command-handler';
+import { LEAD_CONTACT_DATA_REPOSITORY } from 'src/context/leads/domain/lead-contact-data.repository';
+import { USER_ACCOUNT_REPOSITORY } from 'src/context/auth/auth-user/domain/user-account.repository';
 
 describe('ConfirmContactDataCommandHandler', () => {
   let handler: ConfirmContactDataCommandHandler;
   let messageRepository: { findByType: jest.Mock; save: jest.Mock };
+  let contactDataRepository: {
+    findByVisitorId: jest.Mock;
+    update: jest.Mock;
+  };
   let commit: jest.Mock;
 
   const chatId = Uuid.random().value;
@@ -49,6 +55,19 @@ describe('ConfirmContactDataCommandHandler', () => {
       save: jest.fn().mockResolvedValue(okVoid()),
     };
     commit = jest.fn();
+    contactDataRepository = {
+      findByVisitorId: jest.fn().mockResolvedValue(
+        ok({
+          id: Uuid.random().value,
+          visitorId,
+          companyId: Uuid.random().value,
+          nombre: 'Ana',
+          email: 'ana@example.com',
+          extractedAt: new Date(),
+        }),
+      ),
+      update: jest.fn().mockResolvedValue(okVoid()),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -59,11 +78,25 @@ describe('ConfirmContactDataCommandHandler', () => {
             findById: jest.fn().mockResolvedValue(
               ok({
                 visitorId: { value: visitorId, getValue: () => visitorId },
+                companyId: Uuid.random().value,
               }),
             ),
           },
         },
         { provide: MESSAGE_V2_REPOSITORY, useValue: messageRepository },
+        {
+          provide: LEAD_CONTACT_DATA_REPOSITORY,
+          useValue: contactDataRepository,
+        },
+        {
+          provide: USER_ACCOUNT_REPOSITORY,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({
+              name: { value: 'Laura Pérez' },
+            }),
+            findByKeycloakId: jest.fn().mockResolvedValue(null),
+          },
+        },
         {
           provide: EventPublisher,
           useValue: {
@@ -89,6 +122,12 @@ describe('ConfirmContactDataCommandHandler', () => {
     expect(result.systemData?.requestId).toBe(requestId);
     expect(result.systemData?.data?.nombre).toBe('Ana');
     expect(commit).toHaveBeenCalled();
+    expect(contactDataRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capturedBy: commercialId,
+        capturedByName: 'Laura Pérez',
+      }),
+    );
   });
 
   it('rechaza si el visitante todavía no ha enviado los datos', async () => {

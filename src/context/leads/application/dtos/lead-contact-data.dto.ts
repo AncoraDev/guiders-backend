@@ -112,6 +112,15 @@ export class SaveLeadContactDataDto {
   @IsOptional()
   @MaxLength(64)
   extractedFromChatId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si es true, se atribuye el lead al comercial autenticado (confirmación de solicitud)',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  attributeCapture?: boolean;
 }
 
 export class ListLeadContactDataQueryDto {
@@ -222,6 +231,21 @@ export class LeadContactDataResponseDto {
   })
   followUpBy?: string;
 
+  @ApiPropertyOptional({
+    description: 'Comercial que confirmó la captación en Console',
+  })
+  capturedBy?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del comercial que confirmó la captación',
+  })
+  capturedByName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Momento en que el comercial confirmó la captación',
+  })
+  capturedAt?: string;
+
   @ApiProperty({ description: 'Fecha de ultima actualizacion' })
   updatedAt: string;
 
@@ -247,6 +271,9 @@ export class LeadContactDataResponseDto {
     dto.followUpStatus = data.followUpStatus;
     dto.followUpAt = data.followUpAt?.toISOString();
     dto.followUpBy = data.followUpBy;
+    dto.capturedBy = data.capturedBy;
+    dto.capturedByName = data.capturedByName;
+    dto.capturedAt = data.capturedAt?.toISOString();
     dto.extractedAt =
       data.extractedAt?.toISOString() ?? new Date().toISOString();
     dto.createdAt = data.createdAt?.toISOString() ?? new Date().toISOString();

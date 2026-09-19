@@ -34,6 +34,9 @@ export interface LeadContactDataPrimitives {
   followUpStatus?: LeadFollowUpStatus;
   followUpAt?: Date;
   followUpBy?: string;
+  capturedBy?: string;
+  capturedByName?: string;
+  capturedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

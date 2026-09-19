@@ -76,6 +76,16 @@ export class LeadContactDataSchema {
 
   @Prop({ type: String, required: false })
   followUpBy?: string;
+
+  /** Comercial que confirmó la solicitud de datos en Console */
+  @Prop({ type: String, required: false, index: true })
+  capturedBy?: string;
+
+  @Prop({ type: String, required: false })
+  capturedByName?: string;
+
+  @Prop({ type: Date, required: false })
+  capturedAt?: Date;
 }
 
 export type LeadContactDataDocument = HydratedDocument<LeadContactDataSchema>;

@@ -243,6 +243,9 @@ export class MongoLeadContactDataRepositoryImpl
       followUpStatus: data.followUpStatus,
       followUpAt: data.followUpAt,
       followUpBy: data.followUpBy,
+      capturedBy: data.capturedBy,
+      capturedByName: data.capturedByName,
+      capturedAt: data.capturedAt,
     };
   }
 
@@ -267,6 +270,9 @@ export class MongoLeadContactDataRepositoryImpl
       followUpStatus: doc.followUpStatus,
       followUpAt: doc.followUpAt,
       followUpBy: doc.followUpBy,
+      capturedBy: doc.capturedBy,
+      capturedByName: doc.capturedByName,
+      capturedAt: doc.capturedAt,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };

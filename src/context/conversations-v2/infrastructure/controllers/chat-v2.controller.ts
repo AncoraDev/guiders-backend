@@ -1441,7 +1441,12 @@ export class ChatV2Controller {
     @Req() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
     return this.commandBus.execute(
-      new ConfirmContactDataCommand(chatId, req.user.id, body?.requestId),
+      new ConfirmContactDataCommand(
+        chatId,
+        req.user.id,
+        body?.requestId,
+        req.user.username,
+      ),
     );
   }
 

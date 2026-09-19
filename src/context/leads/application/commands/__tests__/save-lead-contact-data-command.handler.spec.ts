@@ -169,6 +169,61 @@ describe('SaveLeadContactDataCommandHandler', () => {
       );
     });
 
+    it('atribuye el comercial al confirmar la solicitud', async () => {
+      repository.findByVisitorId.mockResolvedValue(ok(null));
+      repository.save.mockResolvedValue(okVoid());
+      const visitor = createAnonVisitorMock();
+      visitorRepository.findById.mockResolvedValue(ok(visitor as any));
+      const commercialId = Uuid.random().value;
+
+      await handler.execute(
+        new SaveLeadContactDataCommand({
+          visitorId,
+          companyId,
+          nombre: 'Laura',
+          email: 'laura@test.com',
+          attributeCapture: true,
+          capturedBy: commercialId,
+          capturedByName: 'Laura Pérez',
+        }),
+      );
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          capturedBy: commercialId,
+          capturedByName: 'Laura Pérez',
+        }),
+      );
+    });
+
+    it('no atribuye un lead del asistente al comercial', async () => {
+      repository.findByVisitorId.mockResolvedValue(ok(null));
+      repository.save.mockResolvedValue(okVoid());
+      const visitor = createAnonVisitorMock();
+      visitorRepository.findById.mockResolvedValue(ok(visitor as any));
+
+      await handler.execute(
+        new SaveLeadContactDataCommand({
+          visitorId,
+          companyId,
+          nombre: 'Ana',
+          email: 'ana@test.com',
+          additionalData: {
+            leadCapture: { capturedWithoutAgent: true, answers: [] },
+          },
+          attributeCapture: true,
+          capturedBy: Uuid.random().value,
+          capturedByName: 'Laura Pérez',
+        }),
+      );
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          capturedBy: expect.any(String),
+        }),
+      );
+    });
+
     it('un contacto guardado a mano también entra en pending', async () => {
       repository.findByVisitorId.mockResolvedValue(ok(null));
       repository.save.mockResolvedValue(okVoid());

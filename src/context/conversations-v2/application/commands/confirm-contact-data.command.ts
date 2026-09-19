@@ -5,5 +5,6 @@ export class ConfirmContactDataCommand implements ICommand {
     public readonly chatId: string,
     public readonly commercialId: string,
     public readonly requestId: string,
+    public readonly commercialName?: string,
   ) {}
 }

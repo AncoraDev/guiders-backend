@@ -48,8 +48,10 @@ import {
 
 interface AuthenticatedRequest {
   user: {
+    id?: string;
     companyId: string;
-    sub: string;
+    sub?: string;
+    username?: string;
     role?: string;
   };
 }
@@ -111,6 +113,11 @@ export class LeadsContactController {
         acceptedMarketing: dto.acceptedMarketing,
         additionalData: dto.additionalData,
         extractedFromChatId: dto.extractedFromChatId,
+        attributeCapture: dto.attributeCapture,
+        capturedBy: dto.attributeCapture
+          ? (req.user.id ?? req.user.sub)
+          : undefined,
+        capturedByName: dto.attributeCapture ? req.user.username : undefined,
       }),
     );
 
@@ -240,7 +247,7 @@ export class LeadsContactController {
       new UpdateLeadFollowUpCommand({
         visitorId,
         companyId: req.user.companyId,
-        commercialId: req.user.sub,
+        commercialId: req.user.id ?? req.user.sub ?? '',
         status: dto.status,
       }),
     );
