@@ -21,3 +21,18 @@ export class LeadCaptureFlowPersistenceError extends LeadCaptureError {
     this.name = 'LeadCaptureFlowPersistenceError';
   }
 }
+
+/** El progreso que manda el asistente no es aprovechable. */
+export class InvalidLeadCaptureSessionError extends LeadCaptureError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidLeadCaptureSessionError';
+  }
+}
+
+export class LeadCaptureSessionPersistenceError extends LeadCaptureError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LeadCaptureSessionPersistenceError';
+  }
+}

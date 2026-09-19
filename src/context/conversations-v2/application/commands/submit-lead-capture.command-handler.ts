@@ -15,6 +15,7 @@ import { RecordConsentCommand } from 'src/context/consent/application/commands/r
 import { getCurrentConsentVersion } from 'src/context/consent/domain/config/consent-version.config';
 import { ConsentError } from 'src/context/consent/domain/errors/consent.error';
 import { SaveLeadContactDataCommand } from 'src/context/leads/application/commands/save-lead-contact-data.command';
+import { CompleteLeadCaptureSessionCommand } from 'src/context/lead-capture/application/commands/complete-lead-capture-session.command';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Result } from 'src/context/shared/domain/result';
 import {
@@ -131,6 +132,7 @@ export class SubmitLeadCaptureCommandHandler
     }
     aggregate.commit();
 
+    await this.closeCaptureSession(command, chat.companyId);
     await this.recordConsents(command, chat.companyId, acceptedMarketing);
 
     this.logger.log(
@@ -189,6 +191,33 @@ export class SubmitLeadCaptureCommandHandler
       );
       throw new InternalServerErrorException(
         'No se pudieron guardar tus datos, inténtalo de nuevo',
+      );
+    }
+  }
+
+  /**
+   * Cierra la captación del visitante para que el asistente no se le vuelva a
+   * ofrecer. Un fallo aquí no invalida el lead: como mucho el visitante vería
+   * el guion otra vez, y el resumen del hilo ya lo evita en este chat.
+   */
+  private async closeCaptureSession(
+    command: SubmitLeadCaptureCommand,
+    companyId: string,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      CompleteLeadCaptureSessionCommand,
+      Result<void, DomainError>
+    >(
+      new CompleteLeadCaptureSessionCommand(
+        command.visitorId,
+        command.chatId,
+        companyId,
+      ),
+    );
+
+    if (result.isErr()) {
+      this.logger.error(
+        `No se pudo cerrar la captación del visitante ${command.visitorId}: ${result.error.message}`,
       );
     }
   }

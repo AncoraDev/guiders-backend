@@ -8,6 +8,8 @@ import { getCurrentConsentVersion } from 'src/context/consent/domain/config/cons
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { err, ok, okVoid } from 'src/context/shared/domain/result';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
+import { CompleteLeadCaptureSessionCommand } from 'src/context/lead-capture/application/commands/complete-lead-capture-session.command';
+import { RecordConsentCommand } from 'src/context/consent/application/commands/record-consent.command';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
 import { MESSAGE_V2_REPOSITORY } from '../../../domain/message.repository';
 import { SubmitLeadCaptureCommand } from '../submit-lead-capture.command';
@@ -86,6 +88,15 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     handler = module.get(SubmitLeadCaptureCommandHandler);
   });
 
+  /** Los comandos se buscan por tipo: el orden de despacho no es el contrato. */
+  const dispatchedCommands = (): unknown[] =>
+    (commandBus.execute.mock.calls as unknown[][]).map((call) => call[0]);
+
+  const consentCommands = (): RecordConsentCommand[] =>
+    dispatchedCommands().filter(
+      (cmd): cmd is RecordConsentCommand => cmd instanceof RecordConsentCommand,
+    );
+
   it('guarda el lead, deja el resumen en el hilo y publica los eventos', async () => {
     const result = await handler.execute(
       new SubmitLeadCaptureCommand(
@@ -154,14 +165,14 @@ describe('SubmitLeadCaptureCommandHandler', () => {
       ),
     );
 
-    const consentCommand = commandBus.execute.mock.calls[1][0];
-    expect(consentCommand.consentType).toBe('privacy_policy');
-    expect(consentCommand.version).toBe(getCurrentConsentVersion());
-    expect(consentCommand.metadata).toMatchObject({
+    const consents = consentCommands();
+    expect(consents).toHaveLength(1);
+    expect(consents[0].consentType).toBe('privacy_policy');
+    expect(consents[0].version).toBe(getCurrentConsentVersion());
+    expect(consents[0].metadata).toMatchObject({
       source: 'lead_capture',
       chatId,
     });
-    expect(commandBus.execute).toHaveBeenCalledTimes(2);
   });
 
   it('registra marketing solo si el visitante lo acepta', async () => {
@@ -172,8 +183,26 @@ describe('SubmitLeadCaptureCommandHandler', () => {
       }),
     );
 
-    expect(commandBus.execute).toHaveBeenCalledTimes(3);
-    expect(commandBus.execute.mock.calls[2][0].consentType).toBe('marketing');
+    expect(consentCommands().map((cmd) => cmd.consentType)).toEqual([
+      'privacy_policy',
+      'marketing',
+    ]);
+  });
+
+  it('cierra la captación del visitante para que no se le vuelva a ofrecer', async () => {
+    await handler.execute(
+      new SubmitLeadCaptureCommand(chatId, visitorId, validData),
+    );
+
+    const close = dispatchedCommands().find(
+      (cmd): cmd is CompleteLeadCaptureSessionCommand =>
+        cmd instanceof CompleteLeadCaptureSessionCommand,
+    );
+
+    expect(close).toBeDefined();
+    expect(close?.visitorId).toBe(visitorId);
+    expect(close?.chatId).toBe(chatId);
+    expect(close?.companyId).toBe(companyId);
   });
 
   it('exige el check de privacidad', async () => {
