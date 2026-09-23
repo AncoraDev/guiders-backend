@@ -271,10 +271,15 @@ Autopractik: desactivar el 2.14.3 e instalar **2.14.4**. La API key no cambia.
 
 ## 24 septiembre 2026 — Resend por cliente
 
-El aviso del asistente ya no usa `RESEND_API_KEY` / `EMAIL_FROM` del VPS. Cada admin configura en Console → Avisos de captación: email destino, remitente y API key de **su** cuenta Resend.
+El aviso del asistente ya no usa `RESEND_API_KEY` / `EMAIL_FROM` del VPS. Cada admin configura en Console → Avisos de captación: email destino, remitente y API key de **su** cuenta Resend. Hay que crear cuenta en resend.com, verificar el dominio y pegar la `re_…`.
 
-Columnas nuevas: `lead_capture_resend_from`, `lead_capture_resend_api_key` (cifrada). El GET no devuelve la clave. Sin los tres datos no se envía correo; el lead se guarda igual.
+- GET: `{ email, from, apiKeyConfigured, apiKeyLast4 }`. Nunca la clave.
+- PUT: `apiKey` vacío no cambia la guardada. No se puede guardar una API key sin email de destino.
+- Envío del asistente: hace falta email + remitente + clave. Si falta alguno, el lead se guarda igual.
+- **Probar conexión**: manda un correo de prueba a esa bandeja. Exige los tres. Si Resend rechaza dominio o clave, el toast enseña el error.
 
-En prod aplicar solo el `ALTER` de esas dos columnas (no `migration:run`).
+Columnas: `lead_capture_resend_from`, `lead_capture_resend_api_key` (AES-256-CBC con `ENCRYPTION_KEY`, mismo formato que el CRM). No correr `migration:run` en este VPS.
 
-Hay **Probar conexión**: envía un correo de prueba. Exige email de destino + API key + remitente. Si Resend rechaza el dominio o la clave, se ve el error.
+Publicado 24/09 (~01:16): API `75dc7f0`, Console `a73a98b` (`sergi-version-v1`). ALTER de esas dos columnas en Postgres prod. Console `releases/20260924011559`. Pixel/plugin no cambian.
+
+Autopractik: el admin entra en Console → Avisos de captación, pega su Resend y pulsa Probar conexión. El email que ya tenían de destino se conserva; falta remitente y clave.
