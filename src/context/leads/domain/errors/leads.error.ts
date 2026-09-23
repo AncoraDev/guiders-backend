@@ -41,6 +41,7 @@ export class CrmApiError extends DomainError {
     message: string,
     public readonly statusCode?: number,
     public readonly apiResponse?: unknown,
+    public readonly endpoint?: string,
   ) {
     super(`Error en API ${crmType}: ${message}`);
   }

@@ -41,6 +41,8 @@ import {
   TestCrmConnectionDto,
   TestConnectionResponseDto,
   TestConnectionByIdResponseDto,
+  SendTestLeadDto,
+  SendTestLeadResponseDto,
   CrmSyncRecordResponseDto,
   LeadcarsConcesionarioDto,
   LeadcarsSedeDto,
@@ -66,6 +68,7 @@ import {
   CRM_SYNC_SERVICE_FACTORY,
 } from '../../domain/services/crm-sync.service';
 import { LeadcarsApiService } from '../adapters/leadcars/leadcars-api.service';
+import { LeadcarsCreateLeadRequest } from '../adapters/leadcars/leadcars.types';
 import { CrmApiError } from '../../domain/errors/leads.error';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
@@ -387,12 +390,10 @@ export class LeadsAdminController {
     }
 
     const result = await adapter.testConnection(config);
+    const environment = config.config.useSandbox ? 'sandbox' : 'production';
 
     if (result.isErr()) {
-      return {
-        success: false,
-        message: result.error.message,
-      };
+      return this.toTestConnectionFailure(result.error, environment);
     }
 
     return {
@@ -400,6 +401,7 @@ export class LeadsAdminController {
       message: result.unwrap()
         ? 'Conexión con LeadCars establecida correctamente'
         : 'No se pudo establecer conexión con LeadCars',
+      details: { environment },
     };
   }
 
@@ -461,14 +463,189 @@ export class LeadsAdminController {
     });
 
     if (result.isErr()) {
+      const failure = this.toTestConnectionFailure(
+        result.error,
+        dto.config.useSandbox ? 'sandbox' : 'production',
+      );
       return {
         success: false,
-        error: result.error.message,
+        error: failure.message,
       };
     }
 
     return {
       success: result.unwrap(),
+    };
+  }
+
+  @Post('leadcars/test-lead')
+  @Roles(['admin'])
+  @ApiOperation({
+    summary: 'Enviar un lead de prueba a LeadCars',
+    description:
+      'Crea un lead real en LeadCars (sandbox o producción según useSandbox) para que el concesionario pueda comprobar si llega. No guarda el lead en Guiders.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'LeadCars aceptó o rechazó el lead de prueba',
+    type: SendTestLeadResponseDto,
+  })
+  async sendTestLead(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: SendTestLeadDto,
+  ): Promise<SendTestLeadResponseDto> {
+    const companyId = request.user.companyId;
+    const hasEmail = !!dto.email?.trim();
+    const hasPhone = !!dto.telefono?.trim();
+    if (!hasEmail && !hasPhone) {
+      throw new BadRequestException(
+        'Indica al menos un email o un teléfono para que el concesionario pueda identificar el lead.',
+      );
+    }
+
+    let leadcarsConfig: {
+      clienteToken: string;
+      useSandbox: boolean;
+      concesionarioId: number;
+      sedeId?: number;
+      campanaCode?: string;
+      tipoLeadDefault: number;
+    };
+
+    if (this.isValidClienteTokenInput(dto.clienteToken)) {
+      leadcarsConfig = {
+        clienteToken: dto.clienteToken,
+        useSandbox: dto.useSandbox ?? false,
+        concesionarioId: dto.concesionarioId ?? 0,
+        sedeId: dto.sedeId,
+        campanaCode: dto.campanaCode,
+        tipoLeadDefault: dto.tipoLeadDefault ?? 0,
+      };
+    } else {
+      leadcarsConfig = await this.getLeadcarsConfigForCompany(companyId);
+      if (dto.useSandbox !== undefined) {
+        leadcarsConfig.useSandbox = dto.useSandbox;
+      }
+      if (dto.concesionarioId) {
+        leadcarsConfig.concesionarioId = dto.concesionarioId;
+      }
+      if (dto.sedeId) {
+        leadcarsConfig.sedeId = dto.sedeId;
+      }
+      if (dto.campanaCode) {
+        leadcarsConfig.campanaCode = dto.campanaCode;
+      }
+      if (dto.tipoLeadDefault) {
+        leadcarsConfig.tipoLeadDefault = dto.tipoLeadDefault;
+      }
+    }
+
+    if (
+      !Number.isInteger(leadcarsConfig.concesionarioId) ||
+      leadcarsConfig.concesionarioId <= 0 ||
+      !Number.isInteger(leadcarsConfig.tipoLeadDefault) ||
+      leadcarsConfig.tipoLeadDefault <= 0
+    ) {
+      throw new BadRequestException(
+        'Faltan concesionario y tipo de lead. Guárdalos en la configuración o selecciónalos antes de enviar.',
+      );
+    }
+
+    const comentario =
+      dto.comentario?.trim() ||
+      `Lead de prueba Guiders (${new Date().toISOString()})`;
+
+    const payload: LeadcarsCreateLeadRequest = {
+      nombre: dto.nombre.trim(),
+      concesionario: leadcarsConfig.concesionarioId,
+      tipo_lead: leadcarsConfig.tipoLeadDefault,
+      comentario,
+      custom: {
+        guiders_test: true,
+        guiders_company_id: companyId,
+      },
+    };
+    if (dto.apellidos?.trim()) {
+      payload.apellidos = dto.apellidos.trim();
+    }
+    if (hasEmail && dto.email) {
+      payload.email = dto.email.trim();
+    }
+    if (hasPhone && dto.telefono) {
+      payload.telefono = dto.telefono.trim();
+    }
+    if (dto.provincia?.trim()) {
+      payload.provincia = dto.provincia.trim();
+    }
+    if (leadcarsConfig.sedeId) {
+      payload.sede = leadcarsConfig.sedeId;
+    }
+    if (leadcarsConfig.campanaCode) {
+      payload.campana = leadcarsConfig.campanaCode;
+    }
+
+    const environment = leadcarsConfig.useSandbox ? 'sandbox' : 'production';
+    const result = await this.leadcarsApiService.createLead(
+      payload,
+      leadcarsConfig,
+    );
+    if (result.isErr()) {
+      this.throwLeadcarsError(result.error, 'test-lead');
+    }
+
+    const providerResponse = result.unwrap() as unknown;
+    if (
+      providerResponse &&
+      typeof providerResponse === 'object' &&
+      (providerResponse as { success?: unknown }).success === false
+    ) {
+      const rejected = providerResponse as {
+        error?: { message?: string };
+        message?: string;
+      };
+      throw new HttpException(
+        {
+          message:
+            rejected.error?.message ||
+            rejected.message ||
+            'LeadCars rechazó el lead de prueba',
+          providerBody: this.stringifyProviderBody(providerResponse),
+          httpStatus: 422,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    const extracted = this.extractCreatedLead(providerResponse);
+    const lines = [
+      extracted.leadId || extracted.referencia
+        ? 'LeadCars aceptó el lead de prueba.'
+        : 'LeadCars respondió al envío de prueba.',
+      `Entorno: ${environment}`,
+    ];
+    if (extracted.leadId) {
+      lines.push(`ID LeadCars: ${extracted.leadId}`);
+    }
+    if (extracted.referencia) {
+      lines.push(`Referencia: ${extracted.referencia}`);
+    }
+    lines.push(`Nombre: ${payload.nombre}`);
+    if (payload.email) {
+      lines.push(`Email: ${payload.email}`);
+    }
+    if (payload.telefono) {
+      lines.push(`Teléfono: ${payload.telefono}`);
+    }
+    lines.push(
+      `Concesionario: ${payload.concesionario}`,
+      `Tipo de lead: ${payload.tipo_lead}`,
+    );
+
+    return {
+      success: true,
+      message: lines.join('\n'),
+      environment,
+      leadId: extracted.leadId,
+      referencia: extracted.referencia,
     };
   }
 
@@ -584,18 +761,110 @@ export class LeadsAdminController {
    */
   private throwLeadcarsError(error: DomainError, context: string): never {
     if (error instanceof CrmApiError && error.statusCode) {
-      const status = error.statusCode;
-      if (status >= 400 && status < 600) {
+      const providerStatus = error.statusCode;
+      if (providerStatus >= 400 && providerStatus < 600) {
+        // 401/403 de LeadCars NO se reenvían como 401/403 de Guiders:
+        // el interceptor de sesión del frontend interpretaría eso como
+        // "sesión caducada" y echaría al usuario al login.
+        const status =
+          providerStatus === 401 || providerStatus === 403
+            ? HttpStatus.UNPROCESSABLE_ENTITY
+            : providerStatus;
         throw new HttpException(
-          `LeadCars error [${context}]: ${error.message}`,
+          {
+            message: `LeadCars error [${context}]: ${error.message}`,
+            httpStatus: providerStatus,
+            endpoint: error.endpoint,
+            providerMessage: error.message,
+            providerBody: this.stringifyProviderBody(error.apiResponse),
+          },
           status,
         );
       }
     }
     throw new HttpException(
-      `LeadCars no disponible [${context}]: ${error.message}`,
+      {
+        message: `LeadCars no disponible [${context}]: ${error.message}`,
+        providerMessage: error.message,
+      },
       HttpStatus.BAD_GATEWAY,
     );
+  }
+
+  private toTestConnectionFailure(
+    error: DomainError,
+    environment: 'sandbox' | 'production',
+  ): TestConnectionByIdResponseDto {
+    const apiError = error instanceof CrmApiError ? error : undefined;
+    const details = {
+      environment,
+      httpStatus: apiError?.statusCode,
+      endpoint: apiError?.endpoint,
+      providerMessage: error.message,
+      providerBody: this.stringifyProviderBody(apiError?.apiResponse),
+    };
+
+    const lines = [
+      'LeadCars rechazó la conexión.',
+      `Entorno: ${environment}`,
+    ];
+    // Detalle listo para reenviar a soporte@leadcars.es
+    if (details.endpoint) {
+      lines.push(`Endpoint: ${details.endpoint}`);
+    }
+    if (details.httpStatus) {
+      lines.push(`HTTP: ${details.httpStatus}`);
+    }
+    lines.push(`Mensaje: ${error.message}`);
+    if (details.providerBody) {
+      lines.push(`Respuesta: ${details.providerBody}`);
+    }
+
+    return {
+      success: false,
+      message: lines.join('\n'),
+      details,
+    };
+  }
+
+  private extractCreatedLead(response: unknown): {
+    leadId?: number;
+    referencia?: string;
+  } {
+    if (!response || typeof response !== 'object') {
+      return {};
+    }
+    const root = response as Record<string, unknown>;
+    const nested =
+      root.data && typeof root.data === 'object'
+        ? (root.data as Record<string, unknown>)
+        : root;
+    const rawId = nested.id ?? nested.lead_id ?? root.id ?? root.lead_id;
+    const leadId =
+      typeof rawId === 'number'
+        ? rawId
+        : typeof rawId === 'string' && Number.isFinite(Number(rawId))
+          ? Number(rawId)
+          : undefined;
+    const rawRef = nested.referencia ?? root.referencia;
+    return {
+      leadId,
+      referencia: typeof rawRef === 'string' ? rawRef : undefined,
+    };
+  }
+
+  private stringifyProviderBody(body: unknown): string | undefined {
+    if (body == null) {
+      return undefined;
+    }
+    if (typeof body === 'string') {
+      return body.slice(0, 2000);
+    }
+    try {
+      return JSON.stringify(body).slice(0, 2000);
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -623,11 +892,6 @@ export class LeadsAdminController {
     if (!config) {
       throw new NotFoundException(
         'No existe configuración de LeadCars para esta empresa',
-      );
-    }
-    if (!config.enabled) {
-      throw new BadRequestException(
-        'La configuración de LeadCars está deshabilitada',
       );
     }
     return {

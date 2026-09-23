@@ -376,14 +376,19 @@ export class LeadcarsApiService {
         response: responseData,
       });
 
-      // Extraer mensaje de error de la respuesta de LeadCars
-      let errorMessage = error.message;
-      if (responseData?.error?.message) {
-        errorMessage = responseData.error.message;
-      }
+      const errorMessage = this.extractProviderMessage(
+        responseData,
+        error.message,
+      );
 
       return err(
-        new CrmApiError('leadcars', errorMessage, statusCode, responseData),
+        new CrmApiError(
+          'leadcars',
+          errorMessage,
+          statusCode,
+          responseData,
+          url,
+        ),
       );
     }
 
@@ -392,8 +397,51 @@ export class LeadcarsApiService {
       new CrmApiError(
         'leadcars',
         error instanceof Error ? error.message : 'Error desconocido',
+        undefined,
+        undefined,
+        url,
       ),
     );
+  }
+
+  private extractProviderMessage(
+    responseData: unknown,
+    fallback: string,
+  ): string {
+    if (typeof responseData === 'string' && responseData.trim()) {
+      return responseData.trim();
+    }
+    if (!responseData || typeof responseData !== 'object') {
+      return fallback;
+    }
+
+    const data = responseData as Record<string, unknown>;
+    const nestedError = data.error;
+    if (
+      nestedError &&
+      typeof nestedError === 'object' &&
+      typeof (nestedError as { message?: unknown }).message === 'string'
+    ) {
+      return (nestedError as { message: string }).message;
+    }
+    if (typeof nestedError === 'string' && nestedError.trim()) {
+      return nestedError.trim();
+    }
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return data.message.trim();
+    }
+    if (typeof data.msg === 'string' && data.msg.trim()) {
+      return data.msg.trim();
+    }
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      return data.errors
+        .map((item) =>
+          typeof item === 'string' ? item : JSON.stringify(item),
+        )
+        .join('; ');
+    }
+
+    return fallback;
   }
 
   private async executeWithRetry<T>(

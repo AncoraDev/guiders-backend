@@ -9,6 +9,8 @@ import {
   IsObject,
   ValidateNested,
   Min,
+  IsNotEmpty,
+  IsEmail,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -165,12 +167,137 @@ export class LeadcarsStateItemDto {
   fields: LeadcarsStateFieldDto[];
 }
 
+export class TestConnectionDetailsDto {
+  @ApiPropertyOptional({ description: 'Código HTTP devuelto por LeadCars' })
+  httpStatus?: number;
+
+  @ApiPropertyOptional({ description: 'URL llamada en LeadCars' })
+  endpoint?: string;
+
+  @ApiPropertyOptional({
+    description: 'Entorno usado para la prueba',
+    enum: ['sandbox', 'production'],
+  })
+  environment?: 'sandbox' | 'production';
+
+  @ApiPropertyOptional({
+    description: 'Mensaje original devuelto por LeadCars',
+  })
+  providerMessage?: string;
+
+  @ApiPropertyOptional({
+    description: 'Cuerpo de respuesta de LeadCars (si lo hay)',
+  })
+  providerBody?: string;
+}
+
 export class TestConnectionByIdResponseDto {
   @ApiProperty({ description: 'Resultado del test' })
   success: boolean;
 
-  @ApiProperty({ description: 'Mensaje descriptivo del resultado' })
+  @ApiProperty({
+    description:
+      'Mensaje descriptivo del resultado, listo para copiar y enviar al proveedor',
+  })
   message: string;
+
+  @ApiPropertyOptional({
+    description: 'Detalle técnico de la respuesta de LeadCars',
+    type: TestConnectionDetailsDto,
+  })
+  details?: TestConnectionDetailsDto;
+}
+
+/**
+ * DTO para enviar un lead de prueba a LeadCars (no crea lead en Guiders).
+ */
+export class SendTestLeadDto {
+  @ApiProperty({ description: 'Nombre del contacto de prueba', example: 'Prueba Guiders' })
+  @IsString()
+  @IsNotEmpty()
+  nombre: string;
+
+  @ApiPropertyOptional({ description: 'Apellidos del contacto de prueba' })
+  @IsOptional()
+  @IsString()
+  apellidos?: string;
+
+  @ApiPropertyOptional({ description: 'Email de prueba' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Teléfono de prueba' })
+  @IsOptional()
+  @IsString()
+  telefono?: string;
+
+  @ApiPropertyOptional({ description: 'Provincia' })
+  @IsOptional()
+  @IsString()
+  provincia?: string;
+
+  @ApiPropertyOptional({
+    description: 'Comentario que verá el concesionario en LeadCars',
+  })
+  @IsOptional()
+  @IsString()
+  comentario?: string;
+
+  @ApiPropertyOptional({ description: 'Token de LeadCars (si no hay config guardada)' })
+  @IsOptional()
+  @IsString()
+  clienteToken?: string;
+
+  @ApiPropertyOptional({ description: 'Forzar sandbox o producción para este envío' })
+  @IsOptional()
+  @IsBoolean()
+  useSandbox?: boolean;
+
+  @ApiPropertyOptional({ description: 'ID de concesionario (si no se usa el de la config)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  concesionarioId?: number;
+
+  @ApiPropertyOptional({ description: 'ID de sede' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  sedeId?: number;
+
+  @ApiPropertyOptional({ description: 'Código de campaña' })
+  @IsOptional()
+  @IsString()
+  campanaCode?: string;
+
+  @ApiPropertyOptional({ description: 'ID de tipo de lead' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  tipoLeadDefault?: number;
+}
+
+export class SendTestLeadResponseDto {
+  @ApiProperty({ description: 'Si LeadCars aceptó el lead' })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Mensaje listo para copiar y contrastar con el concesionario',
+  })
+  message: string;
+
+  @ApiPropertyOptional({
+    description: 'Entorno usado',
+    enum: ['sandbox', 'production'],
+  })
+  environment?: 'sandbox' | 'production';
+
+  @ApiPropertyOptional({ description: 'ID del lead en LeadCars, si lo devolvió' })
+  leadId?: number;
+
+  @ApiPropertyOptional({ description: 'Referencia del lead en LeadCars, si la devolvió' })
+  referencia?: string;
 }
 
 /**
@@ -210,6 +337,15 @@ export class LeadcarsConfigDto {
   sedeId?: number;
 
   @ApiPropertyOptional({
+    description: 'ID de la campaña (opcional; el envío a LeadCars usa campanaCode)',
+    example: 55,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  campanaId?: number;
+
+  @ApiPropertyOptional({
     description: 'Código de campaña (texto, no numérico)',
     example: 'WEB-2026',
   })
@@ -224,6 +360,34 @@ export class LeadcarsConfigDto {
   @IsNumber()
   @Min(1)
   tipoLeadDefault: number;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del concesionario (solo visualización)',
+  })
+  @IsOptional()
+  @IsString()
+  concesionarioNombre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de la sede (solo visualización)',
+  })
+  @IsOptional()
+  @IsString()
+  sedeNombre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de la campaña (solo visualización)',
+  })
+  @IsOptional()
+  @IsString()
+  campanaNombre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del tipo de lead (solo visualización)',
+  })
+  @IsOptional()
+  @IsString()
+  tipoLeadNombre?: string;
 }
 
 /**
@@ -378,10 +542,8 @@ export class CrmConfigResponseDto {
     dto.enabled = data.enabled;
     dto.syncChatConversations = data.syncChatConversations;
     dto.triggerEvents = data.triggerEvents;
-    // Ocultar token sensible
     dto.config = {
       ...data.config,
-      clienteToken: data.config.clienteToken ? '***OCULTO***' : undefined,
     };
     dto.createdAt = data.createdAt.toISOString();
     dto.updatedAt = data.updatedAt.toISOString();

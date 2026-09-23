@@ -186,15 +186,17 @@ export class LeadcarsCrmSyncAdapter implements ICrmSyncService {
   ): Promise<Result<boolean, DomainError>> {
     this.logger.log('Probando conexión con LeadCars');
 
-    const validationErrors = this.validateConfig(config);
-    if (validationErrors.length > 0) {
+    const leadcarsConfig = this.extractLeadcarsConfig(config);
+    if (!leadcarsConfig.clienteToken?.trim()) {
       return err(
-        new CrmConfigInvalidError('leadcars', validationErrors.join('; ')),
+        new CrmConfigInvalidError('leadcars', 'clienteToken es obligatorio'),
       );
     }
 
-    const leadcarsConfig = this.extractLeadcarsConfig(config);
-    return this.apiService.testConnection(leadcarsConfig);
+    return this.apiService.testConnection({
+      ...leadcarsConfig,
+      useSandbox: !!leadcarsConfig.useSandbox,
+    });
   }
 
   /**
