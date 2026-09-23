@@ -269,7 +269,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [test-and-build]
-    if: needs.test-and-build.result == 'success'
+    if: ${{ needs.test-and-build.result == 'success' && secrets.PROD_HOST != '' }}
 
     steps:
       - name: Checkout code
