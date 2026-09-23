@@ -68,6 +68,27 @@ describe('LeadCaptureFlow', () => {
     expect(result.isErr() && result.error.message).toContain('paso inicial');
   });
 
+  it('acepta un cierre sin pedir datos de contacto', () => {
+    const result = LeadCaptureFlow.create(
+      buildFlow([
+        {
+          id: 'interes',
+          type: 'choice',
+          prompt: '¿Qué te interesa?',
+          options: [
+            { id: 'demo', label: 'Solo información', next: '__end__' },
+            { id: 'llamar', label: 'Que me llamen', next: null },
+          ],
+        },
+      ]),
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result.unwrap().toPrimitives().steps[0].options?.[0].next).toBe(
+      '__end__',
+    );
+  });
+
   it('rechaza referencias a pasos que no existen', () => {
     const result = LeadCaptureFlow.create(
       buildFlow([

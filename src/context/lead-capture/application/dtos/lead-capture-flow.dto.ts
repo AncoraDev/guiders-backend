@@ -35,7 +35,8 @@ export class LeadCaptureOptionDto {
   label: string;
 
   @ApiPropertyOptional({
-    description: 'Paso al que lleva la opción; null termina el guion',
+    description:
+      'Paso siguiente. null pide datos de contacto; __end__ cierra sin formulario',
     nullable: true,
   })
   @IsOptional()
@@ -91,7 +92,8 @@ export class LeadCaptureStepDto {
   required?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Paso siguiente; null termina el guion',
+    description:
+      'Paso siguiente. null pide datos de contacto; __end__ cierra sin formulario',
     nullable: true,
   })
   @IsOptional()

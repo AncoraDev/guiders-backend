@@ -233,3 +233,14 @@ Se quitó el selector de chats del visitante («Nueva conversación»). Un visit
 Identify corre **después** de crear ChatUI. Si no, el `await` del page-view dejaba `chatId` a null y Console/web no compartían el hilo.
 
 Para verlo en Autopractik hay que actualizar el plugin a **2.14.1** (ZIP o GitHub Release). Backend y Console no cambian. Demo VPS: copiar el `guiders-sdk.js` nuevo a `/var/www/guiders-demo`.
+
+---
+
+## 24 septiembre 2026 — cierre del guion sin pedir datos
+
+En Captación cada rama puede terminar así:
+
+- `null` → formulario de contacto (como hasta ahora)
+- `__end__` → «Terminar sin pedir datos»
+
+Hay que publicar API + Console + pixel. Autopractik necesita el plugin **2.14.2** para que el visitante no caiga al formulario si elige esa rama.

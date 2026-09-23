@@ -28,10 +28,22 @@ export const MAX_LEAD_CAPTURE_STEPS = 20;
 /** Máximo de opciones por paso para que quepan en el widget. */
 export const MAX_LEAD_CAPTURE_OPTIONS = 5;
 
+/** Cierre del guion sin el formulario de contacto. */
+export const LEAD_CAPTURE_END = '__end__';
+
+export function isLeadCaptureStepRef(
+  next: string | null | undefined,
+): next is string {
+  return typeof next === 'string' && next.length > 0 && next !== LEAD_CAPTURE_END;
+}
+
 export interface LeadCaptureOptionPrimitives {
   id: string;
   label: string;
-  /** Paso al que lleva la opción; null o ausente termina el guion. */
+  /**
+   * Paso al que lleva la opción.
+   * `null` pide datos de contacto; `__end__` cierra el guion sin formulario.
+   */
   next?: string | null;
 }
 
@@ -48,7 +60,7 @@ export interface LeadCaptureStepPrimitives {
   field?: string;
   validation?: LeadCaptureValidation;
   required?: boolean;
-  /** Siguiente paso; null significa terminar el guion. */
+  /** Siguiente paso; `null` pide contacto y `__end__` cierra sin formulario. */
   next?: string | null;
 }
 
@@ -72,9 +84,8 @@ export interface LeadCaptureFlowPrimitives {
 
 /**
  * Guion de captación que recorre el visitante cuando no hay comerciales
- * conectados. El paso final (datos de contacto y privacidad) no forma parte del
- * guion: lo añade siempre el widget, así que aquí solo se modela la parte que
- * configura el admin.
+ * conectados. El formulario de contacto no forma parte del árbol: el widget lo
+ * añade solo si una rama termina en `null`. `__end__` cierra sin pedirlo.
  */
 export class LeadCaptureFlow {
   private constructor(private readonly props: LeadCaptureFlowPrimitives) {}
@@ -163,7 +174,7 @@ export class LeadCaptureFlow {
 
     for (const step of props.steps) {
       for (const target of LeadCaptureFlow.targetsOf(step)) {
-        if (target !== null && !ids.has(target)) {
+        if (isLeadCaptureStepRef(target) && !ids.has(target)) {
           return invalid(
             `El paso ${step.id} apunta a un paso que no existe: ${target}`,
           );
@@ -229,7 +240,7 @@ export class LeadCaptureFlow {
       visiting.add(stepId);
       const step = byId.get(stepId);
       for (const target of step ? LeadCaptureFlow.targetsOf(step) : []) {
-        if (target === null) continue;
+        if (!isLeadCaptureStepRef(target)) continue;
         const cycleAt = walk(target);
         if (cycleAt) return cycleAt;
       }
