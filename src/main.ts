@@ -28,6 +28,10 @@ import { createClient, type RedisClientType } from 'redis';
 import * as fs from 'fs';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import * as bodyParser from 'body-parser';
+import {
+  parseAllowedOrigins,
+  mergeAllowedOrigins,
+} from './context/shared/utils/cors-origins.util';
 
 // Tipo reducido para evitar callbacks (que introducen any en tipos externos) y pasar lint estricto.
 interface SafeCorsOptions {
@@ -161,21 +165,34 @@ async function bootstrap() {
 
   // CORS: configuración explícita para soportar cookies (credentials: true) sin abrir todo (*)
   // Problema original: uso directo de app.use(cors({...})) o origin:true podía provocar orígenes no deseados.
-  // Estrategia: variable de entorno CORS_ALLOWED_ORIGINS = lista separada por comas.
-  // Ejemplo: CORS_ALLOWED_ORIGINS="http://localhost:8082,http://localhost:8080,https://app.frontend.com"
-  const parseAllowedOrigins = (raw: unknown): string[] => {
-    if (typeof raw !== 'string') return [];
-    const parts = raw.split(',');
-    const result: string[] = [];
-    for (const p of parts) {
-      const t = p.trim();
-      if (t) result.push(t);
-    }
-    return result;
-  };
-  const parsedAllowed: string[] = parseAllowedOrigins(
+  //
+  // Story 3.3 — Epic 3: Cross-Frame Auth Handshake.
+  //
+  // Estrategia (3 fuentes de origins, mergeadas con dedupe):
+  // 1. DEFAULT_EMBED_ORIGINS (hardcoded — LeadCars production, ver cors-origins.util.ts)
+  // 2. EMBED_ALLOWED_DEFAULT_ORIGINS env var (NUEVA — spec Story 3.3 AC1)
+  // 3. CORS_ALLOWED_ORIGINS env var (LEGACY — backward compat)
+  //
+  // Ejemplo:
+  //   EMBED_ALLOWED_DEFAULT_ORIGINS="https://app.partner-a.com,https://app.partner-b.com"
+  //   CORS_ALLOWED_ORIGINS="http://localhost:8082"
+  const embedEnvOrigins = parseAllowedOrigins(
+    process.env.EMBED_ALLOWED_DEFAULT_ORIGINS,
+  );
+  const legacyEnvOrigins = parseAllowedOrigins(
     process.env.CORS_ALLOWED_ORIGINS,
   );
+  const parsedAllowed: string[] = mergeAllowedOrigins(
+    embedEnvOrigins,
+    legacyEnvOrigins,
+  );
+
+  // Log final allowlist for ops visibility (only on startup, not per-request)
+  if (parsedAllowed.length > 0) {
+    console.log(
+      `[CORS] Allowed origins (${parsedAllowed.length}): ${parsedAllowed.join(', ')}`,
+    );
+  }
 
   const isDevLike =
     process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
@@ -187,12 +204,15 @@ async function bootstrap() {
     'PATCH',
     'OPTIONS',
   ];
+  // Story 3.3 AC1: required headers per spec. X-Api-Key is the canonical
+  // casing per HTTP convention (RFC 7230 allows case-insensitive but tools
+  // like Swagger UI and Postman expect this exact casing).
   const corsAllowedHeaders: ReadonlyArray<string> = [
     'Content-Type',
     'Authorization',
     'Cookie',
     'X-Requested-With',
-    'X-API-Key',
+    'X-Api-Key',
     'X-Guiders-Sid',
     // Admin/Console BFF: distingue cookie admin_session vs console_session
     'X-Guiders-App',

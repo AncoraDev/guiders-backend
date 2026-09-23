@@ -23,6 +23,11 @@ import { WhiteLabelFileUploadService } from './infrastructure/services/white-lab
 
 // Infrastructure - Controllers
 import { WhiteLabelConfigController } from './infrastructure/controllers/white-label-config.controller';
+import { EmbedStartController } from './infrastructure/controllers/embed-start.controller';
+
+// Infrastructure - Cache (Story 4.1 + 4.3)
+import { InMemoryTtlCache } from '../shared/infrastructure/cache/in-memory-ttl-cache';
+import type { WhiteLabelConfig } from './domain/entities/white-label-config';
 
 // Guards y Auth (importados de shared)
 import { DualAuthGuard } from '../shared/infrastructure/guards/dual-auth.guard';
@@ -43,7 +48,7 @@ import { WHITE_LABEL_CONFIG_REPOSITORY } from './domain/white-label-config.repos
       },
     ]),
   ],
-  controllers: [WhiteLabelConfigController],
+  controllers: [WhiteLabelConfigController, EmbedStartController],
   providers: [
     // Guards y Auth
     DualAuthGuard,
@@ -56,7 +61,19 @@ import { WHITE_LABEL_CONFIG_REPOSITORY } from './domain/white-label-config.repos
 
     // Config Repository
     MongoWhiteLabelConfigRepositoryProvider,
+
+    // Story 4.1: In-memory cache for white_label_configs (60s TTL)
+    // Type-erased factory because InMemoryTtlCache<K,V> is generic
+    {
+      provide: InMemoryTtlCache,
+      useFactory: () =>
+        new InMemoryTtlCache<string, WhiteLabelConfig>({ ttlMs: 60_000 }),
+    },
   ],
-  exports: [WHITE_LABEL_CONFIG_REPOSITORY, WhiteLabelFileUploadService],
+  exports: [
+    WHITE_LABEL_CONFIG_REPOSITORY,
+    WhiteLabelFileUploadService,
+    InMemoryTtlCache,
+  ],
 })
 export class WhiteLabelModule {}

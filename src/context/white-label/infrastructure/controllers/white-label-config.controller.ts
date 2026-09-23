@@ -48,6 +48,7 @@ import {
   WhiteLabelConfig,
   ALLOWED_FONT_FAMILIES,
 } from '../../domain/entities/white-label-config';
+import { InMemoryTtlCache } from 'src/context/shared/infrastructure/cache/in-memory-ttl-cache';
 import {
   WhiteLabelConfigResponseDto,
   UpdateWhiteLabelConfigDto,
@@ -73,6 +74,7 @@ export class WhiteLabelConfigController {
     @Inject(WHITE_LABEL_CONFIG_REPOSITORY)
     private readonly configRepository: IWhiteLabelConfigRepository,
     private readonly fileUploadService: WhiteLabelFileUploadService,
+    private readonly cache: InMemoryTtlCache<string, WhiteLabelConfig>,
   ) {}
 
   // ========================================
@@ -193,6 +195,13 @@ export class WhiteLabelConfigController {
       branding: dto.branding,
       typography: dto.typography,
       theme: dto.theme,
+      embed:
+        dto.embedEnabled !== undefined || dto.embedAllowedOrigins !== undefined
+          ? {
+              embedEnabled: dto.embedEnabled,
+              embedAllowedOrigins: dto.embedAllowedOrigins,
+            }
+          : undefined,
     });
 
     const saveResult = await this.configRepository.save(updatedConfig);
@@ -200,6 +209,13 @@ export class WhiteLabelConfigController {
     if (saveResult.isErr()) {
       throw new BadRequestException(saveResult.error.message);
     }
+
+    // Story 4.3: invalidate cache so next read (Story 4.1 GET /embed/start
+    // or Angular BrandingService) refreshes from MongoDB with new values.
+    this.cache.delete(companyId);
+    this.logger.debug(
+      `Cache invalidated for company=${companyId} after PATCH white-label`,
+    );
 
     return this.toResponseDto(updatedConfig);
   }
@@ -246,6 +262,13 @@ export class WhiteLabelConfigController {
 
     // Eliminar de la base de datos (no lanza error si no existe)
     await this.configRepository.delete(companyId);
+
+    // Story 4.3: invalidate cache so next read refreshes (will return default
+    // branding since the config no longer exists).
+    this.cache.delete(companyId);
+    this.logger.debug(
+      `Cache invalidated for company=${companyId} after DELETE white-label`,
+    );
   }
 
   // ========================================
@@ -584,6 +607,8 @@ export class WhiteLabelConfigController {
         customFontFiles: primitives.typography.customFontFiles,
       },
       theme: primitives.theme,
+      embedEnabled: primitives.embedEnabled,
+      embedAllowedOrigins: primitives.embedAllowedOrigins,
       createdAt: primitives.createdAt,
       updatedAt: primitives.updatedAt,
     };

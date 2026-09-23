@@ -155,13 +155,159 @@ Never expose ORM entities outside infrastructure. Use mappers:
 - `toPersistence(aggregate)` - domain to ORM entity
 - `fromPersistence(entity)` - ORM entity to domain
 
+## AI Safeguards (MANDATORY desde Epic 2 retro, 2026-06-17)
+
+Toda story DESDE Epic 3 en adelante DEBE aplicar estos patrones desde el inicio. No son opcionales — son parte del contrato del proyecto.
+
+### AI-1.5: try-tdd-generator wrapper (script determinístico + subagente fallback)
+
+**Origen**: Epic 2 retro — subagente `@tdd-generator` retornó `<output></output>` 3/3 invocaciones consecutivas (Stories 2.1, 2.2, 2.3). **Root cause confirmado 95%** (Story AI-X, 2026-06-17): `bash.*: ask` permissions bloquean al subagente.
+
+**Cómo aplicar**:
+- **Pattern 0 (DEFAULT, post-Story AI-X)**: `npm run generate:red-tests` — script determinístico sin LLM. 100% reliable, 0 API cost.
+- **Pattern A (fallback)**: subagente `@tdd-generator` — solo para patrones no soportados. UNRELIABLE.
+- **Pattern B/C/D (last resort)**: Manual test writing.
+- Ver `.opencode/skills/try-tdd-generator.md` para el flujo completo.
+- `detectSubagentFailure()` heuristic con 6 failure signals preservada para Pattern A.
+
+### AI-2: Spec citation check (acceptance auditors inventan ACs)
+
+**Origen**: PR #111 review — PASS 3 inventó 3 ACs que NO existían en el spec → 3 issues falsas cerradas.
+
+**Cómo aplicar**:
+- Cada AC en un audit report DEBE incluir cita literal del spec entre comillas: `> "..."`
+- Si el AC NO está en el spec → es **enhancement**, no bug
+- Usar `detectSpecCitationGap()` heuristic antes de aceptar reportes de review
+
+### AI-3: Specific assertions (nunca `instanceof BaseError`)
+
+**Origen**: Story 2.1 retro — tests con `instanceof BaseError` pasan incluso si la validación está deshabilitada.
+
+**Cómo aplicar**:
+- Tests usan `message.toContain(...)` o `instanceof SpecificSubclass`
+- NUNCA `instanceof BaseError`
+- Cada test verifica el resultado específico (mensaje, code, statusCode)
+
+### AI-4: extractAuditContext helper (DRY compliance)
+
+**Origen**: Epic 2 retro — bloque `req.headers['origin']/['x-forwarded-for']/['user-agent']` se copiaba en 4 controllers. Resuelto en commit `c3cdc9c`.
+
+**Cómo aplicar**:
+- TODO nuevo controller DEBE usar `extractAuditContext(req)` de `src/context/shared/utils/audit-context.ts`
+- NO duplicar el bloque inline
+- Helper ya normaliza IPv6-mapped IPv4 (TD-3) y corrige bug empty-string `req.ip`
+
+### tryPublish helper (eventBus failure safety)
+
+**Origen**: Story 2.2 F4/E15 — `eventBus.publish` puede tirar excepciones sincrónicas que rompen el main flow.
+
+**Cómo aplicar**:
+- TODO `eventBus.publish()` DEBE estar envuelto en `tryPublish(eventBus, event, logger, context)`
+- Helper: `src/context/shared/events/try-publish.ts`
+- Best-effort audit: fallo del bus NO propaga al cliente (ya respondió 200)
+
+### cascadeRevoke pattern (Lua atomic revocation)
+
+**Origen**: Story 2.3 PR #115 — TOCTOU race entre `revokeSession` + `revokeToken` separados.
+
+**Cómo aplicar**:
+- Cualquier revocación múltiple (BFF session + embed token) DEBE usar Lua EVAL atómico
+- Ver `redis-bff-session.service.ts:cascadeRevoke()` como referencia
+- Redis Cluster compat: NO pasar empty-string KEYS al EVAL
+
+### Tech debt discipline (close before new epic)
+
+**Origen**: Epic 2 retro — tech debt creció de 0 → 7 items durante 3 stories.
+
+**Cómo aplicar**:
+- Antes de empezar Epic N+1 → cerrar todos los tech debt items acumulados en Epic N
+- Sprint status DEBE marcar `deferred-post-mvp` explícitamente para items no bloqueantes
+- Si tech debt > 5 items acumulados → STOP, retrospective required antes de continuar
+
 ## Testing Guidelines
+
+### TDD Strategy (MANDATORY DEFAULT)
+
+**Por defecto, todo desarrollo sigue la estrategia TDD (Test-Driven Development)**. Cuando el usuario pida "desarrollar", "implementar", "crear" o similar:
+
+1. **RED phase** — usar el **flujo de 3 patrones** (post-Story AI-X, 2026-06-17):
+
+   - **Pattern 0 (DEFAULT)**: `npm run generate:red-tests -- <story-file>` — script determinístico que genera el test file desde el spec. **Usar este primero** para CommandHandler, QueryHandler, EventHandler, Controller.
+   - **Pattern A (fallback)**: `@tdd-generator` subagent — solo si la story usa un patrón NO soportado por Pattern 0. **El subagent es UNRELIABLE** (3/3 invocaciones vacías en Stories 2.1/2.2/2.3) — siempre ejecutar el SOP AI-1.5 (`detectSubagentFailure()`).
+   - **Pattern B/C/D (last resort)**: Manual test writing siguiendo el patrón validado de Story 2.1.
+
+   Ver `.opencode/skills/try-tdd-generator.md` para el flujo completo.
+
+2. **GREEN phase** (implementación por el agente principal):
+   - Implementar el código MÍNIMO para que los tests pasen
+   - No añadir features que no estén cubiertas por tests
+
+3. **REFACTOR phase**:
+   - Mejorar estructura manteniendo tests verdes
+   - Aplicar patrones del proyecto (Result, Symbol DI, DDD)
+
+**Excepciones a TDD** (consultar con el usuario antes de proceder):
+- Refactors sin cambio de comportamiento
+- Cambios puramente de configuración (Docker, CI, etc.)
+- Documentación / AGENTS.md updates
+- Cambios cosméticos (lint, prettier)
+
+### Delegating Tests to Subagent
+
+El proyecto tiene un subagente especializado `@tdd-generator` definido en `.opencode/agents/tdd-generator.md`. Su responsabilidad:
+
+- Lee la story + PRD + Architecture + AGENTS.md del contexto
+- Genera archivos `*.spec.ts` / `*.int-spec.ts` / `*.e2e-spec.ts`
+- Sigue los patterns del proyecto (Spanish describe, `Uuid.random().value`, etc.)
+- Confirma la fase RED (tests fallan)
+- Reporta archivos creados + coverage de ACs
+
+**Cuándo invocarlo**:
+- El usuario dice "desarrolla Story X" o "implementa feature Y"
+- Una nueva command/query necesita tests
+- Se añade un nuevo endpoint HTTP
+
+**Cuándo NO invocarlo**:
+- El usuario explícitamente dice "no uses TDD" o "skip tests"
+- Es un fix de typo / format / lint
+- Es actualización de docs
+
+**AI-1.5 — Wrapper con fallback automático**: El subagente `@tdd-generator` ha retornado output vacío (`<output></output>`) en 2/2 invocaciones consecutivas (Story 2.1 + Story 2.2). **NO** se debe confiar ciegamente en su output. Usar `.opencode/skills/try-tdd-generator.md` que documenta:
+- **Step 1**: Invocar el subagente
+- **Step 2**: Detectar fallo usando `detectSubagentFailure()` (en `src/context/shared/dev-tools/try-tdd-generator/__tests__/try-tdd-generator.sop.spec.ts` — 18 tests cubren los 6 failure signals)
+- **Step 3**: Si falló, **fallback manual** al patrón validado de Story 1.3/2.1/2.2 (mocks `const`, `app = await buildApp(...)` ANTES de `mockResolvedValue`, AI-3 assertions específicas — nunca `instanceof BaseError`)
+
+Esta decisión del retro de Story 2.2 previene el ciclo "subagent falla → dev agent escribe tests → inconsistencias" en las 3 stories restantes de Epic 2.
+
+**AI-2 — Acceptance Auditors deben citar el spec text exacto** (PR #111 review, 2026-06-16): El subagente PASS 3 (Acceptance Auditor) del review de PR #111 inventó 3 ACs que NO existían en el spec real:
+
+- "Story 1.3 AC5: Validates origin is in `embedAllowedOrigins`" — NO existe
+- "Story 1.3 AC3 / 1.4 AC3: response includes `refreshAfter` / `refreshedAt`" — NO existe
+- "Story 1.4 AC2/AC8: cross-check header-vs-body" — NO existe (spec dice "no body DTO needed")
+
+Esto generó 3 issues falsas (#112, #113, #114) que casi bloquean un merge innecesariamente. Re-verificación contra el spec real tomó 10 min y reveló que la implementación era correcta.
+
+**Regla para futuros acceptance auditors** (subagentes o humanos):
+- Cada AC debe ir con una **cita literal del spec entre comillas** (`> "..."`).
+- Si el AC a auditar NO está en el spec, es un **enhancement** (no un bug).
+- Si la implementación difiere del spec, es un **bug real** (cita la línea exacta del spec que se viola).
+- NUNCA inferir ACs basándose en "mejores prácticas" o "lo que debería ser".
+
+Mitigación: añadir a `try-tdd-generator` SOP (AI-1.5) un check de "spec citation" antes de aceptar el output de cualquier subagente de review.
+
+**Implementación AI-2**: el SOP `try-tdd-generator.md` incluye ahora un **Step 6: Spec citation check (AI-2)** con la función pura `detectSpecCitationGap()` que automatiza la detección. Tests en `src/context/shared/dev-tools/try-tdd-generator/__tests__/try-tdd-generator.sop.spec.ts` (10 nuevos casos, 28 totales: AC con/sin cita, ACs inventados, "best practice" markers, regression PR #111 con los 3 ACs falsos).
+
+### Test Patterns
 
 - Use `@nestjs/testing` for module creation
 - Tests in `__tests__/` folder alongside source
 - **Always use real UUIDs**: `Uuid.random().value` (never fake IDs)
 - Mock dependencies with `jest.Mocked<T>`
 - Describe blocks in Spanish, test logic validates behavior
+- **Test naming**:
+  - Unit: `<file>.spec.ts` in `__tests__/` next to source
+  - Integration: `<file>.int-spec.ts` in `__tests__/` next to source
+  - E2E: `<file>.e2e-spec.ts` in `test/` directory
 
 ```typescript
 describe('CreateChatCommandHandler', () => {
@@ -173,6 +319,33 @@ describe('CreateChatCommandHandler', () => {
   });
 });
 ```
+
+## Subagents Disponibles
+
+| Agent | Mode | Purpose | Cuándo invocar |
+|-------|------|---------|----------------|
+| `build` | primary | Default agent con acceso completo | Default (Tab) |
+| `plan` | primary | Análisis sin cambios | Análisis de código |
+| `general` | subagent | Multi-step research + ejecución | Tareas complejas en paralelo |
+| `explore` | subagent | Read-only codebase exploration | Búsquedas rápidas |
+| `scout` | subagent | Read-only external docs | Investigación de dependencias |
+| `tdd-generator` | subagent | **Genera tests failing (RED phase)** | **Inicio de cualquier desarrollo nuevo** |
+
+**Invocar el subagente `tdd-generator`**:
+
+```
+@tdd-generator genera los tests para Story 1.4 — RefreshEmbedTokenCommand
+```
+
+El subagente:
+1. Lee `_bmad-output/implementation-artifacts/<story-key>.md`
+2. Lee AGENTS.md del contexto afectado
+3. Lee source files existentes (repos, services, etc.)
+4. Genera los archivos de test
+5. Confirma que los tests fallan (RED)
+6. Reporta archivos creados + AC coverage
+
+Una vez completado el RED phase, el agente principal (build) implementa el código para hacer pasar los tests (GREEN).
 
 ## Anti-Patterns (BLOCK)
 

@@ -7,7 +7,14 @@ import {
   IsString,
   IsOptional,
   IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  ArrayMaxSize,
   ValidateNested,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
   Matches,
   IsIn,
   IsUrl,
@@ -20,6 +27,37 @@ import { ALLOWED_FONT_FAMILIES } from '../../domain/entities/white-label-config'
  * Regex para validar colores hexadecimales
  */
 const HEX_COLOR_REGEX = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+
+/**
+ * Regex estricto para orígenes: scheme://host[:port] sin path/query/fragment
+ * Solo permite https:// (sección de seguridad FR23)
+ */
+const ORIGIN_REGEX = /^https:\/\/[^/?#\s]+(:\d+)?$/;
+
+/**
+ * Cross-field validator: si embedEnabled=true, embedAllowedOrigins debe
+ * tener al menos un origen. Esto evita el estado inconsistente donde el
+ * feature flag está activo pero no hay orígenes permitidos.
+ */
+@ValidatorConstraint({ name: 'embedOriginsRequiredWhenEnabled', async: false })
+class EmbedOriginsRequiredWhenEnabledConstraint
+  implements ValidatorConstraintInterface
+{
+  validate(_value: unknown, args: ValidationArguments): boolean {
+    const obj = args.object as UpdateWhiteLabelConfigDto;
+    if (obj.embedEnabled === true) {
+      return (
+        Array.isArray(obj.embedAllowedOrigins) &&
+        obj.embedAllowedOrigins.length > 0
+      );
+    }
+    return true;
+  }
+
+  defaultMessage(): string {
+    return 'embedAllowedOrigins debe contener al menos un origen cuando embedEnabled=true';
+  }
+}
 
 /**
  * DTO para colores
@@ -256,7 +294,27 @@ export class WhiteLabelConfigResponseDto {
     example: 'light',
     enum: ['light', 'dark', 'system'],
   })
+  @IsString()
+  @IsIn(['light', 'dark', 'system'])
   theme: string;
+
+  @ApiProperty({
+    description:
+      'Habilita el embed de la consola Guiders como iframe para integradores B2B',
+    example: false,
+    default: false,
+  })
+  @IsBoolean()
+  embedEnabled: boolean;
+
+  @ApiProperty({
+    description:
+      'Lista de orígenes (scheme://host[:port]) permitidos para embeber la consola. Validación estricta por `event.origin` en postMessage.',
+    example: ['https://app.integrator.com', 'https://staging.integrator.com'],
+    type: [String],
+  })
+  @IsArray()
+  embedAllowedOrigins: string[];
 
   @ApiPropertyOptional({
     description: 'Fecha de creación',
@@ -317,6 +375,49 @@ export class UpdateWhiteLabelConfigDto {
     message: `theme debe ser uno de: ${ALLOWED_THEMES.join(', ')}`,
   })
   theme?: AllowedTheme;
+
+  @ApiPropertyOptional({
+    description:
+      'Habilita el embed de la consola Guiders como iframe para integradores B2B',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  embedEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Lista de orígenes (scheme://host[:port]) permitidos para embeber la consola. Validación estricta por `event.origin` en postMessage.',
+    example: ['https://app.integrator.com', 'https://staging.integrator.com'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50, {
+    message: 'embedAllowedOrigins no puede tener más de 50 elementos',
+  })
+  @IsString({ each: true })
+  @IsNotEmpty({
+    each: true,
+    message: 'cada origen debe ser un string no vacío',
+  })
+  @MaxLength(2048, {
+    each: true,
+    message: 'cada origen no puede exceder 2048 caracteres',
+  })
+  @Matches(ORIGIN_REGEX, {
+    each: true,
+    message:
+      'cada origen debe tener formato https://host[:puerto] sin path, query, fragment ni espacios',
+  })
+  embedAllowedOrigins?: string[];
+
+  /**
+   * Cross-field: si embedEnabled=true, embedAllowedOrigins no puede estar vacío
+   */
+  @Validate(EmbedOriginsRequiredWhenEnabledConstraint)
+  _embedCrossFieldValidation?: never;
 }
 
 /**

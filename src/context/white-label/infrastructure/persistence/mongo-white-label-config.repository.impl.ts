@@ -47,10 +47,14 @@ export class MongoWhiteLabelConfigRepositoryImpl
             branding: primitives.branding,
             typography: primitives.typography,
             theme: primitives.theme,
+            embedEnabled: primitives.embedEnabled,
+            embedAllowedOrigins: primitives.embedAllowedOrigins,
             updatedAt: new Date(),
           },
           $setOnInsert: {
             createdAt: new Date(),
+            embedEnabled: false,
+            embedAllowedOrigins: [],
           },
         },
         { upsert: true, new: true },
@@ -105,6 +109,10 @@ export class MongoWhiteLabelConfigRepositoryImpl
           customFontFiles: doc.typography?.customFontFiles || [],
         },
         theme: (doc.theme as 'light' | 'dark' | 'system') || 'light',
+        embedEnabled: doc.embedEnabled === true,
+        embedAllowedOrigins: Array.isArray(doc.embedAllowedOrigins)
+          ? doc.embedAllowedOrigins
+          : [],
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
       });

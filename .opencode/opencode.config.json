@@ -1,7 +1,13 @@
 {
   "name": "@guiders/opencode-config",
   "version": "1.0.0",
-  "description": "OpenCode custom commands for Guiders Backend",
+  "description": "OpenCode custom commands and agents for Guiders Backend",
+  "agents": {
+    "tdd-generator": {
+      "description": "Generates failing test suites (RED phase) following TDD methodology for NestJS/DDD projects. Specializes in Jest unit tests, e2e tests with Supertest, and integration tests with real DBs.",
+      "mode": "subagent"
+    }
+  },
   "commands": {
     "publish": {
       "description": "Publica cambios a GitHub con validaciones previas (lint + tests + build)",

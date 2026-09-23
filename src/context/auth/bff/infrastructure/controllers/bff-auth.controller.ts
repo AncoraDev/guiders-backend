@@ -15,85 +15,20 @@ import {
 import type { Request, Response } from 'express';
 import { OidcService } from '../services/oidc.service';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
-import { QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { FindUserByKeycloakIdQuery } from '../../../auth-user/application/queries/find-user-by-keycloak-id.query';
 import { UserResponseDto } from '../../../auth-user/application/dtos/user-list-response.dto';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Result } from 'src/context/shared/domain/result';
 import { BFFMeResponseDto } from '../dtos/bff-auth.dto';
-
-// Helpers de configuración en runtime para evitar valores congelados al cargar el módulo
-function parseSameSite(value?: string): 'strict' | 'lax' | 'none' {
-  const normalized = value?.toLowerCase();
-  console.log('[BFF parseSameSite Debug]', {
-    originalValue: value,
-    normalized: normalized,
-    willReturn:
-      normalized === 'strict' || normalized === 'lax' || normalized === 'none'
-        ? normalized
-        : 'lax',
-  });
-
-  if (
-    normalized === 'strict' ||
-    normalized === 'lax' ||
-    normalized === 'none'
-  ) {
-    return normalized;
-  }
-  return 'lax'; // Default seguro para desarrollo
-}
-
-function readCookieEnv(app?: string) {
-  // Nota: en local (HTTP) cookies secure=true no se guardan
-  const secure =
-    process.env.COOKIE_SECURE !== undefined
-      ? process.env.COOKIE_SECURE === 'true'
-      : process.env.NODE_ENV === 'production';
-
-  // Configuración por aplicación
-  let sessionName: string;
-  let refreshName: string;
-
-  if (app === 'admin') {
-    sessionName = process.env.SESSION_COOKIE_ADMIN || 'admin_session';
-    refreshName = process.env.REFRESH_COOKIE_ADMIN || 'admin_refresh';
-  } else {
-    // Por defecto console
-    sessionName =
-      process.env.SESSION_COOKIE_CONSOLE ||
-      process.env.SESSION_COOKIE ||
-      'console_session';
-    refreshName =
-      process.env.REFRESH_COOKIE_CONSOLE ||
-      process.env.REFRESH_COOKIE ||
-      'console_refresh';
-  }
-
-  const cookieConfig = {
-    sessionName,
-    refreshName,
-    sameSite: parseSameSite(process.env.SAMESITE),
-    path: process.env.COOKIE_PATH || '/',
-    refreshPath: process.env.REFRESH_PATH || '/api/bff/auth/refresh',
-    domain: process.env.COOKIE_DOMAIN || undefined,
-    secure,
-  } as const;
-
-  // Log detallado de la configuración de cookies
-  console.log(`[BFF Cookie Config Debug - ${app || 'default'}]`, {
-    app: app || 'console',
-    rawSameSite: process.env.SAMESITE,
-    parsedSameSite: cookieConfig.sameSite,
-    rawSecure: process.env.COOKIE_SECURE,
-    parsedSecure: cookieConfig.secure,
-    nodeEnv: process.env.NODE_ENV,
-    sessionName: cookieConfig.sessionName,
-    refreshName: cookieConfig.refreshName,
-  });
-
-  return cookieConfig;
-}
+import { readCookieEnv } from '../cookie-helper';
+import { extractAuditContext } from 'src/context/shared/utils/audit-context';
+import { LogoutCommand } from '../../application/commands/logout.command';
+import {
+  BffSessionInvalidFormatError,
+  BffSessionServiceUnavailableError,
+} from '../../domain/errors/bff-session.errors';
+import { EmbedTokenError } from 'src/context/auth/integration-api-key/domain/errors/embed-token.errors';
 
 function readAuthEnv() {
   return {
@@ -134,6 +69,7 @@ export class BffController {
   constructor(
     private readonly oidc: OidcService,
     private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
   ) {}
 
   // Inicializa/memoiza JWKS desde OIDC_JWKS_URI o derivado de OIDC_ISSUER
@@ -759,5 +695,124 @@ export class BffController {
       );
       return res.redirect(postLogoutRedirectUri);
     }
+  }
+
+  /**
+   * Logout del iframe Guiders cuando la sesión fue establecida vía
+   * Story 2.1 (POST /embed/authenticate-session).
+   *
+   * Story 2.3 + PR #115 review fixes:
+   *  - Atomic cascade revoke (Lua EVAL, no TOCTOU)
+   *  - Idempotente: 2nd call retorna 200 con cascadingResult='not_found'
+   *  - AC3 compliance: cookie faltante → 401 + audit log failure event
+   *  - Cookie limpiada con los mismos atributos del set (no path mismatch)
+   *
+   * Path distinto de GET /bff/auth/logout (que es para OIDC/Keycloak).
+   */
+  @ApiOperation({
+    summary: 'Cerrar sesión embed (POST)',
+    description:
+      'Revoca atómicamente la BFF session + embed token padre. Idempotente: llamadas subsecuentes retornan 200 con cascadingResult=not_found. Cookie `access_token` limpiada en éxito.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Logout exitoso (success, partial o not_found)',
+    schema: {
+      type: 'object',
+      properties: {
+        loggedOut: { type: 'boolean' },
+        sessionId: { type: 'string', nullable: true },
+        embedTokenRevoked: { type: 'boolean' },
+        cascadingResult: {
+          type: 'string',
+          enum: ['success', 'partial', 'not_found'],
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Session ID con formato inválido' })
+  @ApiResponse({ status: 401, description: 'BFF session no encontrada' })
+  @ApiResponse({ status: 503, description: 'Servicio Redis no disponible' })
+  @Post('logout/embed')
+  @PublicEndpoint()
+  async logoutEmbed(
+    @Req() req: Request & { cookies: Record<string, string | undefined> },
+    @Res() res: Response,
+  ) {
+    // Story 2.3 + AC3: extraer sessionId de la cookie `access_token`.
+    const sessionId = req.cookies?.['access_token'] as string | undefined;
+
+    // Audit context (extraído en TODAS las branches para emisión consistente).
+    // AI-4: usa el helper compartido (DRY) en vez de duplicar el bloque.
+    const { origin, ipAddress, userAgent } = extractAuditContext(req);
+
+    if (!sessionId) {
+      // AC3: no cookie → 401 EMBED_SESSION_NOT_FOUND + emit failure event
+      await this.commandBus.execute(
+        new LogoutCommand('', ipAddress, userAgent, origin),
+      );
+      res.status(401).json({
+        code: 'EMBED_SESSION_NOT_FOUND',
+        message: 'No se encontró cookie access_token',
+      });
+      return;
+    }
+
+    const result = await this.commandBus.execute(
+      new LogoutCommand(sessionId, ipAddress, userAgent, origin),
+    );
+
+    if (result.isErr()) {
+      const errValue = result.error;
+      if (errValue instanceof BffSessionInvalidFormatError) {
+        // AC3: 400 (formato inválido)
+        res.status(400).json({
+          code: errValue.code,
+          message: errValue.message,
+        });
+        return;
+      }
+      if (errValue instanceof BffSessionServiceUnavailableError) {
+        res.status(503).json({
+          code: errValue.code,
+          message: 'Servicio temporalmente no disponible',
+        });
+        return;
+      }
+      // BffSessionNotFoundError ya NO se retorna desde el handler
+      // (PR #115 review fix: ahora retorna ok({cascadingResult: 'not_found'})).
+      // Default: 500
+      res.status(500).json({
+        code: 'INTERNAL_ERROR',
+        message: 'Error inesperado al procesar logout',
+      });
+      return;
+    }
+
+    const {
+      cascadingResult,
+      sessionId: returnedSessionId,
+      embedTokenRevoked,
+    } = result.unwrap();
+
+    // Limpiar la cookie `access_token` con los mismos atributos del set
+    // (PR #115 review NO_TEST_COVERAGE-32: validate path/domain match).
+    const cenv = readCookieEnv('admin');
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: cenv.secure,
+      sameSite: cenv.sameSite,
+      domain: cenv.domain,
+      path: cenv.path,
+    });
+
+    // AC2 idempotency: cascadingResult='not_found' también retorna 200
+    // (la session no existía pero el logout se procesó idempotentemente).
+    res.status(200).json({
+      loggedOut: true,
+      sessionId: returnedSessionId,
+      embedTokenRevoked,
+      cascadingResult: cascadingResult.toJSON(),
+    });
   }
 }

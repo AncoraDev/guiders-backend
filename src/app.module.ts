@@ -175,6 +175,9 @@ export class AppModule {
       entities: [
         __dirname +
           '/context/auth/api-key/infrastructure/api-key.entity{.ts,.js}',
+        // TD-6: IntegrationApiKeyEntity — registered for embed flow (Story 1.3+)
+        __dirname +
+          '/context/auth/integration-api-key/infrastructure/integration-api-key.entity{.ts,.js}',
         __dirname +
           '/context/auth/auth-user/infrastructure/user-account.entity{.ts,.js}',
         __dirname +

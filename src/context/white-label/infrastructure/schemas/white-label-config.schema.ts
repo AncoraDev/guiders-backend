@@ -102,6 +102,12 @@ export class WhiteLabelConfigSchema {
   @Prop({ type: String, default: 'light', enum: ['light', 'dark', 'system'] })
   theme: string;
 
+  @Prop({ type: Boolean, default: false })
+  embedEnabled: boolean;
+
+  @Prop({ type: [String], default: () => [] })
+  embedAllowedOrigins: string[];
+
   @Prop({ type: Date })
   createdAt: Date;
 

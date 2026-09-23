@@ -1,0 +1,115 @@
+# generated: 2026-06-12 14:25
+# last_updated: 2026-06-12 14:25
+# project: guiders-backend
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: "{implementation_artifacts}"
+#
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-12 14:25
+last_updated: 2026-06-17 10:00
+project: guiders-backend
+project_key: NOKEY
+tracking_system: file-system
+story_location: "/Users/rogerpugaruiz/Proyectos/guiders-backend/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Embed Token Issuance & Multi-Tenant Gating (4 stories, 9 FRs)
+  epic-1: in-progress
+  1-1-extend-white-label-configs-schema-for-embed: done
+  1-2-implement-opaque-token-generation-in-embedtokenservice: done
+  1-3-create-createembedtokencommand-post-v2-integration-embed-start-endpoint: done
+  1-4-create-refreshembedtokencommand-post-v2-integration-embed-refresh-endpoint: done
+  epic-1-retrospective: done
+
+  # Epic 2: Embed Session Lifecycle & Audit (5 stories, 11 FRs)
+  epic-2: in-progress
+  2-1-implement-post-embed-authenticate-session-to-create-bff-session-from-token: review
+  2-2-implement-embedtokenauthenticated-event-and-audit-log-persistence: review
+  story-2-2-retrospective-2026-06-16: done
+  2-3-implement-token-revocation-on-logout-from-parent: review
+  # Stories 2.4 + 2.5 deferred to post-MVP "LeadCars polish" release per
+  # Sprint Change Proposal 2026-06-17 (Epic 2 retrospective findings).
+  # UX completeness, NOT security/correctness blockers.
+  2-4-implement-transparent-token-refresh-in-the-iframe: deferred-post-mvp
+  2-5-implement-network-loss-detection-and-recovery-ui: deferred-post-mvp
+  story-2-1-retrospective-2026-06-16: done
+  epic-2-retrospective: done
+
+  # Sprint Change Proposal 2026-06-17: 2 new stories created pre-Epic 3
+  # CRITICAL: Story 6.0 blocks Epic 6 RBAC (cookie unusable against Keycloak endpoints)
+  # HIGH: Story AI-X addresses recurring tdd-generator failure (3/3 invocations)
+  6-0-extend-jwtcookie-strategy-to-accept-opaque-session-ids: review
+  ai-x-replace-or-fix-tdd-generator-subagent: review
+  # Tech debt: discovered during feat/embed-white-label smoke test (2026-06-18)
+  # Blocks server startup in dev mode. HIGH priority.
+  td-4-fix-redis-bff-session-service-di: done
+  td-5-fix-mongowhitelabelconfigrepositoryimpl-di: done
+  td-6-7-cqrs-decorators-and-integration-api-key-entity: ready-for-dev
+  # TD-8: audit log origin validation — normalize empty string to '(none)' sentinel
+  # Fixed 2026-06-23 — commit dc9d4a7 — forward-compatible with schema hardening
+  td-8-audit-log-origin-validation: done
+  3-1-implement-embedbootstrapservice-with-versioned-postmessage-protocol: in-progress
+
+  # Epic 3: Cross-Frame Auth Handshake (postMessage) (3 stories, 5 FRs)
+  epic-3: backlog
+  3-2-implement-embed-mode-detection-and-chrome-hiding: in-progress
+  3-3-add-cors-origins-for-embed-clients-in-main-ts: in-progress
+  epic-3-retrospective: optional
+
+  # Epic 4: White-Label Branding Application (3 stories, 3 FRs)
+  epic-4: backlog
+  4-1-implement-get-embed-start-html-wrapper-with-inline-branding-css: in-progress
+  4-2-implement-brandingservice-in-angular-to-enhance-branding-after-boot: in-progress
+  4-3-implement-in-process-cache-for-white-label-configs: in-progress
+  epic-4-retrospective: optional
+
+  # Epic 5: Branding Self-Service UI (4 stories, 4 FRs)
+  epic-5: backlog
+  5-1-create-libs-admin-features-white-label-lib-skeleton: backlog
+  5-2-implement-whitelabelservice-for-branding-crud: backlog
+  5-3-implement-white-label-config-ui-component: backlog
+  5-4-add-branding-route-to-admin-app-and-ensure-rbac-visibility: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Role-Based Access Control in Embed (3 stories, 5 FRs)
+  epic-6: backlog
+  6-1-refactor-sidebaritems-to-computed-signal-filtered-by-roles: backlog
+  6-2-implement-embedguard-for-restricted-routes: backlog
+  6-3-implement-embed-error-page-with-retry-and-accessibility: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Documentation & Onboarding (3 stories, 3 FRs)
+  epic-7: backlog
+  7-1-write-docs-leadcar-embed-integration-md: backlog
+  7-2-update-agents-md-of-affected-contexts: backlog
+  7-3-write-e2e-playwright-test-for-the-full-embed-flow: backlog
+  epic-7-retrospective: optional
