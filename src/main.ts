@@ -32,6 +32,7 @@ import {
   parseAllowedOrigins,
   mergeAllowedOrigins,
 } from './context/shared/utils/cors-origins.util';
+import { CorsSiteOriginService } from './context/company/infrastructure/services/cors-site-origin.service';
 
 // Tipo reducido para evitar callbacks (que introducen any en tipos externos) y pasar lint estricto.
 interface SafeCorsOptions {
@@ -168,10 +169,11 @@ async function bootstrap() {
   //
   // Story 3.3 — Epic 3: Cross-Frame Auth Handshake.
   //
-  // Estrategia (3 fuentes de origins, mergeadas con dedupe):
+  // Estrategia (4 fuentes; 1-3 estáticas, 4 dinámica por alta de cliente):
   // 1. DEFAULT_EMBED_ORIGINS (hardcoded — LeadCars production, ver cors-origins.util.ts)
   // 2. EMBED_ALLOWED_DEFAULT_ORIGINS env var (NUEVA — spec Story 3.3 AC1)
   // 3. CORS_ALLOWED_ORIGINS env var (LEGACY — backward compat)
+  // 4. company_sites.domain (Admin → nuevo cliente; sin tocar .env)
   //
   // Ejemplo:
   //   EMBED_ALLOWED_DEFAULT_ORIGINS="https://app.partner-a.com,https://app.partner-b.com"
@@ -228,6 +230,7 @@ async function bootstrap() {
   if (parsedAllowed.length > 0) {
     // Validación estricta con callback tipado (necesario para entornos cross-origin con cookies)
     const corsDebug = process.env.CORS_DEBUG === 'true';
+    const corsSiteOrigin = app.get(CorsSiteOriginService);
     const originFn: NonNullable<CorsOptions['origin']> = (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
@@ -242,8 +245,22 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
-      if (corsDebug) console.warn(`[CORS] Origen denegado: ${origin}`);
-      callback(new Error(`Origen no permitido por CORS: ${origin}`));
+      void corsSiteOrigin.isRegisteredSiteOrigin(origin).then(
+        (allowed) => {
+          if (allowed) {
+            if (corsDebug)
+              console.log(`[CORS] Origen permitido (site): ${origin}`);
+            callback(null, true);
+            return;
+          }
+          if (corsDebug) console.warn(`[CORS] Origen denegado: ${origin}`);
+          callback(new Error(`Origen no permitido por CORS: ${origin}`));
+        },
+        () => {
+          if (corsDebug) console.warn(`[CORS] Origen denegado: ${origin}`);
+          callback(new Error(`Origen no permitido por CORS: ${origin}`));
+        },
+      );
     };
     app.enableCors({
       ...baseCors,

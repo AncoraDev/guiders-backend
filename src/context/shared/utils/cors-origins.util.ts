@@ -72,3 +72,22 @@ export function mergeAllowedOrigins(
     ]),
   );
 }
+
+/**
+ * Extrae el hostname del header Origin (sin puerto).
+ * `findByDomain` ya ignora `www.` y el puerto.
+ */
+export function originToHost(origin: string): string | null {
+  if (typeof origin !== 'string' || origin.trim().length === 0) {
+    return null;
+  }
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    return url.hostname || null;
+  } catch {
+    return null;
+  }
+}

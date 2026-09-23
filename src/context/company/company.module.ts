@@ -32,6 +32,7 @@ import { BffSessionAuthService } from '../shared/infrastructure/services/bff-ses
 import { DualAuthGuard } from '../shared/infrastructure/guards/dual-auth.guard';
 import { RolesGuard } from '../shared/infrastructure/guards/role.guard';
 import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
+import { CorsSiteOriginService } from './infrastructure/services/cors-site-origin.service';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
     GetCompanyWidgetConfigQueryHandler,
     GetCompanyWidgetConfigByDomainQueryHandler,
     UpdateCompanyWidgetConfigCommandHandler,
+    CorsSiteOriginService,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,
     BffSessionAuthService,
@@ -74,6 +76,11 @@ import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
       useExisting: CompanySearchProvider,
     },
   ],
-  exports: [companyRepositoryProvider, CompanySearchProvider, SEARCH_PROVIDER],
+  exports: [
+    companyRepositoryProvider,
+    CompanySearchProvider,
+    SEARCH_PROVIDER,
+    CorsSiteOriginService,
+  ],
 })
 export class CompanyModule {}

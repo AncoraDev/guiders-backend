@@ -6,6 +6,7 @@ import {
   DEFAULT_EMBED_ORIGINS,
   parseAllowedOrigins,
   mergeAllowedOrigins,
+  originToHost,
 } from '../cors-origins.util';
 
 describe('cors-origins.util', () => {
@@ -126,6 +127,34 @@ describe('cors-origins.util', () => {
         'https://app.leadcars.com',
         'https://www.leadcars.com',
       ]);
+    });
+  });
+
+  describe('originToHost', () => {
+    it('debe extraer el host de un origin https', () => {
+      expect(originToHost('https://autopractik.es')).toBe('autopractik.es');
+    });
+
+    it('debe extraer el host incluyendo www', () => {
+      expect(originToHost('https://www.autopractik.es')).toBe(
+        'www.autopractik.es',
+      );
+    });
+
+    it('debe extraer hostname sin puerto (findByDomain ya normaliza puerto)', () => {
+      expect(originToHost('http://localhost:8083')).toBe('localhost');
+    });
+
+    it('debe rechazar origin vacío', () => {
+      expect(originToHost('')).toBeNull();
+    });
+
+    it('debe rechazar protocolos que no sean http/https', () => {
+      expect(originToHost('file:///tmp/x')).toBeNull();
+    });
+
+    it('debe rechazar strings que no son URL', () => {
+      expect(originToHost('autopractik.es')).toBeNull();
     });
   });
 });
