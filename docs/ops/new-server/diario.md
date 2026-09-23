@@ -254,3 +254,15 @@ El último paso del guion pide solo **Nombre, Email, Teléfono y Comentarios**, 
 El comentario se guarda en el lead (`additionalData.comentario`) y se ve en el hilo de Atención y en la ficha del visitante.
 
 Autopractik necesita el plugin **2.14.3**. El formulario que pide el comercial en el chat no cambia.
+
+---
+
+## 24 septiembre 2026 — email de aviso + plugin 2.14.4
+
+El 2.14.3 de Autopractik recargaba la home cada segundo: el ZIP llevaba el bundle de `npm start` (webpack-dev-server / HMR), que llama a `location.reload()` si no hay servidor de desarrollo.
+
+El 2.14.4 es un build de producción. `npm start` ya no copia ese JS al plugin.
+
+En Console → Configuración se puede poner un email: al completar el asistente se envía un aviso. Columna `companies.lead_capture_notify_email`.
+
+Autopractik: desactivar el 2.14.3 e instalar **2.14.4**. La API key no cambia.

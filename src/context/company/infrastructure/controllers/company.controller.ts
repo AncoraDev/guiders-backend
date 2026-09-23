@@ -52,6 +52,12 @@ import { GetCompanyWidgetConfigQuery } from '../../application/queries/get-compa
 import { UpdateCompanyWidgetConfigCommand } from '../../application/commands/update-company-widget-config.command';
 import { UpdateCompanyWidgetConfigDto } from '../../application/dtos/update-company-widget-config.dto';
 import { WidgetConfigPrimitives } from '../../domain/value-objects/company-widget-config';
+import { GetCompanyLeadCaptureNotifyQuery } from '../../application/queries/get-company-lead-capture-notify.query';
+import { UpdateCompanyLeadCaptureNotifyCommand } from '../../application/commands/update-company-lead-capture-notify.command';
+import {
+  CompanyLeadCaptureNotifyDto,
+  UpdateCompanyLeadCaptureNotifyDto,
+} from '../../application/dtos/update-company-lead-capture-notify.dto';
 
 @ApiTags('companies')
 @ApiAuthErrors()
@@ -444,5 +450,74 @@ export class CompanyController {
     }
 
     return result.unwrap();
+  }
+
+  @Get('me/company/lead-capture-notify')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Email de avisos del asistente de captación',
+    description:
+      'Cuando un visitante termina el guion se envía un resumen a este correo. Vacío = no enviar. Solo admin.',
+  })
+  @ApiResponse({ status: 200, description: 'Email de avisos' })
+  async getMyCompanyLeadCaptureNotify(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<CompanyLeadCaptureNotifyDto> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const email = await this.queryBus.execute<
+      GetCompanyLeadCaptureNotifyQuery,
+      string | null
+    >(new GetCompanyLeadCaptureNotifyQuery(companyId));
+
+    if (email === null) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    return { email };
+  }
+
+  @Put('me/company/lead-capture-notify')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Actualizar email de avisos del asistente',
+    description: 'Solo el admin del concesionario puede cambiarlo.',
+  })
+  @ApiResponse({ status: 200, description: 'Email de avisos actualizado' })
+  @ApiValidationError('Email no válido')
+  async updateMyCompanyLeadCaptureNotify(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCompanyLeadCaptureNotifyDto,
+  ): Promise<CompanyLeadCaptureNotifyDto> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const result = await this.commandBus.execute<
+      UpdateCompanyLeadCaptureNotifyCommand,
+      Result<string, DomainError>
+    >(new UpdateCompanyLeadCaptureNotifyCommand(companyId, body.email));
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrada')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return { email: result.unwrap() };
   }
 }

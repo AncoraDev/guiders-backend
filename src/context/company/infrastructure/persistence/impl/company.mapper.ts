@@ -58,6 +58,7 @@ export class CompanyMapper {
       cannedReplies: entity.cannedReplies ?? [],
       contactFormLegal: entity.contactFormLegal ?? {},
       widgetConfig: entity.widgetConfig ?? {},
+      leadCaptureNotifyEmail: entity.leadCaptureNotifyEmail ?? '',
     });
   }
 
@@ -79,6 +80,7 @@ export class CompanyMapper {
     entity.cannedReplies = primitives.cannedReplies ?? [];
     entity.contactFormLegal = primitives.contactFormLegal ?? {};
     entity.widgetConfig = primitives.widgetConfig ?? {};
+    entity.leadCaptureNotifyEmail = primitives.leadCaptureNotifyEmail ?? '';
     return entity;
   }
 }

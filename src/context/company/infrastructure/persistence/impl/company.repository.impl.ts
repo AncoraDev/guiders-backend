@@ -193,6 +193,26 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
     }
   }
 
+  async updateLeadCaptureNotifyEmail(
+    id: Uuid,
+    email: string,
+  ): Promise<Result<void, DomainError>> {
+    try {
+      await this.companyRepo.update(
+        { id: id.getValue() },
+        { leadCaptureNotifyEmail: email, updatedAt: new Date() },
+      );
+      return okVoid();
+    } catch (error) {
+      return err(
+        new CompanyPersistenceError(
+          'Error al guardar el email de avisos de captación: ' +
+            (error instanceof Error ? error.message : String(error)),
+        ),
+      );
+    }
+  }
+
   async updateWidgetConfig(
     id: Uuid,
     config: WidgetConfigPrimitives,

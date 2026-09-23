@@ -9,8 +9,14 @@ import {
   CommandHandler,
   EventPublisher,
   ICommandHandler,
+  QueryBus,
 } from '@nestjs/cqrs';
 import { SubmitLeadCaptureCommand } from './submit-lead-capture.command';
+import { GetCompanyLeadCaptureNotifyQuery } from 'src/context/company/application/queries/get-company-lead-capture-notify.query';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from 'src/context/shared/domain/email/email-sender.service';
 import { RecordConsentCommand } from 'src/context/consent/application/commands/record-consent.command';
 import { getCurrentConsentVersion } from 'src/context/consent/domain/config/consent-version.config';
 import { ConsentError } from 'src/context/consent/domain/errors/consent.error';
@@ -55,6 +61,9 @@ export class SubmitLeadCaptureCommandHandler
     private readonly messageRepository: IMessageRepository,
     private readonly publisher: EventPublisher,
     private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+    @Inject(EMAIL_SENDER_SERVICE)
+    private readonly emailSender: EmailSenderService,
   ) {}
 
   async execute(
@@ -138,6 +147,7 @@ export class SubmitLeadCaptureCommandHandler
 
     await this.closeCaptureSession(command, chat.companyId);
     await this.recordConsents(command, chat.companyId, acceptedMarketing);
+    await this.notifyCaptureEmail(chat.companyId, capturedData, answers);
 
     this.logger.log(
       `Captación sin agentes completada en chat ${command.chatId} (guion ${
@@ -310,5 +320,72 @@ export class SubmitLeadCaptureCommandHandler
         }`,
       );
     }
+  }
+
+  /**
+   * Aviso al email de la empresa. Un fallo aquí no invalida el lead.
+   */
+  private async notifyCaptureEmail(
+    companyId: string,
+    contact: {
+      nombre: string;
+      email: string;
+      telefono: string;
+      comentarios: string;
+    },
+    answers: LeadCaptureAnswer[],
+  ): Promise<void> {
+    try {
+      const notifyTo = await this.queryBus.execute<
+        GetCompanyLeadCaptureNotifyQuery,
+        string | null
+      >(new GetCompanyLeadCaptureNotifyQuery(companyId));
+      if (!notifyTo) return;
+
+      await this.emailSender.sendEmail({
+        to: notifyTo,
+        subject: `Nuevo lead del asistente: ${contact.nombre}`,
+        html: this.buildNotifyHtml(contact, answers),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo avisar por email de la captación: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private buildNotifyHtml(
+    contact: {
+      nombre: string;
+      email: string;
+      telefono: string;
+      comentarios: string;
+    },
+    answers: LeadCaptureAnswer[],
+  ): string {
+    const escape = (value: string): string =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const rows = answers
+      .map(
+        (answer) =>
+          `<p><strong>${escape(answer.prompt)}</strong><br>${escape(answer.answer)}</p>`,
+      )
+      .join('');
+
+    return `
+      <p>Un visitante ha completado el asistente de captación.</p>
+      <p><strong>Nombre:</strong> ${escape(contact.nombre)}<br>
+      <strong>Email:</strong> ${escape(contact.email)}<br>
+      <strong>Teléfono:</strong> ${escape(contact.telefono)}<br>
+      <strong>Comentarios:</strong> ${escape(contact.comentarios)}</p>
+      ${rows ? `<h3>Respuestas del guion</h3>${rows}` : ''}
+    `;
   }
 }

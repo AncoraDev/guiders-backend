@@ -24,6 +24,8 @@ import { UpdateCompanyContactFormLegalCommandHandler } from './application/comma
 import { GetCompanyWidgetConfigQueryHandler } from './application/queries/get-company-widget-config.query-handler';
 import { GetCompanyWidgetConfigByDomainQueryHandler } from './application/queries/get-company-widget-config-by-domain.query-handler';
 import { UpdateCompanyWidgetConfigCommandHandler } from './application/commands/update-company-widget-config.command-handler';
+import { GetCompanyLeadCaptureNotifyQueryHandler } from './application/queries/get-company-lead-capture-notify.query-handler';
+import { UpdateCompanyLeadCaptureNotifyCommandHandler } from './application/commands/update-company-lead-capture-notify.command-handler';
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -62,6 +64,8 @@ import { CorsSiteOriginService } from './infrastructure/services/cors-site-origi
     GetCompanyWidgetConfigQueryHandler,
     GetCompanyWidgetConfigByDomainQueryHandler,
     UpdateCompanyWidgetConfigCommandHandler,
+    GetCompanyLeadCaptureNotifyQueryHandler,
+    UpdateCompanyLeadCaptureNotifyCommandHandler,
     CorsSiteOriginService,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,

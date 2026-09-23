@@ -15,6 +15,7 @@ import {
   CompanyWidgetConfig,
   WidgetConfigPrimitives,
 } from './value-objects/company-widget-config';
+import { LeadCaptureNotifyEmail } from './value-objects/lead-capture-notify-email';
 
 // Entidad principal del contexto Company
 export class Company extends AggregateRoot {
@@ -27,6 +28,7 @@ export class Company extends AggregateRoot {
   private readonly cannedReplies: CompanyCannedReplies;
   private readonly contactFormLegal: CompanyContactFormLegal;
   private readonly widgetConfig: CompanyWidgetConfig;
+  private readonly leadCaptureNotifyEmail: LeadCaptureNotifyEmail;
 
   // Constructor privado para forzar el uso de los métodos de fábrica
   private constructor(props: {
@@ -38,6 +40,7 @@ export class Company extends AggregateRoot {
     cannedReplies?: CompanyCannedReplies;
     contactFormLegal?: CompanyContactFormLegal;
     widgetConfig?: CompanyWidgetConfig;
+    leadCaptureNotifyEmail?: LeadCaptureNotifyEmail;
   }) {
     super();
     this.id = props.id;
@@ -49,6 +52,8 @@ export class Company extends AggregateRoot {
     this.contactFormLegal =
       props.contactFormLegal ?? CompanyContactFormLegal.empty();
     this.widgetConfig = props.widgetConfig ?? CompanyWidgetConfig.empty();
+    this.leadCaptureNotifyEmail =
+      props.leadCaptureNotifyEmail ?? LeadCaptureNotifyEmail.empty();
   }
 
   // Método de fábrica para crear una nueva empresa (desde value objects)
@@ -83,6 +88,7 @@ export class Company extends AggregateRoot {
     cannedReplies?: CannedReplyPrimitives[];
     contactFormLegal?: ContactFormLegalPrimitives | Record<string, unknown>;
     widgetConfig?: WidgetConfigPrimitives | Record<string, unknown>;
+    leadCaptureNotifyEmail?: string;
   }): Company {
     return new Company({
       id: new Uuid(primitives.id),
@@ -97,6 +103,9 @@ export class Company extends AggregateRoot {
         primitives.contactFormLegal,
       ),
       widgetConfig: CompanyWidgetConfig.fromPersistence(primitives.widgetConfig),
+      leadCaptureNotifyEmail: LeadCaptureNotifyEmail.fromPersistence(
+        primitives.leadCaptureNotifyEmail,
+      ),
     });
   }
 
@@ -110,6 +119,7 @@ export class Company extends AggregateRoot {
     cannedReplies: CannedReplyPrimitives[];
     contactFormLegal: ContactFormLegalPrimitives;
     widgetConfig: WidgetConfigPrimitives;
+    leadCaptureNotifyEmail: string;
   } {
     return {
       id: this.id.getValue(),
@@ -120,6 +130,7 @@ export class Company extends AggregateRoot {
       cannedReplies: this.cannedReplies.getValue(),
       contactFormLegal: this.contactFormLegal.getValue(),
       widgetConfig: this.widgetConfig.getValue(),
+      leadCaptureNotifyEmail: this.leadCaptureNotifyEmail.value,
     };
   }
 
@@ -152,6 +163,10 @@ export class Company extends AggregateRoot {
     return this.widgetConfig.getValue();
   }
 
+  public getLeadCaptureNotifyEmail(): string {
+    return this.leadCaptureNotifyEmail.value;
+  }
+
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
     return new Company({
       id: this.id,
@@ -162,6 +177,7 @@ export class Company extends AggregateRoot {
       cannedReplies: this.cannedReplies,
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
+      leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
     });
   }
 
@@ -175,6 +191,7 @@ export class Company extends AggregateRoot {
       cannedReplies: CompanyCannedReplies.fromInput(items),
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
+      leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
     });
   }
 
@@ -188,6 +205,7 @@ export class Company extends AggregateRoot {
       cannedReplies: this.cannedReplies,
       contactFormLegal: CompanyContactFormLegal.fromInput(legal),
       widgetConfig: this.widgetConfig,
+      leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
     });
   }
 
@@ -201,6 +219,21 @@ export class Company extends AggregateRoot {
       cannedReplies: this.cannedReplies,
       contactFormLegal: this.contactFormLegal,
       widgetConfig: CompanyWidgetConfig.fromInput(config),
+      leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
+    });
+  }
+
+  public updateLeadCaptureNotifyEmail(email: string): Company {
+    return new Company({
+      id: this.id,
+      companyName: this.companyName,
+      sites: this.sites,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+      cannedReplies: this.cannedReplies,
+      contactFormLegal: this.contactFormLegal,
+      widgetConfig: this.widgetConfig,
+      leadCaptureNotifyEmail: LeadCaptureNotifyEmail.fromInput(email),
     });
   }
 }

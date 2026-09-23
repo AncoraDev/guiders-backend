@@ -49,6 +49,14 @@ export class CompanyTypeOrmEntity {
   };
 
   @Column({
+    name: 'lead_capture_notify_email',
+    type: 'varchar',
+    length: 255,
+    default: '',
+  })
+  leadCaptureNotifyEmail: string;
+
+  @Column({
     name: 'widget_config',
     type: 'jsonb',
     default: () => "'{}'",

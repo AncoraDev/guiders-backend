@@ -2,7 +2,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { CommandBus, EventPublisher } from '@nestjs/cqrs';
+import { CommandBus, EventPublisher, QueryBus } from '@nestjs/cqrs';
+import { EMAIL_SENDER_SERVICE } from 'src/context/shared/domain/email/email-sender.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getCurrentConsentVersion } from 'src/context/consent/domain/config/consent-version.config';
 import { DomainError } from 'src/context/shared/domain/domain.error';
@@ -22,6 +23,8 @@ describe('SubmitLeadCaptureCommandHandler', () => {
   let messageRepository: { save: jest.Mock };
   let chatRepository: { findById: jest.Mock };
   let commandBus: { execute: jest.Mock };
+  let queryBus: { execute: jest.Mock };
+  let emailSender: { sendEmail: jest.Mock };
   let commit: jest.Mock;
 
   const chatId = Uuid.random().value;
@@ -66,6 +69,8 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     commandBus = {
       execute: jest.fn().mockResolvedValue(ok(Uuid.random().value)),
     };
+    queryBus = { execute: jest.fn().mockResolvedValue('') };
+    emailSender = { sendEmail: jest.fn().mockResolvedValue(undefined) };
     commit = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -74,6 +79,8 @@ describe('SubmitLeadCaptureCommandHandler', () => {
         { provide: CHAT_V2_REPOSITORY, useValue: chatRepository },
         { provide: MESSAGE_V2_REPOSITORY, useValue: messageRepository },
         { provide: CommandBus, useValue: commandBus },
+        { provide: QueryBus, useValue: queryBus },
+        { provide: EMAIL_SENDER_SERVICE, useValue: emailSender },
         {
           provide: EventPublisher,
           useValue: {
@@ -210,6 +217,42 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     expect(close?.visitorId).toBe(visitorId);
     expect(close?.chatId).toBe(chatId);
     expect(close?.companyId).toBe(companyId);
+  });
+
+  it('avisa por email si la empresa tiene correo de captación', async () => {
+    queryBus.execute.mockResolvedValue('avisos@concesionario.com');
+
+    await handler.execute(
+      new SubmitLeadCaptureCommand(chatId, visitorId, validData),
+    );
+
+    expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
+    expect(emailSender.sendEmail.mock.calls[0][0].to).toBe(
+      'avisos@concesionario.com',
+    );
+    expect(emailSender.sendEmail.mock.calls[0][0].html).toContain(
+      'Quiero una cita esta semana',
+    );
+  });
+
+  it('no avisa si la empresa no tiene correo', async () => {
+    await handler.execute(
+      new SubmitLeadCaptureCommand(chatId, visitorId, validData),
+    );
+
+    expect(emailSender.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('completa la captación aunque falle el email', async () => {
+    queryBus.execute.mockResolvedValue('avisos@concesionario.com');
+    emailSender.sendEmail.mockRejectedValue(new Error('Resend cayó'));
+
+    const result = await handler.execute(
+      new SubmitLeadCaptureCommand(chatId, visitorId, validData),
+    );
+
+    expect(result.systemData?.action).toBe('lead_capture_submission');
+    expect(messageRepository.save).toHaveBeenCalled();
   });
 
   it('exige el check de privacidad', async () => {

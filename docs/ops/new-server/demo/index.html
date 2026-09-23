@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guiders — web de prueba</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f4ef;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --card: #fff;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    main {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 3rem 1.25rem 6rem;
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    p { color: var(--muted); }
+    .card {
+      background: var(--card);
+      border-radius: 1rem;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+      margin-top: 1.5rem;
+    }
+    .card strong { color: var(--ink); }
+    code {
+      font-size: 0.85em;
+      background: #f5f5f4;
+      padding: 0.1em 0.35em;
+      border-radius: 0.3em;
+    }
+    a { color: var(--accent); }
+  </style>
+  <script>
+    window.GUIDERS_CONFIG = {
+      apiKey: '__API_KEY__',
+      environment: 'production',
+      endpoint: 'https://guiders-api.ancoradual.com/api',
+      webSocketEndpoint: 'https://guiders-api.ancoradual.com',
+      requireConsent: false,
+      consentBanner: { enabled: false },
+      autoFlush: true,
+      flushInterval: 5000,
+      autoOpenChatOnMessage: true,
+      commercialAvailability: {
+        enabled: true,
+        hideWhenUnavailable: false,
+        showBadge: true
+      },
+      trackingV2: {
+        enabled: true,
+        bypassConsent: true
+      },
+      presence: {
+        enabled: true,
+        showOfflineBanner: true
+      },
+      quickActions: {
+        enabled: true,
+        welcomeMessage: 'Te lee una persona, no un bot.',
+        showOnFirstOpen: true,
+        buttons: []
+      }
+    };
+  </script>
+  <script src="/guiders-sdk.js" data-api-key="__API_KEY__"></script>
+</head>
+<body>
+  <main>
+    <h1>Web de prueba del pixel</h1>
+    <p>
+      Esto simula la web de un cliente. El chat de la esquina habla con
+      <code>guiders-api.ancoradual.com</code>.
+    </p>
+    <div class="card">
+      <p>
+        En Console, entra en <strong>Atención</strong>, ponete
+        <strong>Conectado</strong> y abre
+        <a href="https://guiders-console.ancoradual.com/atencion" target="_blank" rel="noopener">guiders-console</a>.
+      </p>
+      <p>Luego escribe aquí desde el widget. El visitante deberías ser tú.</p>
+    </div>
+  </main>
+</body>
+</html>
