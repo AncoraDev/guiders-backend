@@ -7,6 +7,8 @@ export interface EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void>;
 }
 

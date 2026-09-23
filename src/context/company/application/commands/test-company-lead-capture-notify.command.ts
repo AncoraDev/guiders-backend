@@ -1,4 +1,4 @@
-export class UpdateCompanyLeadCaptureNotifyCommand {
+export class TestCompanyLeadCaptureNotifyCommand {
   constructor(
     public readonly companyId: string,
     public readonly email?: string,

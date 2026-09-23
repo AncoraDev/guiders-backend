@@ -57,6 +57,21 @@ export class CompanyTypeOrmEntity {
   leadCaptureNotifyEmail: string;
 
   @Column({
+    name: 'lead_capture_resend_from',
+    type: 'varchar',
+    length: 255,
+    default: '',
+  })
+  leadCaptureResendFrom: string;
+
+  @Column({
+    name: 'lead_capture_resend_api_key',
+    type: 'text',
+    default: '',
+  })
+  leadCaptureResendApiKey: string;
+
+  @Column({
     name: 'widget_config',
     type: 'jsonb',
     default: () => "'{}'",

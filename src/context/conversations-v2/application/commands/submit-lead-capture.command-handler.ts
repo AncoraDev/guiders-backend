@@ -13,6 +13,7 @@ import {
 } from '@nestjs/cqrs';
 import { SubmitLeadCaptureCommand } from './submit-lead-capture.command';
 import { GetCompanyLeadCaptureNotifyQuery } from 'src/context/company/application/queries/get-company-lead-capture-notify.query';
+import { CompanyLeadCaptureNotifySettings } from 'src/context/company/application/queries/company-lead-capture-notify.settings';
 import {
   EMAIL_SENDER_SERVICE,
   EmailSenderService,
@@ -336,14 +337,18 @@ export class SubmitLeadCaptureCommandHandler
     answers: LeadCaptureAnswer[],
   ): Promise<void> {
     try {
-      const notifyTo = await this.queryBus.execute<
+      const settings = await this.queryBus.execute<
         GetCompanyLeadCaptureNotifyQuery,
-        string | null
+        CompanyLeadCaptureNotifySettings | null
       >(new GetCompanyLeadCaptureNotifyQuery(companyId));
-      if (!notifyTo) return;
+      if (!settings?.email || !settings.from || !settings.apiKey) {
+        return;
+      }
 
       await this.emailSender.sendEmail({
-        to: notifyTo,
+        to: settings.email,
+        from: settings.from,
+        apiKey: settings.apiKey,
         subject: `Nuevo lead del asistente: ${contact.nombre}`,
         html: this.buildNotifyHtml(contact, answers),
       });

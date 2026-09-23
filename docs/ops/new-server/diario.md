@@ -266,3 +266,15 @@ El 2.14.4 es un build de producción. `npm start` ya no copia ese JS al plugin.
 En Console → Configuración se puede poner un email: al completar el asistente se envía un aviso. Columna `companies.lead_capture_notify_email`.
 
 Autopractik: desactivar el 2.14.3 e instalar **2.14.4**. La API key no cambia.
+
+---
+
+## 24 septiembre 2026 — Resend por cliente
+
+El aviso del asistente ya no usa `RESEND_API_KEY` / `EMAIL_FROM` del VPS. Cada admin configura en Console → Avisos de captación: email destino, remitente y API key de **su** cuenta Resend.
+
+Columnas nuevas: `lead_capture_resend_from`, `lead_capture_resend_api_key` (cifrada). El GET no devuelve la clave. Sin los tres datos no se envía correo; el lead se guarda igual.
+
+En prod aplicar solo el `ALTER` de esas dos columnas (no `migration:run`).
+
+Hay **Probar conexión**: envía un correo de prueba. Exige email de destino + API key + remitente. Si Resend rechaza el dominio o la clave, se ve el error.

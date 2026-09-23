@@ -16,6 +16,7 @@ import {
   WidgetConfigPrimitives,
 } from './value-objects/company-widget-config';
 import { LeadCaptureNotifyEmail } from './value-objects/lead-capture-notify-email';
+import { LeadCaptureResendFrom } from './value-objects/lead-capture-resend-from';
 
 // Entidad principal del contexto Company
 export class Company extends AggregateRoot {
@@ -29,6 +30,8 @@ export class Company extends AggregateRoot {
   private readonly contactFormLegal: CompanyContactFormLegal;
   private readonly widgetConfig: CompanyWidgetConfig;
   private readonly leadCaptureNotifyEmail: LeadCaptureNotifyEmail;
+  private readonly leadCaptureResendFrom: LeadCaptureResendFrom;
+  private readonly leadCaptureResendApiKeyEncrypted: string;
 
   // Constructor privado para forzar el uso de los métodos de fábrica
   private constructor(props: {
@@ -41,6 +44,8 @@ export class Company extends AggregateRoot {
     contactFormLegal?: CompanyContactFormLegal;
     widgetConfig?: CompanyWidgetConfig;
     leadCaptureNotifyEmail?: LeadCaptureNotifyEmail;
+    leadCaptureResendFrom?: LeadCaptureResendFrom;
+    leadCaptureResendApiKeyEncrypted?: string;
   }) {
     super();
     this.id = props.id;
@@ -54,6 +59,10 @@ export class Company extends AggregateRoot {
     this.widgetConfig = props.widgetConfig ?? CompanyWidgetConfig.empty();
     this.leadCaptureNotifyEmail =
       props.leadCaptureNotifyEmail ?? LeadCaptureNotifyEmail.empty();
+    this.leadCaptureResendFrom =
+      props.leadCaptureResendFrom ?? LeadCaptureResendFrom.empty();
+    this.leadCaptureResendApiKeyEncrypted =
+      props.leadCaptureResendApiKeyEncrypted ?? '';
   }
 
   // Método de fábrica para crear una nueva empresa (desde value objects)
@@ -89,6 +98,8 @@ export class Company extends AggregateRoot {
     contactFormLegal?: ContactFormLegalPrimitives | Record<string, unknown>;
     widgetConfig?: WidgetConfigPrimitives | Record<string, unknown>;
     leadCaptureNotifyEmail?: string;
+    leadCaptureResendFrom?: string;
+    leadCaptureResendApiKeyEncrypted?: string;
   }): Company {
     return new Company({
       id: new Uuid(primitives.id),
@@ -106,6 +117,11 @@ export class Company extends AggregateRoot {
       leadCaptureNotifyEmail: LeadCaptureNotifyEmail.fromPersistence(
         primitives.leadCaptureNotifyEmail,
       ),
+      leadCaptureResendFrom: LeadCaptureResendFrom.fromPersistence(
+        primitives.leadCaptureResendFrom,
+      ),
+      leadCaptureResendApiKeyEncrypted:
+        primitives.leadCaptureResendApiKeyEncrypted ?? '',
     });
   }
 
@@ -120,6 +136,8 @@ export class Company extends AggregateRoot {
     contactFormLegal: ContactFormLegalPrimitives;
     widgetConfig: WidgetConfigPrimitives;
     leadCaptureNotifyEmail: string;
+    leadCaptureResendFrom: string;
+    leadCaptureResendApiKeyEncrypted: string;
   } {
     return {
       id: this.id.getValue(),
@@ -131,6 +149,8 @@ export class Company extends AggregateRoot {
       contactFormLegal: this.contactFormLegal.getValue(),
       widgetConfig: this.widgetConfig.getValue(),
       leadCaptureNotifyEmail: this.leadCaptureNotifyEmail.value,
+      leadCaptureResendFrom: this.leadCaptureResendFrom.value,
+      leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     };
   }
 
@@ -167,6 +187,14 @@ export class Company extends AggregateRoot {
     return this.leadCaptureNotifyEmail.value;
   }
 
+  public getLeadCaptureResendFrom(): string {
+    return this.leadCaptureResendFrom.value;
+  }
+
+  public getLeadCaptureResendApiKeyEncrypted(): string {
+    return this.leadCaptureResendApiKeyEncrypted;
+  }
+
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
     return new Company({
       id: this.id,
@@ -178,6 +206,8 @@ export class Company extends AggregateRoot {
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
       leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
+      leadCaptureResendFrom: this.leadCaptureResendFrom,
+      leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     });
   }
 
@@ -192,6 +222,8 @@ export class Company extends AggregateRoot {
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
       leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
+      leadCaptureResendFrom: this.leadCaptureResendFrom,
+      leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     });
   }
 
@@ -206,6 +238,8 @@ export class Company extends AggregateRoot {
       contactFormLegal: CompanyContactFormLegal.fromInput(legal),
       widgetConfig: this.widgetConfig,
       leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
+      leadCaptureResendFrom: this.leadCaptureResendFrom,
+      leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     });
   }
 
@@ -220,10 +254,16 @@ export class Company extends AggregateRoot {
       contactFormLegal: this.contactFormLegal,
       widgetConfig: CompanyWidgetConfig.fromInput(config),
       leadCaptureNotifyEmail: this.leadCaptureNotifyEmail,
+      leadCaptureResendFrom: this.leadCaptureResendFrom,
+      leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     });
   }
 
-  public updateLeadCaptureNotifyEmail(email: string): Company {
+  public updateLeadCaptureNotify(settings: {
+    email: string;
+    from: string;
+    apiKeyEncrypted?: string;
+  }): Company {
     return new Company({
       id: this.id,
       companyName: this.companyName,
@@ -233,7 +273,10 @@ export class Company extends AggregateRoot {
       cannedReplies: this.cannedReplies,
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
-      leadCaptureNotifyEmail: LeadCaptureNotifyEmail.fromInput(email),
+      leadCaptureNotifyEmail: LeadCaptureNotifyEmail.fromInput(settings.email),
+      leadCaptureResendFrom: LeadCaptureResendFrom.fromInput(settings.from),
+      leadCaptureResendApiKeyEncrypted:
+        settings.apiKeyEncrypted ?? this.leadCaptureResendApiKeyEncrypted,
     });
   }
 }

@@ -1,6 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
-import { UpdateCompanyLeadCaptureNotifyCommand } from './update-company-lead-capture-notify.command';
+import { TestCompanyLeadCaptureNotifyCommand } from './test-company-lead-capture-notify.command';
 import {
   COMPANY_REPOSITORY,
   CompanyRepository,
@@ -9,22 +9,25 @@ import {
   COMPANY_SECRET_CIPHER,
   CompanySecretCipher,
 } from '../../domain/company-secret-cipher';
+import {
+  EMAIL_SENDER_SERVICE,
+  EmailSenderService,
+} from 'src/context/shared/domain/email/email-sender.service';
 import { LeadCaptureNotifyEmail } from '../../domain/value-objects/lead-capture-notify-email';
 import { LeadCaptureResendFrom } from '../../domain/value-objects/lead-capture-resend-from';
 import { LeadCaptureResendApiKey } from '../../domain/value-objects/lead-capture-resend-api-key';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
-import { Result, err, ok } from 'src/context/shared/domain/result';
+import { Result, err, okVoid } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { CompanyNotFoundError } from '../../domain/errors/company.error';
 import { InvalidCompanyDataError } from '../errors/company-platform.errors';
-import { CompanyLeadCaptureNotifySettings } from '../queries/company-lead-capture-notify.settings';
 
-@CommandHandler(UpdateCompanyLeadCaptureNotifyCommand)
-export class UpdateCompanyLeadCaptureNotifyCommandHandler
-  implements ICommandHandler<UpdateCompanyLeadCaptureNotifyCommand>
+@CommandHandler(TestCompanyLeadCaptureNotifyCommand)
+export class TestCompanyLeadCaptureNotifyCommandHandler
+  implements ICommandHandler<TestCompanyLeadCaptureNotifyCommand>
 {
   private readonly logger = new Logger(
-    UpdateCompanyLeadCaptureNotifyCommandHandler.name,
+    TestCompanyLeadCaptureNotifyCommandHandler.name,
   );
 
   constructor(
@@ -32,11 +35,13 @@ export class UpdateCompanyLeadCaptureNotifyCommandHandler
     private readonly companyRepository: CompanyRepository,
     @Inject(COMPANY_SECRET_CIPHER)
     private readonly cipher: CompanySecretCipher,
+    @Inject(EMAIL_SENDER_SERVICE)
+    private readonly emailSender: EmailSenderService,
   ) {}
 
   async execute(
-    command: UpdateCompanyLeadCaptureNotifyCommand,
-  ): Promise<Result<CompanyLeadCaptureNotifySettings, DomainError>> {
+    command: TestCompanyLeadCaptureNotifyCommand,
+  ): Promise<Result<void, DomainError>> {
     if (!Uuid.validate(command.companyId)) {
       return err(new InvalidCompanyDataError('ID de empresa no válido'));
     }
@@ -64,50 +69,54 @@ export class UpdateCompanyLeadCaptureNotifyCommandHandler
     }
 
     const company = found.unwrap();
-    const apiKeyEncrypted = incomingKey.value
-      ? this.cipher.encrypt(incomingKey.value)
-      : company.getLeadCaptureResendApiKeyEncrypted();
-    const willHaveKey = incomingKey.value
-      ? true
-      : !!this.cipher.decrypt(apiKeyEncrypted);
-    if (willHaveKey && !email.value) {
+    const savedKey = this.cipher.decrypt(
+      company.getLeadCaptureResendApiKeyEncrypted(),
+    );
+    const apiKey = incomingKey.value || savedKey;
+    const sender = from.value || company.getLeadCaptureResendFrom();
+
+    if (!email.value) {
       return err(
         new InvalidCompanyDataError(
           'Indica un email de destino además de la API key de Resend',
         ),
       );
     }
-
-    const updated = company.updateLeadCaptureNotify({
-      email: email.value,
-      from: from.value,
-      apiKeyEncrypted,
-    });
-    const saveResult = await this.companyRepository.updateLeadCaptureNotify(
-      updated.getId(),
-      {
-        email: updated.getLeadCaptureNotifyEmail(),
-        from: updated.getLeadCaptureResendFrom(),
-        apiKeyEncrypted: updated.getLeadCaptureResendApiKeyEncrypted(),
-      },
-    );
-    if (saveResult.isErr()) {
-      this.logger.error(
-        `Error guardando avisos de captación de company ${command.companyId}: ${saveResult.error.message}`,
+    if (!apiKey) {
+      return err(
+        new InvalidCompanyDataError(
+          'Indica la API key de Resend además del email de destino',
+        ),
       );
-      return err(saveResult.error);
+    }
+    if (!sender) {
+      return err(
+        new InvalidCompanyDataError(
+          'Indica el remitente verificado en Resend',
+        ),
+      );
     }
 
-    const plainKey = incomingKey.value
-      ? incomingKey.value
-      : this.cipher.decrypt(apiKeyEncrypted);
+    try {
+      await this.emailSender.sendEmail({
+        to: email.value,
+        from: sender,
+        apiKey,
+        subject: 'Prueba de avisos de captación — Guiders',
+        html: `
+          <p>Este es un correo de prueba de Guiders.</p>
+          <p>Si lo has recibido, la cuenta de Resend está bien configurada y recibirás aquí los leads del asistente cuando no haya comerciales en Atención.</p>
+        `,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'No se pudo enviar el email de prueba';
+      this.logger.warn(
+        `Prueba de avisos fallida para company ${command.companyId}: ${message}`,
+      );
+      return err(new InvalidCompanyDataError(message));
+    }
 
-    return ok({
-      email: updated.getLeadCaptureNotifyEmail(),
-      from: updated.getLeadCaptureResendFrom(),
-      apiKeyConfigured: !!plainKey,
-      apiKeyLast4: LeadCaptureResendApiKey.last4(plainKey),
-      apiKey: plainKey || null,
-    });
+    return okVoid();
   }
 }

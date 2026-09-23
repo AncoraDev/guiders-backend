@@ -9,6 +9,8 @@ export class MockEmailSenderService implements EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void> {
     // Simula el envío de email (en real, aquí iría la integración con SMTP, SendGrid, etc.)
 

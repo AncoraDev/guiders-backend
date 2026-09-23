@@ -26,26 +26,33 @@ export class ResendEmailSenderService implements EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void> {
-    try {
-      // Inicializa el cliente de Resend con la API key
-      const resend = new Resend(this.apiKey);
-      await resend.emails.send({
-        from: this.emailFrom,
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
-      });
-      this.logger.log(
-        `Email enviado a ${params.to} con asunto "${params.subject}".`,
-      );
-    } catch (error: any) {
-      if (error instanceof Error) {
-        this.logger.error(
-          `Error al enviar el email a ${params.to}: ${error.message}`,
-        );
-      }
+    const apiKey = params.apiKey || this.apiKey;
+    const from = params.from || this.emailFrom;
+    if (!apiKey) {
+      throw new Error('Falta la API key de Resend');
     }
+    if (!from) {
+      throw new Error('Falta el remitente de Resend');
+    }
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+    if (error) {
+      this.logger.error(
+        `Error al enviar el email a ${params.to}: ${error.message}`,
+      );
+      throw new Error(error.message);
+    }
+    this.logger.log(
+      `Email enviado a ${params.to} con asunto "${params.subject}".`,
+    );
   }
 }
 

@@ -23,9 +23,13 @@ export interface CompanyRepository {
     id: Uuid,
     config: WidgetConfigPrimitives,
   ): Promise<Result<void, DomainError>>;
-  updateLeadCaptureNotifyEmail(
+  updateLeadCaptureNotify(
     id: Uuid,
-    email: string,
+    settings: {
+      email: string;
+      from: string;
+      apiKeyEncrypted: string;
+    },
   ): Promise<Result<void, DomainError>>;
   findById(id: Uuid): Promise<Result<Company, DomainError>>;
   delete(id: Uuid): Promise<Result<void, DomainError>>;

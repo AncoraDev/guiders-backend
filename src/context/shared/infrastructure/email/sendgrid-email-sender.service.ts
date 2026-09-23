@@ -53,6 +53,8 @@ export class SendGridEmailSenderService implements EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void> {
     if (!this.sgMail) {
       this.logger.error(

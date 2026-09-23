@@ -59,6 +59,8 @@ export class CompanyMapper {
       contactFormLegal: entity.contactFormLegal ?? {},
       widgetConfig: entity.widgetConfig ?? {},
       leadCaptureNotifyEmail: entity.leadCaptureNotifyEmail ?? '',
+      leadCaptureResendFrom: entity.leadCaptureResendFrom ?? '',
+      leadCaptureResendApiKeyEncrypted: entity.leadCaptureResendApiKey ?? '',
     });
   }
 
@@ -81,6 +83,9 @@ export class CompanyMapper {
     entity.contactFormLegal = primitives.contactFormLegal ?? {};
     entity.widgetConfig = primitives.widgetConfig ?? {};
     entity.leadCaptureNotifyEmail = primitives.leadCaptureNotifyEmail ?? '';
+    entity.leadCaptureResendFrom = primitives.leadCaptureResendFrom ?? '';
+    entity.leadCaptureResendApiKey =
+      primitives.leadCaptureResendApiKeyEncrypted ?? '';
     return entity;
   }
 }

@@ -29,6 +29,8 @@ export class SmtpEmailSenderService implements EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void> {
     try {
       // Tipado seguro: validamos el resultado de sendMail antes de acceder a messageId

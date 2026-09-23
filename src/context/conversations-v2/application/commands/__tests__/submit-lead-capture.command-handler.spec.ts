@@ -69,7 +69,7 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     commandBus = {
       execute: jest.fn().mockResolvedValue(ok(Uuid.random().value)),
     };
-    queryBus = { execute: jest.fn().mockResolvedValue('') };
+    queryBus = { execute: jest.fn().mockResolvedValue(null) };
     emailSender = { sendEmail: jest.fn().mockResolvedValue(undefined) };
     commit = jest.fn();
 
@@ -219,23 +219,39 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     expect(close?.companyId).toBe(companyId);
   });
 
-  it('avisa por email si la empresa tiene correo de captación', async () => {
-    queryBus.execute.mockResolvedValue('avisos@concesionario.com');
+  it('avisa por email si la empresa tiene Resend y correo de captación', async () => {
+    queryBus.execute.mockResolvedValue({
+      email: 'avisos@concesionario.com',
+      from: 'Guiders <no-reply@concesionario.com>',
+      apiKeyConfigured: true,
+      apiKeyLast4: 'abcd',
+      apiKey: 're_test_abcd',
+    });
 
     await handler.execute(
       new SubmitLeadCaptureCommand(chatId, visitorId, validData),
     );
 
     expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
-    expect(emailSender.sendEmail.mock.calls[0][0].to).toBe(
-      'avisos@concesionario.com',
-    );
+    expect(emailSender.sendEmail.mock.calls[0][0]).toMatchObject({
+      to: 'avisos@concesionario.com',
+      from: 'Guiders <no-reply@concesionario.com>',
+      apiKey: 're_test_abcd',
+    });
     expect(emailSender.sendEmail.mock.calls[0][0].html).toContain(
       'Quiero una cita esta semana',
     );
   });
 
-  it('no avisa si la empresa no tiene correo', async () => {
+  it('no avisa si falta el correo, el remitente o la API key', async () => {
+    queryBus.execute.mockResolvedValue({
+      email: 'avisos@concesionario.com',
+      from: '',
+      apiKeyConfigured: false,
+      apiKeyLast4: null,
+      apiKey: null,
+    });
+
     await handler.execute(
       new SubmitLeadCaptureCommand(chatId, visitorId, validData),
     );
@@ -244,7 +260,13 @@ describe('SubmitLeadCaptureCommandHandler', () => {
   });
 
   it('completa la captación aunque falle el email', async () => {
-    queryBus.execute.mockResolvedValue('avisos@concesionario.com');
+    queryBus.execute.mockResolvedValue({
+      email: 'avisos@concesionario.com',
+      from: 'no-reply@concesionario.com',
+      apiKeyConfigured: true,
+      apiKeyLast4: 'abcd',
+      apiKey: 're_test_abcd',
+    });
     emailSender.sendEmail.mockRejectedValue(new Error('Resend cayó'));
 
     const result = await handler.execute(

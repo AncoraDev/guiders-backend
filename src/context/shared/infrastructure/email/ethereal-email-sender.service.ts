@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 // Importar SMTPTransport para tipado seguro (comentado si no se usa)
 // import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { Resend } from 'resend';
 import { EmailSenderService } from '../../domain/email/email-sender.service';
 
 @Injectable()
@@ -49,11 +50,33 @@ export class EtherealEmailSenderService implements EmailSenderService {
     to: string;
     subject: string;
     html: string;
+    apiKey?: string;
+    from?: string;
   }): Promise<void> {
+    if (params.apiKey) {
+      const resend = new Resend(params.apiKey);
+      const { error } = await resend.emails.send({
+        from: params.from || 'no-reply@guiders.io',
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      });
+      if (error) {
+        this.logger.error(
+          `Error al enviar con Resend del cliente a ${params.to}: ${error.message}`,
+        );
+        throw new Error(error.message);
+      }
+      this.logger.log(
+        `Email enviado vía Resend (cuenta del cliente) a ${params.to}.`,
+      );
+      return;
+    }
+
     const transporter = await this.transporterPromise;
 
     const info = await transporter.sendMail({
-      from: 'no-reply@guiders.io',
+      from: params.from || 'no-reply@guiders.io',
       to: params.to,
       subject: params.subject,
       html: params.html,

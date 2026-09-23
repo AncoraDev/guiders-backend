@@ -54,10 +54,12 @@ import { UpdateCompanyWidgetConfigDto } from '../../application/dtos/update-comp
 import { WidgetConfigPrimitives } from '../../domain/value-objects/company-widget-config';
 import { GetCompanyLeadCaptureNotifyQuery } from '../../application/queries/get-company-lead-capture-notify.query';
 import { UpdateCompanyLeadCaptureNotifyCommand } from '../../application/commands/update-company-lead-capture-notify.command';
+import { TestCompanyLeadCaptureNotifyCommand } from '../../application/commands/test-company-lead-capture-notify.command';
 import {
   CompanyLeadCaptureNotifyDto,
   UpdateCompanyLeadCaptureNotifyDto,
 } from '../../application/dtos/update-company-lead-capture-notify.dto';
+import { CompanyLeadCaptureNotifySettings } from '../../application/queries/company-lead-capture-notify.settings';
 
 @ApiTags('companies')
 @ApiAuthErrors()
@@ -457,11 +459,11 @@ export class CompanyController {
   @Roles(['admin'])
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Email de avisos del asistente de captación',
+    summary: 'Avisos de captación (email + Resend)',
     description:
-      'Cuando un visitante termina el guion se envía un resumen a este correo. Vacío = no enviar. Solo admin.',
+      'Destino, remitente y si la API key de Resend está configurada. Nunca se devuelve la clave. Solo admin.',
   })
-  @ApiResponse({ status: 200, description: 'Email de avisos' })
+  @ApiResponse({ status: 200, description: 'Configuración de avisos' })
   async getMyCompanyLeadCaptureNotify(
     @Req() req: AuthenticatedRequest,
   ): Promise<CompanyLeadCaptureNotifyDto> {
@@ -472,16 +474,16 @@ export class CompanyController {
       );
     }
 
-    const email = await this.queryBus.execute<
+    const settings = await this.queryBus.execute<
       GetCompanyLeadCaptureNotifyQuery,
-      string | null
+      CompanyLeadCaptureNotifySettings | null
     >(new GetCompanyLeadCaptureNotifyQuery(companyId));
 
-    if (email === null) {
+    if (settings === null) {
       throw new NotFoundException('Empresa no encontrada');
     }
 
-    return { email };
+    return this.toNotifyDto(settings);
   }
 
   @Put('me/company/lead-capture-notify')
@@ -489,11 +491,12 @@ export class CompanyController {
   @Roles(['admin'])
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Actualizar email de avisos del asistente',
-    description: 'Solo el admin del concesionario puede cambiarlo.',
+    summary: 'Actualizar avisos de captación',
+    description:
+      'Email destino, remitente Resend y API key. apiKey vacío no cambia la clave guardada. Solo admin.',
   })
-  @ApiResponse({ status: 200, description: 'Email de avisos actualizado' })
-  @ApiValidationError('Email no válido')
+  @ApiResponse({ status: 200, description: 'Avisos de captación actualizados' })
+  @ApiValidationError('Datos de avisos no válidos')
   async updateMyCompanyLeadCaptureNotify(
     @Req() req: AuthenticatedRequest,
     @Body() body: UpdateCompanyLeadCaptureNotifyDto,
@@ -507,8 +510,15 @@ export class CompanyController {
 
     const result = await this.commandBus.execute<
       UpdateCompanyLeadCaptureNotifyCommand,
-      Result<string, DomainError>
-    >(new UpdateCompanyLeadCaptureNotifyCommand(companyId, body.email));
+      Result<CompanyLeadCaptureNotifySettings, DomainError>
+    >(
+      new UpdateCompanyLeadCaptureNotifyCommand(
+        companyId,
+        body.email,
+        body.from,
+        body.apiKey,
+      ),
+    );
 
     if (result.isErr()) {
       const message = result.error.message;
@@ -518,6 +528,62 @@ export class CompanyController {
       throw new HttpException(message, status);
     }
 
-    return { email: result.unwrap() };
+    return this.toNotifyDto(result.unwrap());
+  }
+
+  @Post('me/company/lead-capture-notify/test')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Enviar email de prueba de avisos de captación',
+    description:
+      'Exige email de destino y API key de Resend. Usa el remitente del formulario o el guardado. Solo admin.',
+  })
+  @ApiResponse({ status: 200, description: 'Email de prueba enviado' })
+  @ApiValidationError('Falta email, API key o remitente')
+  async testMyCompanyLeadCaptureNotify(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCompanyLeadCaptureNotifyDto,
+  ): Promise<{ sent: true }> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const result = await this.commandBus.execute<
+      TestCompanyLeadCaptureNotifyCommand,
+      Result<void, DomainError>
+    >(
+      new TestCompanyLeadCaptureNotifyCommand(
+        companyId,
+        body.email,
+        body.from,
+        body.apiKey,
+      ),
+    );
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrada')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return { sent: true };
+  }
+
+  private toNotifyDto(
+    settings: CompanyLeadCaptureNotifySettings,
+  ): CompanyLeadCaptureNotifyDto {
+    return {
+      email: settings.email,
+      from: settings.from,
+      apiKeyConfigured: settings.apiKeyConfigured,
+      apiKeyLast4: settings.apiKeyLast4,
+    };
   }
 }

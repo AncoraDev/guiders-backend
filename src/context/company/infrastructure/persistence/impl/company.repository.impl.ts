@@ -193,20 +193,29 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
     }
   }
 
-  async updateLeadCaptureNotifyEmail(
+  async updateLeadCaptureNotify(
     id: Uuid,
-    email: string,
+    settings: {
+      email: string;
+      from: string;
+      apiKeyEncrypted: string;
+    },
   ): Promise<Result<void, DomainError>> {
     try {
       await this.companyRepo.update(
         { id: id.getValue() },
-        { leadCaptureNotifyEmail: email, updatedAt: new Date() },
+        {
+          leadCaptureNotifyEmail: settings.email,
+          leadCaptureResendFrom: settings.from,
+          leadCaptureResendApiKey: settings.apiKeyEncrypted,
+          updatedAt: new Date(),
+        },
       );
       return okVoid();
     } catch (error) {
       return err(
         new CompanyPersistenceError(
-          'Error al guardar el email de avisos de captación: ' +
+          'Error al guardar los avisos de captación: ' +
             (error instanceof Error ? error.message : String(error)),
         ),
       );

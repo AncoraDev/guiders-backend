@@ -26,6 +26,9 @@ import { GetCompanyWidgetConfigByDomainQueryHandler } from './application/querie
 import { UpdateCompanyWidgetConfigCommandHandler } from './application/commands/update-company-widget-config.command-handler';
 import { GetCompanyLeadCaptureNotifyQueryHandler } from './application/queries/get-company-lead-capture-notify.query-handler';
 import { UpdateCompanyLeadCaptureNotifyCommandHandler } from './application/commands/update-company-lead-capture-notify.command-handler';
+import { TestCompanyLeadCaptureNotifyCommandHandler } from './application/commands/test-company-lead-capture-notify.command-handler';
+import { EMAIL_SENDER_SERVICE } from 'src/context/shared/domain/email/email-sender.service';
+import { ResendEmailSenderService } from 'src/context/shared/infrastructure/email/resend-email-sender.service';
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -35,6 +38,8 @@ import { DualAuthGuard } from '../shared/infrastructure/guards/dual-auth.guard';
 import { RolesGuard } from '../shared/infrastructure/guards/role.guard';
 import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
 import { CorsSiteOriginService } from './infrastructure/services/cors-site-origin.service';
+import { COMPANY_SECRET_CIPHER } from './domain/company-secret-cipher';
+import { CompanySecretCipherImpl } from './infrastructure/services/company-secret-cipher.impl';
 
 @Module({
   imports: [
@@ -66,6 +71,16 @@ import { CorsSiteOriginService } from './infrastructure/services/cors-site-origi
     UpdateCompanyWidgetConfigCommandHandler,
     GetCompanyLeadCaptureNotifyQueryHandler,
     UpdateCompanyLeadCaptureNotifyCommandHandler,
+    TestCompanyLeadCaptureNotifyCommandHandler,
+    {
+      provide: EMAIL_SENDER_SERVICE,
+      useClass: ResendEmailSenderService,
+    },
+    CompanySecretCipherImpl,
+    {
+      provide: COMPANY_SECRET_CIPHER,
+      useExisting: CompanySecretCipherImpl,
+    },
     CorsSiteOriginService,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,
