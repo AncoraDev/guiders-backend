@@ -14,6 +14,7 @@ Crea estos registros **antes** de certbot (Let’s Encrypt valida el hostname).
 | A | `console.__DOMAIN__` | `187.33.147.104` | 300 |
 | A | `admin.__DOMAIN__` | `187.33.147.104` | 300 |
 | A | `auth.__DOMAIN__` | `187.33.147.104` | 300 |
+| A | `guiders-demo.__DOMAIN__` o `demo.__DOMAIN__` | `187.33.147.104` | 300 |
 | A (opcional) | `__DOMAIN__` | `187.33.147.104` | 300 |
 | CNAME (opcional) | `www.__DOMAIN__` | `__DOMAIN__` | 300 |
 
@@ -34,6 +35,7 @@ https://api.__DOMAIN__/api      → mismo upstream   (prefijo que usa el fronten
 https://console.__DOMAIN__      → current/console  (SPA Angular, try_files)
 https://admin.__DOMAIN__        → current/admin    (SPA Angular, try_files)
 https://auth.__DOMAIN__         → 127.0.0.1:8080   (Keycloak, cabeceras X-Forwarded-*)
+https://guiders-demo.__DOMAIN__ → /var/www/guiders-demo  (página de prueba del pixel)
 https://__DOMAIN__              → 301 console      (opcional)
 ```
 

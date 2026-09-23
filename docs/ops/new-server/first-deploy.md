@@ -17,4 +17,4 @@ usa merge a `main` o `workflow_dispatch`.
 - [x] `environment.prod.ts` Console/Admin → ancoradual.com (23/09)
 - [x] Frontend en `current` (23/09, rsync manual)
 - [ ] Login Console / Admin (mismos usuarios que en local)
-- [ ] SDK: `GUIDERS_CONFIG` → `https://api.__DOMAIN__/api` (release WP o `dist/index.js`)
+- [x] Demo pixel: `https://guiders-demo.ancoradual.com` → API `guiders-api.ancoradual.com` (23/09)

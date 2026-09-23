@@ -139,3 +139,21 @@ Frontend publicado:
 - https://guiders-admin.ancoradual.com
 
 Entra con el **mismo usuario y contraseña** que usas en local.
+
+---
+
+## 23 septiembre 2026 — login Console 502
+
+El backend respondía bien. nginx cortaba el callback BFF (`/api/bff/auth/callback/console`) porque las cookies JWT (access + refresh + id_token) no cabían en el buffer de 4k.
+
+Subidos `proxy_buffer_size` / `proxy_buffers` en el site de la API. Recarga nginx hecha. Vuelve a entrar en Console.
+
+---
+
+## 23 septiembre 2026 — demo del pixel
+
+Quinto host: `https://guiders-demo.ancoradual.com`
+
+Página estática con el SDK apuntando a `guiders-api`. Empresa **Demo Rmotion**. En Console, Atención → Conectado, y escribe desde esa web.
+
+Luego se copió la demo PHP local (`guiders-sdk/demo/app`: inicio, tienda, vehículos, etc.) y se instaló php-fpm. El header usa API/WebSocket de ancoradual solo en ese host.

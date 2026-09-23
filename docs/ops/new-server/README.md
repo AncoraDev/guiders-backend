@@ -27,6 +27,7 @@ Inventario y límites: [this-vps.md](./this-vps.md). Bootstrap: [bootstrap.sh](.
 | Console | `console.__DOMAIN__` | `/var/www/guiders-frontend/current/console` |
 | Admin | `admin.__DOMAIN__` | `/var/www/guiders-frontend/current/admin` |
 | Keycloak | `auth.__DOMAIN__` | Docker `127.0.0.1:8080` |
+| Demo pixel | `guiders-demo.__DOMAIN__` | `/var/www/guiders-demo` |
 | Apex (opcional) | `__DOMAIN__` / `www.__DOMAIN__` | 301 → `https://console.__DOMAIN__` |
 
 El SDK **no** se instala en este VPS. Se publica por GitHub Release del repo
