@@ -81,10 +81,10 @@ export class SubmitLeadCaptureCommandHandler
     const nombre = command.data.nombre?.trim() ?? '';
     const email = command.data.email?.trim() ?? '';
     const telefono = command.data.telefono?.trim() ?? '';
-    // Mismo criterio de lead que aplica el contexto leads: nombre + una vía de contacto.
-    if (!nombre || (!email && !telefono)) {
+    const comentarios = command.data.comentarios?.trim() ?? '';
+    if (!nombre || !email || !telefono || !comentarios) {
       throw new BadRequestException(
-        'Necesitamos el nombre y un email o teléfono de contacto',
+        'Necesitamos nombre, email, teléfono y comentarios',
       );
     }
 
@@ -93,9 +93,13 @@ export class SubmitLeadCaptureCommandHandler
     const contact = {
       nombre,
       apellidos: command.data.apellidos?.trim() || undefined,
-      email: email || undefined,
-      telefono: telefono || undefined,
+      email,
+      telefono,
       poblacion: command.data.poblacion?.trim() || undefined,
+    };
+    const capturedData = {
+      ...contact,
+      comentarios,
     };
 
     // El lead es el objetivo de la captación, así que se guarda antes de dejar
@@ -115,7 +119,7 @@ export class SubmitLeadCaptureCommandHandler
         capturedWithoutAgent: true,
         acceptedPrivacyPolicy: true,
         acceptedMarketing,
-        data: contact,
+        data: capturedData,
       },
     });
 
@@ -238,8 +242,11 @@ export class SubmitLeadCaptureCommandHandler
       }
     }
 
+    const comentarios = command.data.comentarios?.trim();
+
     return {
       ...extra,
+      ...(comentarios ? { comentario: comentarios } : {}),
       leadCapture: {
         flowId: command.data.flowId,
         capturedWithoutAgent: true,

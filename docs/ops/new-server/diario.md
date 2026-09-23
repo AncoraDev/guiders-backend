@@ -244,3 +244,13 @@ En Captación cada rama puede terminar así:
 - `__end__` → «Terminar sin pedir datos»
 
 Hay que publicar API + Console + pixel. Autopractik necesita el plugin **2.14.2** para que el visitante no caiga al formulario si elige esa rama.
+
+---
+
+## 24 septiembre 2026 — formulario del asistente (2.14.3)
+
+El último paso del guion pide solo **Nombre, Email, Teléfono y Comentarios**, todos obligatorios, más la casilla de privacidad. Sin casilla de comunicaciones, sin apellidos y sin población.
+
+El comentario se guarda en el lead (`additionalData.comentario`) y se ve en el hilo de Atención y en la ficha del visitante.
+
+Autopractik necesita el plugin **2.14.3**. El formulario que pide el comercial en el chat no cambia.

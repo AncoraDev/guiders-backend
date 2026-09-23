@@ -212,6 +212,7 @@ export class MessageMapper {
           email?: string;
           telefono?: string;
           poblacion?: string;
+          comentarios?: string;
         };
       };
     }

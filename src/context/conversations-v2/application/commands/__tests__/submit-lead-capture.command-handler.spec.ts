@@ -34,6 +34,7 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     nombre: 'Ana',
     email: 'ana@test.com',
     telefono: '+34600111222',
+    comentarios: 'Quiero una cita esta semana',
     poblacion: 'Madrid',
     acceptedPrivacyPolicy: true,
     acceptedMarketing: false,
@@ -112,12 +113,18 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     expect(result.systemData?.capturedWithoutAgent).toBe(true);
     expect(result.systemData?.answers).toHaveLength(2);
     expect(result.systemData?.data?.email).toBe('ana@test.com');
+    expect(result.systemData?.data?.comentarios).toBe(
+      'Quiero una cita esta semana',
+    );
     expect(messageRepository.save).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalled();
 
     const leadCommand = commandBus.execute.mock.calls[0][0];
     expect(leadCommand.input.companyId).toBe(companyId);
     expect(leadCommand.input.nombre).toBe('Ana');
+    expect(leadCommand.input.additionalData.comentario).toBe(
+      'Quiero una cita esta semana',
+    );
     expect(leadCommand.input.extractedFromChatId).toBe(chatId);
   });
 
@@ -217,12 +224,27 @@ describe('SubmitLeadCaptureCommandHandler', () => {
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 
-  it('exige nombre y una vía de contacto', async () => {
+  it('exige nombre, email, teléfono y comentarios', async () => {
+    await expect(
+      handler.execute(
+        new SubmitLeadCaptureCommand(chatId, visitorId, {
+          ...validData,
+          comentarios: '  ',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       handler.execute(
         new SubmitLeadCaptureCommand(chatId, visitorId, {
           ...validData,
           email: '',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      handler.execute(
+        new SubmitLeadCaptureCommand(chatId, visitorId, {
+          ...validData,
           telefono: '  ',
         }),
       ),

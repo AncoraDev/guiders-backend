@@ -59,17 +59,23 @@ export class SubmitLeadCaptureDto {
   @MaxLength(100)
   apellidos?: string;
 
-  @ApiPropertyOptional({ description: 'Email del visitante' })
-  @IsOptional()
+  @ApiProperty({ description: 'Email del visitante' })
   @IsEmail()
+  @IsNotEmpty()
   @MaxLength(255)
-  email?: string;
+  email: string;
 
-  @ApiPropertyOptional({ description: 'Teléfono del visitante' })
-  @IsOptional()
+  @ApiProperty({ description: 'Teléfono del visitante' })
   @IsString()
+  @IsNotEmpty()
   @Matches(/^[+]?[\d\s\-()]{6,20}$/)
-  telefono?: string;
+  telefono: string;
+
+  @ApiProperty({ description: 'Comentarios del visitante' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  comentarios: string;
 
   @ApiPropertyOptional({ description: 'Población del visitante' })
   @IsOptional()

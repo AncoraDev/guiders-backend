@@ -8,6 +8,7 @@ export interface SubmitLeadCapturePayload {
   email?: string;
   telefono?: string;
   poblacion?: string;
+  comentarios?: string;
   acceptedPrivacyPolicy?: boolean;
   acceptedMarketing?: boolean;
   answers?: LeadCaptureAnswer[];

@@ -66,6 +66,7 @@ export class MessageResponseDto {
       email?: string;
       telefono?: string;
       poblacion?: string;
+      comentarios?: string;
     };
     // Captación sin agentes: guion recorrido y respuestas del visitante
     flowId?: string;

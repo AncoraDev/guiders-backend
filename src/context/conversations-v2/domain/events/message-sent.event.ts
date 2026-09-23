@@ -41,6 +41,7 @@ export interface MessageSentData {
       email?: string;
       telefono?: string;
       poblacion?: string;
+      comentarios?: string;
     };
   };
   attachment?: {
