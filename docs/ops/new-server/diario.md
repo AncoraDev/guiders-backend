@@ -223,3 +223,13 @@ En Atención solo se veía la última URL: `identify` pisa `currentUrl` y los `P
 Ahora cada identify con URL guarda un `PAGE_VIEW` (dedup 30s). El SDK espera identify y vuelve a emitir `page_view`. Console prepend en `visitor:page-changed`.
 
 Autopractik 2.14.0 historiará al publicar este backend. Plugin nuevo solo si se quiere el arreglo del SDK en la web.
+
+---
+
+## 23 septiembre 2026 — widget hilo único (2.14.1)
+
+Se quitó el selector de chats del visitante («Nueva conversación»). Un visitante = un hilo; los días se marcan en el widget y en Atención.
+
+Identify corre **después** de crear ChatUI. Si no, el `await` del page-view dejaba `chatId` a null y Console/web no compartían el hilo.
+
+Para verlo en Autopractik hay que actualizar el plugin a **2.14.1** (ZIP o GitHub Release). Backend y Console no cambian. Demo VPS: copiar el `guiders-sdk.js` nuevo a `/var/www/guiders-demo`.
