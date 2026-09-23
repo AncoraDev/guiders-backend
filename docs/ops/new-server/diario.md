@@ -213,3 +213,13 @@ Horarios, Quick Actions e IA se quitaron de WP. La disponibilidad comercial la s
 En local hay que correr la migración `AddWidgetConfig` (ya aplicada en este Mac). En el VPS, lo mismo al publicar el backend.
 
 Detalle: [`docs/company/widget-config.md`](../../company/widget-config.md)
+
+---
+
+## 23 septiembre 2026 — historial de páginas
+
+En Atención solo se veía la última URL: `identify` pisa `currentUrl` y los `PAGE_VIEW` del pixel se perdían en WordPress (track antes de identify / sin sessionId).
+
+Ahora cada identify con URL guarda un `PAGE_VIEW` (dedup 30s). El SDK espera identify y vuelve a emitir `page_view`. Console prepend en `visitor:page-changed`.
+
+Autopractik 2.14.0 historiará al publicar este backend. Plugin nuevo solo si se quiere el arreglo del SDK en la web.

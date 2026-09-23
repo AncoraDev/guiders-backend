@@ -22,6 +22,21 @@ import {
 import { CompanyNotFoundError } from '../../../../company/domain/errors/company.error';
 import { BffSessionAuthService } from '../../../../shared/infrastructure/services/bff-session-auth.service';
 import { Uuid } from '../../../../shared/domain/value-objects/uuid';
+import {
+  TRACKING_EVENT_REPOSITORY,
+  TrackingEventRepository,
+} from '../../../../tracking-v2/domain/tracking-event.repository';
+import { TrackingEvent } from '../../../../tracking-v2/domain/tracking-event.aggregate';
+import {
+  TrackingEventId,
+  EventType,
+  EventMetadata,
+  EventOccurredAt,
+  VisitorId,
+  SessionId,
+  TenantId,
+  SiteId,
+} from '../../../../tracking-v2/domain/value-objects';
 
 describe('IdentifyVisitorCommandHandler', () => {
   let handler: IdentifyVisitorCommandHandler;
@@ -30,6 +45,7 @@ describe('IdentifyVisitorCommandHandler', () => {
   let commercialRepository: CommercialRepository;
   let validateDomainApiKey: ValidateDomainApiKey;
   let bffSessionAuthService: BffSessionAuthService;
+  let trackingRepository: TrackingEventRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -83,6 +99,13 @@ describe('IdentifyVisitorCommandHandler', () => {
             validateBffSession: jest.fn(),
           },
         },
+        {
+          provide: TRACKING_EVENT_REPOSITORY,
+          useValue: {
+            findByVisitorId: jest.fn(),
+            save: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -100,11 +123,18 @@ describe('IdentifyVisitorCommandHandler', () => {
     bffSessionAuthService = module.get<BffSessionAuthService>(
       BffSessionAuthService,
     );
+    trackingRepository = module.get<TrackingEventRepository>(
+      TRACKING_EVENT_REPOSITORY,
+    );
 
     // Mock por defecto: no se encuentra comercial por fingerprint (visitante normal)
     (
       commercialRepository.findByFingerprintAndTenant as jest.Mock
     ).mockResolvedValue(ok(null));
+    (trackingRepository.findByVisitorId as jest.Mock).mockResolvedValue(
+      ok({ events: [], totalCount: 0, hasMore: false }),
+    );
+    (trackingRepository.save as jest.Mock).mockResolvedValue(okVoid());
   });
 
   describe('execute', () => {
@@ -121,6 +151,10 @@ describe('IdentifyVisitorCommandHandler', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      (trackingRepository.findByVisitorId as jest.Mock).mockResolvedValue(
+        ok({ events: [], totalCount: 0, hasMore: false }),
+      );
+      (trackingRepository.save as jest.Mock).mockResolvedValue(okVoid());
     });
 
     it('debe lanzar error cuando la API Key es inválida', async () => {
@@ -474,6 +508,111 @@ describe('IdentifyVisitorCommandHandler', () => {
       expect(visitorRepository.save).toHaveBeenCalled();
       expect(result.visitorId).toBeDefined();
       expect(result.isNewVisitor).toBe(true);
+    });
+  });
+
+  describe('PAGE_VIEW desde identify', () => {
+    const companyId = Uuid.random().value;
+    const siteId = Uuid.random().value;
+
+    const mockCompany = {
+      getId: () => ({ getValue: () => companyId }),
+      getSites: () => ({
+        toPrimitives: () => [
+          {
+            id: siteId,
+            canonicalDomain: 'landing.mytech.com',
+            domainAliases: [],
+          },
+        ],
+      }),
+    };
+
+    const command = new IdentifyVisitorCommand(
+      'fp_pages123',
+      'landing.mytech.com',
+      'ak_live_1234567890',
+      true,
+      '192.168.1.1',
+      'Mozilla/5.0',
+      undefined,
+      'https://landing.mytech.com/home',
+    );
+
+    beforeEach(() => {
+      jest.spyOn(validateDomainApiKey, 'validate').mockResolvedValue(true);
+      jest
+        .spyOn(companyRepository, 'findByDomain')
+        .mockResolvedValue(ok(mockCompany as any));
+      jest
+        .spyOn(visitorRepository, 'findByFingerprintAndSite')
+        .mockResolvedValue(err({ message: 'Not found' } as any));
+      jest.spyOn(visitorRepository, 'save').mockResolvedValue(okVoid());
+      (trackingRepository.findByVisitorId as jest.Mock).mockResolvedValue(
+        ok({ events: [], totalCount: 0, hasMore: false }),
+      );
+      (trackingRepository.save as jest.Mock).mockResolvedValue(okVoid());
+    });
+
+    it('debe crear un PAGE_VIEW cuando identify incluye currentUrl', async () => {
+      const result = await handler.execute(command);
+
+      expect(result.visitorId).toBeDefined();
+      expect(trackingRepository.save).toHaveBeenCalledTimes(1);
+      const saved = (trackingRepository.save as jest.Mock).mock
+        .calls[0][0] as TrackingEvent;
+      expect(saved.getEventType().getValue()).toBe('PAGE_VIEW');
+      expect(saved.getMetadata().getValue()).toEqual(
+        expect.objectContaining({
+          url: 'https://landing.mytech.com/home',
+          source: 'identify',
+        }),
+      );
+    });
+
+    it('no debe duplicar PAGE_VIEW de la misma URL en la ventana de 30s', async () => {
+      const existing = TrackingEvent.create({
+        id: TrackingEventId.random(),
+        visitorId: new VisitorId(Uuid.random().value),
+        sessionId: SessionId.random(),
+        tenantId: new TenantId(companyId),
+        siteId: new SiteId(siteId),
+        eventType: EventType.pageView(),
+        metadata: new EventMetadata({
+          url: 'https://landing.mytech.com/home',
+          page: { url: 'https://landing.mytech.com/home', path: '/home' },
+        }),
+        occurredAt: EventOccurredAt.fromTimestamp(Date.now() - 5_000),
+      });
+      (trackingRepository.findByVisitorId as jest.Mock).mockResolvedValue(
+        ok({ events: [existing], totalCount: 1, hasMore: false }),
+      );
+
+      await handler.execute(command);
+
+      expect(trackingRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('debe crear PAGE_VIEW si la URL anterior es distinta', async () => {
+      const existing = TrackingEvent.create({
+        id: TrackingEventId.random(),
+        visitorId: new VisitorId(Uuid.random().value),
+        sessionId: SessionId.random(),
+        tenantId: new TenantId(companyId),
+        siteId: new SiteId(siteId),
+        eventType: EventType.pageView(),
+        metadata: new EventMetadata({
+          url: 'https://landing.mytech.com/pricing',
+        }),
+        occurredAt: EventOccurredAt.fromTimestamp(Date.now() - 2_000),
+      });
+      (trackingRepository.findByVisitorId as jest.Mock).mockResolvedValue(
+        ok({ events: [existing], totalCount: 1, hasMore: false }),
+      );
+
+      await handler.execute(command);
+
+      expect(trackingRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 });

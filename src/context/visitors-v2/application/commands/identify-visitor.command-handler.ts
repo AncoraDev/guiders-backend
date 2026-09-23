@@ -43,12 +43,23 @@ import {
   normalizeDomainForMatching,
 } from '../../../shared/domain/domain-matching.util';
 import { BffSessionAuthService } from '../../../shared/infrastructure/services/bff-session-auth.service';
+import {
+  TRACKING_EVENT_REPOSITORY,
+  TrackingEventRepository,
+} from '../../../tracking-v2/domain/tracking-event.repository';
+import { TrackingEvent } from '../../../tracking-v2/domain/tracking-event.aggregate';
+import {
+  TrackingEventId,
+  EventType,
+  EventMetadata,
+} from '../../../tracking-v2/domain/value-objects';
 
 @CommandHandler(IdentifyVisitorCommand)
 export class IdentifyVisitorCommandHandler
   implements ICommandHandler<IdentifyVisitorCommand, IdentifyVisitorResponseDto>
 {
   private readonly logger = new Logger(IdentifyVisitorCommandHandler.name);
+  private static readonly PAGE_VIEW_DEDUP_WINDOW_MS = 30_000;
 
   constructor(
     @Inject(VISITOR_V2_REPOSITORY)
@@ -59,6 +70,8 @@ export class IdentifyVisitorCommandHandler
     private readonly apiKeyValidator: ValidateDomainApiKey,
     @Inject(COMMERCIAL_REPOSITORY)
     private readonly commercialRepository: CommercialRepository,
+    @Inject(TRACKING_EVENT_REPOSITORY)
+    private readonly trackingRepository: TrackingEventRepository,
     private readonly bffSessionAuthService: BffSessionAuthService,
     private readonly publisher: EventPublisher,
     private readonly commandBus: CommandBus,
@@ -438,6 +451,10 @@ export class IdentifyVisitorCommandHandler
       // Commit eventos
       visitorContext.commit();
 
+      if (command.currentUrl) {
+        await this.recordIdentifyPageView(visitor, command.currentUrl);
+      }
+
       // RGPD: Registrar consentimiento en el contexto de consentimientos
       // Esto crea un registro auditable del consentimiento según RGPD Art. 7.1
       try {
@@ -507,6 +524,149 @@ export class IdentifyVisitorCommandHandler
         error instanceof Error ? error.message : String(error),
       );
       throw error;
+    }
+  }
+
+  /**
+   * Persiste un PAGE_VIEW al identificar (best-effort).
+   * Deduplica la misma URL normalizada en una ventana de 30s.
+   */
+  private async recordIdentifyPageView(
+    visitor: VisitorV2,
+    currentUrl: string,
+  ): Promise<void> {
+    try {
+      const normalized = IdentifyVisitorCommandHandler.normalizePageUrl(
+        currentUrl,
+      );
+      if (!normalized) {
+        return;
+      }
+
+      const recentResult = await this.trackingRepository.findByVisitorId(
+        visitor.getId(),
+        {
+          eventType: 'PAGE_VIEW',
+          limit: 1,
+          sortBy: 'occurredAt',
+          sortOrder: 'DESC',
+        },
+      );
+
+      if (recentResult.isOk()) {
+        const lastEvent = recentResult.unwrap().events[0];
+        if (lastEvent) {
+          const lastUrl = IdentifyVisitorCommandHandler.extractEventPageUrl(
+            lastEvent,
+          );
+          const lastNormalized =
+            IdentifyVisitorCommandHandler.normalizePageUrl(lastUrl);
+          const ageMs =
+            Date.now() - lastEvent.getOccurredAt().getValue().getTime();
+          if (
+            lastNormalized === normalized &&
+            ageMs <= IdentifyVisitorCommandHandler.PAGE_VIEW_DEDUP_WINDOW_MS
+          ) {
+            this.logger.debug(
+              `PAGE_VIEW duplicado omitido para ${visitor.getId().value}: ${normalized}`,
+            );
+            return;
+          }
+        }
+      }
+
+      const activeSessions = visitor.getActiveSessions();
+      const currentSession = activeSessions[activeSessions.length - 1];
+      if (!currentSession) {
+        this.logger.warn(
+          `No hay sesión activa para registrar PAGE_VIEW de ${visitor.getId().value}`,
+        );
+        return;
+      }
+
+      const parsed = IdentifyVisitorCommandHandler.parsePageUrl(currentUrl);
+      const event = TrackingEvent.create({
+        id: TrackingEventId.random(),
+        visitorId: visitor.getId(),
+        sessionId: currentSession.getId(),
+        tenantId: visitor.getTenantId(),
+        siteId: visitor.getSiteId(),
+        eventType: EventType.pageView(),
+        metadata: new EventMetadata({
+          url: parsed.url,
+          page: {
+            url: parsed.url,
+            path: parsed.path,
+            host: parsed.host,
+            source: 'identify',
+          },
+          source: 'identify',
+        }),
+      });
+
+      const saveResult = await this.trackingRepository.save(event);
+      if (saveResult.isErr()) {
+        this.logger.warn(
+          `No se pudo guardar PAGE_VIEW de identify: ${saveResult.error.message}`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `📄 PAGE_VIEW registrado desde identify: ${parsed.url} (${visitor.getId().value})`,
+      );
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Error al registrar PAGE_VIEW de identify (no crítico): ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private static extractEventPageUrl(event: TrackingEvent): string {
+    const metadata = event.getMetadata().getValue() as Record<string, unknown>;
+    const pageMeta =
+      metadata['page'] && typeof metadata['page'] === 'object'
+        ? (metadata['page'] as Record<string, unknown>)
+        : undefined;
+    return String(
+      metadata['url'] ?? pageMeta?.['url'] ?? pageMeta?.['path'] ?? '',
+    ).trim();
+  }
+
+  private static parsePageUrl(raw: string): {
+    url: string;
+    path: string;
+    host: string;
+  } {
+    const trimmed = raw.trim();
+    try {
+      const parsed = new URL(trimmed);
+      return {
+        url: trimmed,
+        path: parsed.pathname || '/',
+        host: parsed.host,
+      };
+    } catch {
+      return {
+        url: trimmed,
+        path: trimmed.startsWith('/') ? trimmed.split('?')[0] : '/',
+        host: '',
+      };
+    }
+  }
+
+  private static normalizePageUrl(raw: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return '';
+    }
+    try {
+      const parsed = new URL(trimmed);
+      const path =
+        parsed.pathname === '/' ? '/' : parsed.pathname.replace(/\/+$/, '');
+      return `${parsed.protocol}//${parsed.host.toLowerCase()}${path}${parsed.search}`;
+    } catch {
+      return trimmed.replace(/\/+$/, '').toLowerCase();
     }
   }
 }
