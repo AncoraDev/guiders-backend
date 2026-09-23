@@ -1,0 +1,124 @@
+# Infra del VPS. Sin contenedores de test. Puertos solo en 127.0.0.1.
+# Desde /var/www/guiders-backend:
+#   docker compose -f docker/docker-compose.vps.yml --env-file .env.production up -d
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE}
+    ports:
+      - '127.0.0.1:${DATABASE_PORT}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - postgres-net
+
+  redis:
+    image: redis:6
+    container_name: redis
+    restart: always
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    command:
+      [
+        'redis-server',
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+        '--maxmemory',
+        '128mb',
+        '--maxmemory-policy',
+        'allkeys-lru',
+      ]
+    networks:
+      - redis-net
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-guiders}
+    ports:
+      - '127.0.0.1:${MONGODB_PORT:-27017}:27017'
+    volumes:
+      - mongodb-data:/data/db
+    command:
+      [
+        'mongod',
+        '--storageEngine',
+        'wiredTiger',
+        '--wiredTigerCacheSizeGB',
+        '1',
+        '--oplogSize',
+        '128',
+      ]
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.runCommand({ping:1})']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mongodb-net
+
+  keycloak-postgres:
+    image: postgres:14-alpine
+    container_name: keycloak-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
+    volumes:
+      - keycloak-postgres-data:/var/lib/postgresql/data
+    networks:
+      - keycloak-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: keycloak
+    restart: always
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin123}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-localhost}
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: true
+      KC_FEATURES: organization
+    ports:
+      - '127.0.0.1:${KEYCLOAK_PORT:-8080}:8080'
+    command: ['start-dev', '--features=organization']
+    depends_on:
+      - keycloak-postgres
+    networks:
+      - keycloak-net
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+
+volumes:
+  pgdata:
+  mongodb-data:
+  keycloak-postgres-data:
+  keycloak-data:
+
+networks:
+  postgres-net:
+  redis-net:
+  mongodb-net:
+  keycloak-net:

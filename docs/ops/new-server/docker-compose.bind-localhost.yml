@@ -1,0 +1,24 @@
+# Overlay: publica Postgres, Mongo, Redis y Keycloak solo en 127.0.0.1
+# (el VPS tiene IP pública; ufw ya cierra estos puertos, esto es el segundo candado).
+#
+#   docker compose -f docker/docker-compose.yml \
+#     -f docker/docker-compose.bind-localhost.yml \
+#     --env-file .env.production \
+#     up -d postgres redis mongodb keycloak-postgres keycloak
+
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:${DATABASE_PORT}:5432'
+  redis:
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+  mongodb:
+    ports:
+      - '127.0.0.1:${MONGODB_PORT:-27017}:27017'
+  keycloak-postgres:
+    # Solo la usa Keycloak por la red Docker; no hace falta puerto en el host.
+    ports: []
+  keycloak:
+    ports:
+      - '127.0.0.1:${KEYCLOAK_PORT:-8080}:8080'

@@ -282,8 +282,20 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y wireguard
 
       - name: Configure WireGuard (github.conf)
+        env:
+          WG_PK: ${{ secrets.WG_PRIVATE_KEY }}
+          WG_ENDPOINT: ${{ secrets.WG_SERVER_ENDPOINT }}
         run: |
           set -euo pipefail
+          if [ -z "$WG_PK" ]; then
+            echo "WG_PRIVATE_KEY vacío: SSH directo a PROD_HOST (sin WireGuard)."
+            exit 0
+          fi
+          if [ -z "$WG_ENDPOINT" ]; then
+            echo "Falta WG_SERVER_ENDPOINT (necesario si hay WG_PRIVATE_KEY)"
+            exit 1
+          fi
+          WG_PK_CLEAN=$(printf '%s' "$WG_PK" | tr -d '"\r\n' | xargs)
           sudo mkdir -p /etc/wireguard && sudo chmod 700 /etc/wireguard
           cat > github.conf <<'CFG'
           [Interface]
@@ -292,11 +304,12 @@ jobs:
 
           [Peer]
           PublicKey = rcfGmqdqyiQs+J81rx5mabiyAjQkvoDfiCTD2eLqaHQ=
-          Endpoint = 217.154.105.26:51820
+          Endpoint = WG_ENDPOINT_PLACEHOLDER:51820
           AllowedIPs = 10.0.0.0/24
           PersistentKeepalive = 25
           CFG
-          sed -i "s#REPLACE_PRIVATE_KEY#${{ secrets.WG_PRIVATE_KEY }}#" github.conf
+          sed -i "s#REPLACE_PRIVATE_KEY#$WG_PK_CLEAN#" github.conf
+          sed -i "s#WG_ENDPOINT_PLACEHOLDER#$WG_ENDPOINT#" github.conf
           sudo mv github.conf /etc/wireguard/github.conf
           sudo chmod 600 /etc/wireguard/github.conf
           # Reiniciar interfaz si existiese
@@ -304,7 +317,14 @@ jobs:
           sudo wg-quick up github || { echo "Error al levantar WireGuard"; sudo wg-quick down github || true; exit 1; }
 
       - name: Verify VPN connection
+        env:
+          WG_PK: ${{ secrets.WG_PRIVATE_KEY }}
         run: |
+          if [ -z "$WG_PK" ]; then
+            echo "Sin WireGuard: se usará SSH a PROD_HOST público."
+            exit 0
+          fi
+
           echo "Verificando conexión VPN..."
 
           # Mostrar información de la interfaz WireGuard
