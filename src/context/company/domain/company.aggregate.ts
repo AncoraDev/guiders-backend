@@ -11,6 +11,10 @@ import {
   CompanyContactFormLegal,
   ContactFormLegalPrimitives,
 } from './value-objects/company-contact-form-legal';
+import {
+  CompanyWidgetConfig,
+  WidgetConfigPrimitives,
+} from './value-objects/company-widget-config';
 
 // Entidad principal del contexto Company
 export class Company extends AggregateRoot {
@@ -22,6 +26,7 @@ export class Company extends AggregateRoot {
   private readonly updatedAt: Date;
   private readonly cannedReplies: CompanyCannedReplies;
   private readonly contactFormLegal: CompanyContactFormLegal;
+  private readonly widgetConfig: CompanyWidgetConfig;
 
   // Constructor privado para forzar el uso de los métodos de fábrica
   private constructor(props: {
@@ -32,6 +37,7 @@ export class Company extends AggregateRoot {
     updatedAt: Date;
     cannedReplies?: CompanyCannedReplies;
     contactFormLegal?: CompanyContactFormLegal;
+    widgetConfig?: CompanyWidgetConfig;
   }) {
     super();
     this.id = props.id;
@@ -42,6 +48,7 @@ export class Company extends AggregateRoot {
     this.cannedReplies = props.cannedReplies ?? CompanyCannedReplies.empty();
     this.contactFormLegal =
       props.contactFormLegal ?? CompanyContactFormLegal.empty();
+    this.widgetConfig = props.widgetConfig ?? CompanyWidgetConfig.empty();
   }
 
   // Método de fábrica para crear una nueva empresa (desde value objects)
@@ -75,6 +82,7 @@ export class Company extends AggregateRoot {
     updatedAt: string;
     cannedReplies?: CannedReplyPrimitives[];
     contactFormLegal?: ContactFormLegalPrimitives | Record<string, unknown>;
+    widgetConfig?: WidgetConfigPrimitives | Record<string, unknown>;
   }): Company {
     return new Company({
       id: new Uuid(primitives.id),
@@ -88,6 +96,7 @@ export class Company extends AggregateRoot {
       contactFormLegal: CompanyContactFormLegal.fromPersistence(
         primitives.contactFormLegal,
       ),
+      widgetConfig: CompanyWidgetConfig.fromPersistence(primitives.widgetConfig),
     });
   }
 
@@ -100,6 +109,7 @@ export class Company extends AggregateRoot {
     updatedAt: string;
     cannedReplies: CannedReplyPrimitives[];
     contactFormLegal: ContactFormLegalPrimitives;
+    widgetConfig: WidgetConfigPrimitives;
   } {
     return {
       id: this.id.getValue(),
@@ -109,6 +119,7 @@ export class Company extends AggregateRoot {
       updatedAt: this.updatedAt.toISOString(),
       cannedReplies: this.cannedReplies.getValue(),
       contactFormLegal: this.contactFormLegal.getValue(),
+      widgetConfig: this.widgetConfig.getValue(),
     };
   }
 
@@ -137,6 +148,10 @@ export class Company extends AggregateRoot {
     return this.contactFormLegal.getValue();
   }
 
+  public getWidgetConfig(): WidgetConfigPrimitives {
+    return this.widgetConfig.getValue();
+  }
+
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
     return new Company({
       id: this.id,
@@ -146,6 +161,7 @@ export class Company extends AggregateRoot {
       updatedAt: new Date(),
       cannedReplies: this.cannedReplies,
       contactFormLegal: this.contactFormLegal,
+      widgetConfig: this.widgetConfig,
     });
   }
 
@@ -158,6 +174,7 @@ export class Company extends AggregateRoot {
       updatedAt: new Date(),
       cannedReplies: CompanyCannedReplies.fromInput(items),
       contactFormLegal: this.contactFormLegal,
+      widgetConfig: this.widgetConfig,
     });
   }
 
@@ -170,6 +187,20 @@ export class Company extends AggregateRoot {
       updatedAt: new Date(),
       cannedReplies: this.cannedReplies,
       contactFormLegal: CompanyContactFormLegal.fromInput(legal),
+      widgetConfig: this.widgetConfig,
+    });
+  }
+
+  public updateWidgetConfig(config: WidgetConfigPrimitives): Company {
+    return new Company({
+      id: this.id,
+      companyName: this.companyName,
+      sites: this.sites,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+      cannedReplies: this.cannedReplies,
+      contactFormLegal: this.contactFormLegal,
+      widgetConfig: CompanyWidgetConfig.fromInput(config),
     });
   }
 }

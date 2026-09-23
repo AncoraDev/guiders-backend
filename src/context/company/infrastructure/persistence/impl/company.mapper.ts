@@ -57,6 +57,7 @@ export class CompanyMapper {
       updatedAt: entity.updatedAt.toISOString(),
       cannedReplies: entity.cannedReplies ?? [],
       contactFormLegal: entity.contactFormLegal ?? {},
+      widgetConfig: entity.widgetConfig ?? {},
     });
   }
 
@@ -77,6 +78,7 @@ export class CompanyMapper {
     entity.updatedAt = new Date(primitives.updatedAt);
     entity.cannedReplies = primitives.cannedReplies ?? [];
     entity.contactFormLegal = primitives.contactFormLegal ?? {};
+    entity.widgetConfig = primitives.widgetConfig ?? {};
     return entity;
   }
 }

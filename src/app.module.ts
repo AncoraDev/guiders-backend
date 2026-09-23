@@ -19,6 +19,7 @@ import { TokenVerifyService } from './context/shared/infrastructure/token-verify
 import { VisitorsModule } from './context/visitors/infrastructure/visitors.module';
 import { VisitorsV2Module } from './context/visitors-v2/visitors-v2.module';
 import { CompanyModule } from './context/company/company.module';
+import { WidgetConfigModule } from './context/company/widget-config.module';
 import { ConversationsV2Module } from './context/conversations-v2/conversations-v2.module';
 import { CommercialModule } from './context/commercial/commercial.module';
 import { TrackingV2Module } from './context/tracking-v2/tracking-v2.module';
@@ -46,6 +47,7 @@ import { NotifyPresenceChangedOnPresenceChangedEventHandler } from './context/sh
     VisitorsModule,
     VisitorsV2Module,
     CompanyModule,
+    WidgetConfigModule,
     ConversationsV2Module,
     CommercialModule,
     ConsentModule,

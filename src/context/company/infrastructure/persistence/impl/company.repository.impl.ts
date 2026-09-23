@@ -21,6 +21,7 @@ import { CompanyMapper } from './company.mapper';
 import { domainLookupCandidates } from 'src/context/shared/domain/domain-matching.util';
 import { CannedReplyPrimitives } from 'src/context/shared/domain/canned-reply';
 import { ContactFormLegalPrimitives } from '../../../domain/value-objects/company-contact-form-legal';
+import { WidgetConfigPrimitives } from '../../../domain/value-objects/company-widget-config';
 
 // Implementación TypeORM del repositorio de Company
 @Injectable()
@@ -186,6 +187,26 @@ export class CompanyRepositoryTypeOrmImpl implements CompanyRepository {
       return err(
         new CompanyPersistenceError(
           'Error al guardar los textos legales del formulario: ' +
+            (error instanceof Error ? error.message : String(error)),
+        ),
+      );
+    }
+  }
+
+  async updateWidgetConfig(
+    id: Uuid,
+    config: WidgetConfigPrimitives,
+  ): Promise<Result<void, DomainError>> {
+    try {
+      await this.companyRepo.update(
+        { id: id.getValue() },
+        { widgetConfig: config, updatedAt: new Date() },
+      );
+      return okVoid();
+    } catch (error) {
+      return err(
+        new CompanyPersistenceError(
+          'Error al guardar la configuración del widget: ' +
             (error instanceof Error ? error.message : String(error)),
         ),
       );

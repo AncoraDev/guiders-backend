@@ -21,6 +21,9 @@ import { GetCompanyCannedRepliesQueryHandler } from './application/queries/get-c
 import { UpdateCompanyCannedRepliesCommandHandler } from './application/commands/update-company-canned-replies.command-handler';
 import { GetCompanyContactFormLegalQueryHandler } from './application/queries/get-company-contact-form-legal.query-handler';
 import { UpdateCompanyContactFormLegalCommandHandler } from './application/commands/update-company-contact-form-legal.command-handler';
+import { GetCompanyWidgetConfigQueryHandler } from './application/queries/get-company-widget-config.query-handler';
+import { GetCompanyWidgetConfigByDomainQueryHandler } from './application/queries/get-company-widget-config-by-domain.query-handler';
+import { UpdateCompanyWidgetConfigCommandHandler } from './application/commands/update-company-widget-config.command-handler';
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -55,6 +58,9 @@ import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
     UpdateCompanyCannedRepliesCommandHandler,
     GetCompanyContactFormLegalQueryHandler,
     UpdateCompanyContactFormLegalCommandHandler,
+    GetCompanyWidgetConfigQueryHandler,
+    GetCompanyWidgetConfigByDomainQueryHandler,
+    UpdateCompanyWidgetConfigCommandHandler,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,
     BffSessionAuthService,

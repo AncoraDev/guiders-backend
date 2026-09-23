@@ -27,6 +27,7 @@ import { EmbedStartController } from './infrastructure/controllers/embed-start.c
 
 // Infrastructure - Cache (Story 4.1 + 4.3)
 import { InMemoryTtlCache } from '../shared/infrastructure/cache/in-memory-ttl-cache';
+import { CacheMetricsService } from '../shared/infrastructure/cache/cache-metrics.service';
 import type { WhiteLabelConfig } from './domain/entities/white-label-config';
 
 // Guards y Auth (importados de shared)
@@ -69,6 +70,7 @@ import { WHITE_LABEL_CONFIG_REPOSITORY } from './domain/white-label-config.repos
       useFactory: () =>
         new InMemoryTtlCache<string, WhiteLabelConfig>({ ttlMs: 60_000 }),
     },
+    CacheMetricsService,
   ],
   exports: [
     WHITE_LABEL_CONFIG_REPOSITORY,

@@ -48,6 +48,10 @@ import { GetCompanyContactFormLegalQuery } from '../../application/queries/get-c
 import { UpdateCompanyContactFormLegalCommand } from '../../application/commands/update-company-contact-form-legal.command';
 import { UpdateCompanyContactFormLegalDto } from '../../application/dtos/update-company-contact-form-legal.dto';
 import { ContactFormLegalPrimitives } from '../../domain/value-objects/company-contact-form-legal';
+import { GetCompanyWidgetConfigQuery } from '../../application/queries/get-company-widget-config.query';
+import { UpdateCompanyWidgetConfigCommand } from '../../application/commands/update-company-widget-config.command';
+import { UpdateCompanyWidgetConfigDto } from '../../application/dtos/update-company-widget-config.dto';
+import { WidgetConfigPrimitives } from '../../domain/value-objects/company-widget-config';
 
 @ApiTags('companies')
 @ApiAuthErrors()
@@ -361,6 +365,75 @@ export class CompanyController {
       UpdateCompanyContactFormLegalCommand,
       Result<ContactFormLegalPrimitives, DomainError>
     >(new UpdateCompanyContactFormLegalCommand(companyId, body));
+
+    if (result.isErr()) {
+      const message = result.error.message;
+      const status = message.includes('no encontrada')
+        ? HttpStatus.NOT_FOUND
+        : HttpStatus.BAD_REQUEST;
+      throw new HttpException(message, status);
+    }
+
+    return result.unwrap();
+  }
+
+  @Get('me/company/widget-config')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Configuración del widget web',
+    description:
+      'Chat, auto-abrir, tema, color y posición del pixel. Solo admin.',
+  })
+  @ApiResponse({ status: 200, description: 'Configuración del widget' })
+  async getMyCompanyWidgetConfig(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<WidgetConfigPrimitives> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const config = await this.queryBus.execute<
+      GetCompanyWidgetConfigQuery,
+      WidgetConfigPrimitives | null
+    >(new GetCompanyWidgetConfigQuery(companyId));
+
+    if (config === null) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    return config;
+  }
+
+  @Put('me/company/widget-config')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['admin'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Actualizar configuración del widget web',
+    description: 'Solo el admin del concesionario puede cambiar el widget.',
+  })
+  @ApiResponse({ status: 200, description: 'Configuración actualizada' })
+  @ApiValidationError('Datos del widget no válidos')
+  async updateMyCompanyWidgetConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: UpdateCompanyWidgetConfigDto,
+  ): Promise<WidgetConfigPrimitives> {
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException(
+        'Usuario no tiene empresa asignada. Contacte al administrador.',
+      );
+    }
+
+    const result = await this.commandBus.execute<
+      UpdateCompanyWidgetConfigCommand,
+      Result<WidgetConfigPrimitives, DomainError>
+    >(new UpdateCompanyWidgetConfigCommand(companyId, body));
 
     if (result.isErr()) {
       const message = result.error.message;

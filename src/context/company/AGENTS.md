@@ -431,6 +431,7 @@ const members = await this.queryBus.execute(query);
 
 - [Auth Context](../auth/AGENTS.md) - User authentication
 - [Leads Context](../leads/AGENTS.md) - Lead management per company
+- [Widget config](../../../docs/company/widget-config.md) - Chat web (Console admin; pixel GET público)
 - [Root AGENTS.md](../../AGENTS.md) - Architecture overview
 
 ## Troubleshooting

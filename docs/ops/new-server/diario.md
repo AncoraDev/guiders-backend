@@ -191,3 +191,25 @@ Un push a `main` **no publica** al VPS: faltan secrets de GitHub. El Action se s
 3. Demo/pixel: `npm run build` en el SDK → copiar `demo/app` + `dist/index.js` como `guiders-sdk.js`
 
 Datos, Keycloak y `.env` del VPS no se tocan con eso.
+
+---
+
+## 23 septiembre 2026 — widget desde Console
+
+El plugin de WordPress ya no configura el chat. Solo instala el pixel (API key, entorno, tracking).
+
+La config vive en la empresa (`companies.widget_config`):
+
+- Admin en Console: **Configuración → Chat web** (`/settings/widget`)
+- API admin: `GET/PUT /api/me/company/widget-config` (rol admin)
+- Pixel: `GET /api/v2/widget/config?domain=&apiKey=`
+
+Campos: chat on/off, auto-abrir, color (system/light/dark), tema (default/carbon), posición escritorio/móvil.
+
+Si no hay fila o falla la red, el pixel usa: chat on, auto-abrir on, color system, tema default, esquina inferior derecha.
+
+Horarios, Quick Actions e IA se quitaron de WP. La disponibilidad comercial la sigue mandando el toggle **Conectado** de Atención, no el plugin.
+
+En local hay que correr la migración `AddWidgetConfig` (ya aplicada en este Mac). En el VPS, lo mismo al publicar el backend.
+
+Detalle: [`docs/company/widget-config.md`](../../company/widget-config.md)

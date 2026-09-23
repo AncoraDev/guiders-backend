@@ -47,4 +47,21 @@ export class CompanyTypeOrmEntity {
     privacyCheckboxLabel?: string;
     marketingCheckboxLabel?: string;
   };
+
+  @Column({
+    name: 'widget_config',
+    type: 'jsonb',
+    default: () => "'{}'",
+  })
+  widgetConfig: {
+    chatEnabled?: boolean;
+    autoOpenChatOnMessage?: boolean;
+    colorScheme?: string;
+    theme?: string;
+    position?: {
+      desktop?: string;
+      mobileEnabled?: boolean;
+      mobile?: string;
+    };
+  };
 }
