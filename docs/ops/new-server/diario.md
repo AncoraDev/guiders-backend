@@ -157,3 +157,37 @@ Quinto host: `https://guiders-demo.ancoradual.com`
 Página estática con el SDK apuntando a `guiders-api`. Empresa **Demo Rmotion**. En Console, Atención → Conectado, y escribe desde esa web.
 
 Luego se copió la demo PHP local (`guiders-sdk/demo/app`: inicio, tienda, vehículos, etc.) y se instaló php-fpm. El header usa API/WebSocket de ancoradual solo en ese host.
+
+---
+
+## 23 septiembre 2026 — dos entornos y `main`
+
+Hay **dos stacks**. Lo que pasa en uno no cambia el otro.
+
+**Local (Mac):** API `localhost:3000`, Console/Admin `:4200`/`:4201`, demo PHP `:8083`, Docker local.
+
+**Producción (VPS `187.33.147.104`):**
+
+| URL | Qué es |
+|-----|--------|
+| https://guiders-console.ancoradual.com | Console |
+| https://guiders-admin.ancoradual.com | Admin |
+| https://guiders-api.ancoradual.com | Nest (REST, BFF, WebSocket) |
+| https://guiders-auth.ancoradual.com | Keycloak |
+| https://guiders-demo.ancoradual.com | Web de prueba del pixel (PHP) |
+
+La producción nació con una copia de los datos locales. A partir de ahora cada una tiene su base.
+
+### Código
+
+`sergi-version-v1` se pasó a `main` en los tres repos (backend, frontend, SDK). En backend se mezcló también el embed que ya estaba en `main` (sin conflictos).
+
+Un push a `main` **no publica** al VPS: faltan secrets de GitHub. El Action se salta el deploy si no hay `PROD_HOST`.
+
+### Cómo publicar un cambio funcional (mientras tanto)
+
+1. Backend: `npm run build` → copiar `dist/` al VPS → `pm2 restart guiders-backend`
+2. Frontend: build prod de console/admin → `rsync` a `releases/<fecha>/` → `ln -sfn` a `current`
+3. Demo/pixel: `npm run build` en el SDK → copiar `demo/app` + `dist/index.js` como `guiders-sdk.js`
+
+Datos, Keycloak y `.env` del VPS no se tocan con eso.
