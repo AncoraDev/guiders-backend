@@ -5,6 +5,10 @@ NestJS v11 backend with DDD+CQRS architecture, multi-persistence (PostgreSQL + M
 📚 **Documentation index**: [`docs/README.md`](docs/README.md)  
 🐳 **Docker**: [`docker/README.md`](docker/README.md) — `npm run docker:up`
 
+## Publicar en producción
+
+Commit en `main`, push, y en el VPS `git pull --ff-only` más reinicio. No copiar archivos al servidor ni editar código allí. La API necesita `npm run build` antes de `pm2 restart`. Detalle: [`docs/ops/new-server/publish.md`](docs/ops/new-server/publish.md).
+
 ## Build, Lint & Test Commands
 
 ```bash

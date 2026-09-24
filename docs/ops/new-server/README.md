@@ -1,8 +1,9 @@
 # Instalación en un servidor nuevo
 
 Guía operativa para levantar Guiders **desde cero** en un VPS (Ubuntu 22.04+).
-No es un monorepo en el servidor: tres repos independientes se despliegan por
-GitHub Actions hacia el mismo host, detrás de nginx.
+No es un monorepo en el servidor: cada aplicación es un checkout de `main`.
+Publicar es commit, push y luego `git pull` en el VPS. Ver [publish.md](./publish.md).
+GitHub Actions queda para más adelante.
 
 **VPS actual:** IP `187.33.147.104` (Ubuntu 26.04, 1 vCPU, 4 GB, 10 GB).
 Inventario y límites: [this-vps.md](./this-vps.md). Bootstrap: [bootstrap.sh](./bootstrap.sh).
@@ -13,6 +14,7 @@ Inventario y límites: [this-vps.md](./this-vps.md). Bootstrap: [bootstrap.sh](.
 | [vps-bootstrap.md](./vps-bootstrap.md) | Docker, Node 20, PM2, dirs, firewall, SSH |
 | [secrets.md](./secrets.md) | Secrets de GitHub, OIDC, `environment.prod.ts` |
 | [env.production.example](./env.production.example) | `.env.production` con placeholders |
+| [publish.md](./publish.md) | Cómo publicar: commit, push, `git pull`, reinicio |
 | [first-deploy.md](./first-deploy.md) | Checklist de encendido (Docker → login) |
 | [diario.md](./diario.md) | Qué hicimos, con fecha (para aprender) |
 | [this-vps.md](./this-vps.md) | IP y límites de **esta** máquina |
@@ -27,12 +29,12 @@ Inventario y límites: [this-vps.md](./this-vps.md). Bootstrap: [bootstrap.sh](.
 | Console | `console.__DOMAIN__` | `/var/www/guiders-frontend/current/console` |
 | Admin | `admin.__DOMAIN__` | `/var/www/guiders-frontend/current/admin` |
 | Keycloak | `auth.__DOMAIN__` | Docker `127.0.0.1:8080` |
-| Demo pixel | `guiders-demo.__DOMAIN__` | `/var/www/guiders-demo` |
+| Demo pixel | `guiders-demo.__DOMAIN__` | `/var/www/guiders-sdk/demo/app` |
 | Apex (opcional) | `__DOMAIN__` / `www.__DOMAIN__` | 301 → `https://console.__DOMAIN__` |
 
-El SDK **no** se instala en este VPS. Se publica por GitHub Release del repo
-`guiders-sdk`; `GUIDERS_CONFIG` de cada web de cliente apunta a
-`https://api.__DOMAIN__/api`.
+La demo de este VPS es el checkout de `guiders-sdk`. El plugin de WordPress
+se publica aparte, como release de GitHub. `GUIDERS_CONFIG` de cada web de
+cliente apunta a `https://api.__DOMAIN__/api`.
 
 ## Orden de encendido
 
@@ -58,19 +60,17 @@ nginx no coinciden con los mismos FQDN.
 5. **nginx + certificados** — copia las plantillas de [nginx/](./nginx/),
    sustituye `__DOMAIN__`, `certbot --nginx` para los cuatro hosts. Detalle en
    [dns-and-nginx.md](./dns-and-nginx.md).
-6. **Deploy backend** — merge a `main` o `workflow_dispatch` de
-   *Deploy to Production*. El job empaqueta `dist/` + `node_modules`, corre
-   migraciones TypeORM y arranca PM2. La rama `sergi-version-v1` **no**
-   publica nada hasta merge o dispatch.
-7. **Deploy frontend** — push a `main` de `guiders-frontend` (o dispatch).
-   `rsync` a `releases/<timestamp>/{admin,console}/` y `ln -sfn` → `current`.
+6. **Publicar** — [publish.md](./publish.md): commit y push a `main`, luego
+   en el VPS `git pull --ff-only` y reinicio. La API necesita `npm run build`
+   antes de PM2. Console y Admin se compilan y se enlazan en `current`.
    Antes del primer build de prod, copia los `environment.*.prod.example.ts`
    del frontend a `environment.prod.ts` con los FQDN reales.
-8. **Probar login** — Console (`https://console.__DOMAIN__`) y Admin
+7. **Probar login** — Console (`https://console.__DOMAIN__`) y Admin
    (`https://admin.__DOMAIN__`). Cookies BFF: `COOKIE_SECURE=true`,
    `ALLOW_RETURN_TO` con ambas URLs.
-9. **SDK** — release WordPress o copiar `dist/index.js`; `GUIDERS_CONFIG`
-   apunta a `https://api.__DOMAIN__/api`.
+8. **Demo** — el checkout de `guiders-sdk` en el VPS. `GUIDERS_CONFIG`
+   apunta a `https://api.__DOMAIN__/api`. El plugin de WordPress sigue
+   publicándose como release de GitHub, aparte de este VPS.
 
 ## Acceso CI el primer día
 

@@ -107,6 +107,7 @@ Carpeta [`security/`](./security/) — auditorías 2025/2026 y reportes. Tambié
 ## Ops, CI, MongoDB, staging
 
 - [Instalación en un servidor nuevo](./ops/new-server/README.md) — DNS, nginx, bootstrap VPS, secrets, orden de encendido
+- [Publicar en el VPS](./ops/new-server/publish.md) — commit, push, `git pull` y reinicio. Sin copiar archivos al servidor
 - [Admin plataforma Guiders (superadmin)](./operations/platform-admin.md) — alta de clientes, API keys, seed local
 
 Infra Docker del backend: [`docker/README.md`](../docker/README.md).
