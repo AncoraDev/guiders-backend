@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Inject,
+  NotFoundException,
   Post,
   Req,
   UnauthorizedException,
@@ -15,10 +17,15 @@ import {
   IntegrationApiKeyGuard,
   IntegrationApiKeyRequest,
 } from 'src/context/auth/integration-api-key/infrastructure/integration-api-key.guard';
+import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 import {
   PROVIDER_REPOSITORY,
   ProviderRepository,
 } from '../../domain/provider.repository';
+import {
+  COMPANY_REPOSITORY,
+  CompanyRepository,
+} from '../../domain/company.repository';
 import { providerDemoAdminMatches } from '../../application/providers/provider-demo-admin';
 
 class VerifyDemoAdminDto {
@@ -68,5 +75,31 @@ export class ProviderDemoAdminController {
       throw new UnauthorizedException('Email o contraseña incorrectos');
     }
     return { ok: true };
+  }
+}
+
+@ApiTags('integration')
+@Controller('v2/integration/provider')
+@UseGuards(IntegrationApiKeyGuard)
+export class IntegrationProviderController {
+  constructor(
+    @Inject(COMPANY_REPOSITORY)
+    private readonly companies: CompanyRepository,
+  ) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'Nombre del proveedor de esta clave',
+  })
+  async show(
+    @Req() req: IntegrationApiKeyRequest,
+  ): Promise<{ name: string }> {
+    const found = await this.companies.findById(
+      new Uuid(req.integrationApiKey.companyId),
+    );
+    if (found.isErr()) {
+      throw new NotFoundException('Proveedor no encontrado');
+    }
+    return { name: found.unwrap().getCompanyName().getValue() };
   }
 }

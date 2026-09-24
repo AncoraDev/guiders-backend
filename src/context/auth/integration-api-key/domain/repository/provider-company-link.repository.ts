@@ -17,4 +17,6 @@ export interface ProviderCompanyLinkRepository {
   deleteByProvider(providerCompanyId: string): Promise<void>;
 
   countByProvider(providerCompanyId: string): Promise<number>;
+
+  findAll(): Promise<ProviderCompanyLink[]>;
 }

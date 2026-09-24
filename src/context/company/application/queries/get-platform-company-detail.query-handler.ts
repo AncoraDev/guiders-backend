@@ -7,6 +7,10 @@ import {
 } from '../../domain/company.repository';
 import { PlatformCompanyDetailDto } from '../dtos/platform-company.dto';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
+import {
+  PROVIDER_COMPANY_LINK_REPOSITORY,
+  ProviderCompanyLinkRepository,
+} from 'src/context/auth/integration-api-key/domain/repository/provider-company-link.repository';
 
 @QueryHandler(GetPlatformCompanyDetailQuery)
 export class GetPlatformCompanyDetailQueryHandler
@@ -23,6 +27,8 @@ export class GetPlatformCompanyDetailQueryHandler
   constructor(
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: CompanyRepository,
+    @Inject(PROVIDER_COMPANY_LINK_REPOSITORY)
+    private readonly links: ProviderCompanyLinkRepository,
   ) {}
 
   async execute(
@@ -40,8 +46,19 @@ export class GetPlatformCompanyDetailQueryHandler
       return null;
     }
 
-    return PlatformCompanyDetailDto.fromPrimitives(
+    const dto = PlatformCompanyDetailDto.fromPrimitives(
       result.unwrap().toPrimitives(),
     );
+    const link = await this.links.findByChild(dto.id);
+    if (!link) return dto;
+
+    const provider = await this.companyRepository.findById(
+      new Uuid(link.providerCompanyId),
+    );
+    dto.providerId = link.providerCompanyId;
+    dto.providerName = provider.isOk()
+      ? provider.unwrap().toPrimitives().companyName
+      : null;
+    return dto;
   }
 }

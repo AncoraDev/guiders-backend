@@ -29,6 +29,18 @@ export class PlatformCompanySummaryDto {
   @ApiProperty({ description: 'Fecha de creación (ISO)' })
   createdAt!: string;
 
+  @ApiProperty({
+    description: 'Proveedor al que está vinculado este cliente',
+    nullable: true,
+  })
+  providerId!: string | null;
+
+  @ApiProperty({
+    description: 'Nombre del proveedor vinculado',
+    nullable: true,
+  })
+  providerName!: string | null;
+
   static fromPrimitives(primitives: {
     id: string;
     companyName: string;
@@ -48,6 +60,8 @@ export class PlatformCompanySummaryDto {
     dto.companyName = primitives.companyName;
     dto.domains = domains;
     dto.createdAt = primitives.createdAt;
+    dto.providerId = null;
+    dto.providerName = null;
     return dto;
   }
 }
@@ -69,6 +83,12 @@ export class PlatformCompanyDetailDto {
   @ApiProperty()
   updatedAt!: string;
 
+  @ApiProperty({ nullable: true })
+  providerId!: string | null;
+
+  @ApiProperty({ nullable: true })
+  providerName!: string | null;
+
   static fromPrimitives(primitives: {
     id: string;
     companyName: string;
@@ -82,6 +102,8 @@ export class PlatformCompanyDetailDto {
     dto.sites = primitives.sites;
     dto.createdAt = primitives.createdAt;
     dto.updatedAt = primitives.updatedAt;
+    dto.providerId = null;
+    dto.providerName = null;
     return dto;
   }
 }

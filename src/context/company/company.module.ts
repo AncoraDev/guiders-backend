@@ -42,7 +42,10 @@ import { ResendEmailSenderService } from 'src/context/shared/infrastructure/emai
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
 import { PlatformProvidersController } from './infrastructure/controllers/platform-providers.controller';
-import { ProviderDemoAdminController } from './infrastructure/controllers/provider-demo-admin.controller';
+import {
+  IntegrationProviderController,
+  ProviderDemoAdminController,
+} from './infrastructure/controllers/provider-demo-admin.controller';
 import { PlatformSdkReleasesController } from './infrastructure/controllers/platform-sdk-releases.controller';
 import { GithubSdkReleasesService } from './infrastructure/services/github-sdk-releases.service';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -75,6 +78,7 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
     PlatformCompaniesController,
     PlatformProvidersController,
     ProviderDemoAdminController,
+    IntegrationProviderController,
     PlatformSdkReleasesController,
   ],
   providers: [

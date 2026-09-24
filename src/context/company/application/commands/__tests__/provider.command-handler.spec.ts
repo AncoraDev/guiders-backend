@@ -343,10 +343,60 @@ describe('ListCompaniesQueryHandler', () => {
       {
         companyIds: jest.fn().mockResolvedValue([providerCompanyId]),
       } as never,
+      { findAll: jest.fn().mockResolvedValue([]) } as never,
     );
 
     const listed = await handler.execute(new ListCompaniesQuery());
 
     expect(listed.map((item) => item.companyName)).toEqual(['Autopractik']);
+    expect(listed[0].providerName).toBeNull();
+  });
+
+  it('indica el proveedor del cliente vinculado', async () => {
+    const clientId = Uuid.random().value;
+    const providerCompanyId = Uuid.random().value;
+    const company = (id: string, companyName: string) => ({
+      getId: () => ({ getValue: () => id }),
+      toPrimitives: () => ({
+        id,
+        companyName,
+        sites: [],
+        createdAt: new Date().toISOString(),
+      }),
+    });
+    const handler = new ListCompaniesQueryHandler(
+      {
+        findAll: jest
+          .fn()
+          .mockResolvedValue(
+            ok([
+              company(clientId, 'Autopractik'),
+              company(providerCompanyId, 'LeadCars'),
+            ]),
+          ),
+      } as never,
+      {
+        companyIds: jest.fn().mockResolvedValue([providerCompanyId]),
+      } as never,
+      {
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: Uuid.random().value,
+            providerCompanyId,
+            childCompanyId: clientId,
+          },
+        ]),
+      } as never,
+    );
+
+    const listed = await handler.execute(new ListCompaniesQuery());
+
+    expect(listed).toEqual([
+      expect.objectContaining({
+        companyName: 'Autopractik',
+        providerId: providerCompanyId,
+        providerName: 'LeadCars',
+      }),
+    ]);
   });
 });

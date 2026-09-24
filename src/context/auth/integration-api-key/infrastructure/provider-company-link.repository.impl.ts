@@ -45,4 +45,13 @@ export class ProviderCompanyLinkRepositoryImpl
   async countByProvider(providerCompanyId: string): Promise<number> {
     return this.links.count({ where: { providerCompanyId } });
   }
+
+  async findAll(): Promise<ProviderCompanyLink[]> {
+    const rows = await this.links.find();
+    return rows.map((row) => ({
+      id: row.id,
+      providerCompanyId: row.providerCompanyId,
+      childCompanyId: row.childCompanyId,
+    }));
+  }
 }
