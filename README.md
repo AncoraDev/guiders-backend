@@ -69,7 +69,7 @@ npm run demo             # php :8083
 
 WordPress (plugin) es opcional: `npm start` → http://localhost:8090
 
-### LeadCars demo
+### Demo de proveedor
 
 Simulador de concesionario. El comercial entra en Webseller y Console se abre ya con su sesión.
 
@@ -78,7 +78,7 @@ http://localhost:8095
 Ábrelo como `localhost`, no como `127.0.0.1`: el origen del embed tiene que coincidir.
 
 ```bash
-cd guiders-leadcars-demo
+cd guiders-proveedor-demo
 cp .env.example .env     # primera vez
 npm install              # primera vez
 docker compose up -d     # Postgres en localhost:5435
