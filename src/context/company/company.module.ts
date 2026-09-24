@@ -37,6 +37,7 @@ import { BffSessionAuthService } from '../shared/infrastructure/services/bff-ses
 import { DualAuthGuard } from '../shared/infrastructure/guards/dual-auth.guard';
 import { RolesGuard } from '../shared/infrastructure/guards/role.guard';
 import { ApiKeyModule } from '../auth/api-key/infrastructure/api-key.module';
+import { IntegrationApiKeyModule } from '../auth/integration-api-key/infrastructure/integration-api-key.module';
 import { CorsSiteOriginService } from './infrastructure/services/cors-site-origin.service';
 import { COMPANY_SECRET_CIPHER } from './domain/company-secret-cipher';
 import { CompanySecretCipherImpl } from './infrastructure/services/company-secret-cipher.impl';
@@ -49,6 +50,7 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
     JwtModule.register({}),
     ConfigModule,
     ApiKeyModule,
+    IntegrationApiKeyModule,
   ],
   controllers: [CompanyController, PlatformCompaniesController],
   providers: [

@@ -2,18 +2,36 @@
  * DTOs para POST /v2/integration/embed/start
  */
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateEmbedTokenDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
-      'ID del usuario (de Guiders) que será autenticado en el iframe',
+      'ID del usuario (de Guiders) que será autenticado en el iframe. Obligatorio si no se envía externalUserId.',
     format: 'uuid',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
+  @IsOptional()
   @IsUUID('4')
-  userId: string;
+  userId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Id del comercial en LeadCars. Guiders lo resuelve al UUID interno. Obligatorio si no se envía userId.',
+    example: 'lc-commercial-42',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  externalUserId?: string;
 
   @ApiProperty({
     description:
@@ -38,6 +56,13 @@ export class CreateEmbedTokenResponseDto {
     example: '2026-06-12T22:32:00.000Z',
   })
   expiresAt: string;
+
+  @ApiProperty({
+    description:
+      'UUID de Guiders del usuario autenticado. LeadCars puede guardarlo para las siguientes llamadas.',
+    format: 'uuid',
+  })
+  userId: string;
 }
 
 export class EmbedTokenForbiddenResponseDto {
@@ -47,6 +72,8 @@ export class EmbedTokenForbiddenResponseDto {
     enum: [
       'EMBED_DISABLED_FOR_TENANT',
       'EMBED_USER_NOT_IN_TENANT',
+      'EMBED_USER_INACTIVE',
+      'EMBED_EXTERNAL_USER_MISMATCH',
       'EMBED_TENANT_MISMATCH',
     ],
   })

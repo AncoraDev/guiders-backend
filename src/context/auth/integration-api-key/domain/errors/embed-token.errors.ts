@@ -49,7 +49,9 @@ export class EmbedTokenError extends DomainError {
 export type EmbedTokenForbiddenCode =
   | 'EMBED_DISABLED_FOR_TENANT'
   | 'EMBED_USER_NOT_IN_TENANT'
-  | 'EMBED_TENANT_MISMATCH';
+  | 'EMBED_USER_INACTIVE'
+  | 'EMBED_TENANT_MISMATCH'
+  | 'EMBED_EXTERNAL_USER_MISMATCH';
 
 /**
  * Error devuelto por el command handler de embed cuando una validación

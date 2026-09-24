@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -113,17 +114,27 @@ export class EmbedController {
       });
     }
 
+    if (!dto.userId && !dto.externalUserId) {
+      throw new BadRequestException({
+        code: 'EMBED_USER_ID_REQUIRED',
+        message:
+          'Hay que enviar userId de Guiders o externalUserId de LeadCars',
+        statusCode: 400,
+      });
+    }
+
     // Story 2.2 + AI-4: extract audit context via shared helper (DRY)
     const { origin, ipAddress, userAgent } = extractAuditContext(req);
 
     const result = await this.createEmbedTokenHandler.execute(
       new CreateEmbedTokenCommand(
-        dto.userId,
+        dto.userId ?? '',
         dto.companyId,
         origin,
         ipAddress,
         userAgent,
         '/v2/integration/embed/start',
+        dto.externalUserId ?? '',
       ),
     );
 
@@ -148,6 +159,7 @@ export class EmbedController {
     return {
       token: issued.token,
       expiresAt: issued.expiresAt,
+      userId: issued.userId,
     };
   }
 

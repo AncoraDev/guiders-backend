@@ -18,6 +18,7 @@ import { Role } from 'src/context/auth/auth-user/domain/value-objects/role';
 import { ok, err } from 'src/context/shared/domain/result';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 import { EmbedTokenError } from '../../../domain/errors/embed-token.errors';
+import { ExternalCommercialLinkRepository } from '../../../domain/repository/external-commercial-link.repository';
 
 /**
  * Tests del command handler `CreateEmbedTokenCommandHandler` (Story 1.3).
@@ -31,6 +32,7 @@ describe('CreateEmbedTokenCommandHandler', () => {
   let mockWhiteLabelRepo: jest.Mocked<IWhiteLabelConfigRepository>;
   let mockUserRepo: jest.Mocked<UserAccountRepository>;
   let mockEmbedTokens: jest.Mocked<IEmbedTokenService>;
+  let mockLinks: jest.Mocked<ExternalCommercialLinkRepository>;
 
   const companyId = Uuid.random().value;
   const otherCompanyId = Uuid.random().value;
@@ -96,6 +98,8 @@ describe('CreateEmbedTokenCommandHandler', () => {
       findByKeycloakId: jest.fn(),
       save: jest.fn(),
       findByCompanyId: jest.fn(),
+      findAll: jest.fn(),
+      delete: jest.fn(),
     };
 
     mockEmbedTokens = {
@@ -106,11 +110,17 @@ describe('CreateEmbedTokenCommandHandler', () => {
       revokeTokenWithCount: jest.fn(),
     };
 
+    mockLinks = {
+      findByExternalUserId: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+
     handler = new CreateEmbedTokenCommandHandler(
       mockWhiteLabelRepo,
       mockUserRepo,
       mockEmbedTokens,
       { publish: jest.fn() } as any, // Story 2.2: EventBus mock
+      mockLinks,
     );
   });
 
@@ -309,6 +319,74 @@ describe('CreateEmbedTokenCommandHandler', () => {
 
       // Assert: nunca llega a buscar al usuario
       expect(mockUserRepo.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('puente externalUserId', () => {
+    it('debe emitir el token del usuario vinculado al id de LeadCars', async () => {
+      mockWhiteLabelRepo.findByCompanyId.mockResolvedValue(
+        ok(buildWhiteLabelConfig(true)),
+      );
+      mockLinks.findByExternalUserId.mockResolvedValue({
+        id: Uuid.random().value,
+        companyId,
+        externalUserId: 'lc-42',
+        userAccountId: userId,
+        provider: 'leadcars',
+      });
+      mockUserRepo.findById.mockResolvedValue(buildUserAccount(['commercial']));
+      mockEmbedTokens.createToken.mockResolvedValue(
+        ok({ token: FAKE_TOKEN, expiresAt: EXPIRES_AT }),
+      );
+
+      const result = await handler.execute(
+        new CreateEmbedTokenCommand(
+          '',
+          companyId,
+          '',
+          '',
+          '',
+          '/v2/integration/embed/start',
+          'lc-42',
+        ),
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.unwrap().userId).toBe(userId);
+        expect(result.unwrap().token).toBe(FAKE_TOKEN);
+      }
+      expect(mockUserRepo.findById).toHaveBeenCalledWith(userId);
+    });
+
+    it('debe rechazar con EMBED_USER_INACTIVE si la cuenta está dada de baja', async () => {
+      mockWhiteLabelRepo.findByCompanyId.mockResolvedValue(
+        ok(buildWhiteLabelConfig(true)),
+      );
+      mockUserRepo.findById.mockResolvedValue(
+        UserAccount.create({
+          id: new UserAccountId(userId),
+          email: new UserAccountEmail('user@example.com'),
+          name: new UserAccountName('Test User'),
+          password: new UserAccountPassword(null),
+          roles: UserAccountRoles.fromRoles([Role.commercial()]),
+          companyId: new UserAccountCompanyId(companyId),
+          isActive: new UserAccountIsActive(false),
+        }),
+      );
+
+      const result = await handler.execute(
+        new CreateEmbedTokenCommand(userId, companyId),
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(EmbedTokenForbiddenError);
+        expect((result.error as EmbedTokenForbiddenError).code).toBe(
+          'EMBED_USER_INACTIVE',
+        );
+      }
+      expect(mockEmbedTokens.createToken).not.toHaveBeenCalled();
     });
   });
 });

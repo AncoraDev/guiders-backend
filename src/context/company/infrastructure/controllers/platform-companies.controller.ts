@@ -38,9 +38,17 @@ import {
   PlatformCompanySummaryDto,
   PlatformCreateApiKeyDto,
   PlatformCreateCompanyResponseDto,
+  PlatformCreateIntegrationApiKeyDto,
   UpdateCompanyDto,
 } from '../../application/dtos/platform-company.dto';
 import { ApiKeyService } from 'src/context/auth/api-key/infrastructure/api-key.service';
+import { CreateIntegrationApiKeyCommandHandler } from 'src/context/auth/integration-api-key/application/commands/create-integration-api-key.command-handler';
+import { CreateIntegrationApiKeyCommand } from 'src/context/auth/integration-api-key/application/commands/create-integration-api-key.command';
+import {
+  IntegrationApiKeyListItem,
+  ListIntegrationApiKeysQueryHandler,
+} from 'src/context/auth/integration-api-key/application/queries/list-integration-api-keys.query-handler';
+import { ListIntegrationApiKeysQuery } from 'src/context/auth/integration-api-key/application/queries/list-integration-api-keys.query';
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import {
@@ -70,6 +78,8 @@ export class PlatformCompaniesController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly apiKeyService: ApiKeyService,
+    private readonly createIntegrationApiKey: CreateIntegrationApiKeyCommandHandler,
+    private readonly listIntegrationApiKeys: ListIntegrationApiKeysQueryHandler,
   ) {}
 
   @Get()
@@ -210,6 +220,66 @@ export class PlatformCompaniesController {
   ): Promise<{ apiKey: string }> {
     await this.ensureCompanyExists(companyId);
     return this.apiKeyService.createApiKeyForDomain(body.domain, companyId);
+  }
+
+  @Get(':companyId/integration-api-keys')
+  @ApiOperation({
+    summary: 'Listar API keys de integración de una company',
+    description:
+      'No incluye el token completo. El valor en claro solo se devuelve al crear la key.',
+  })
+  @ApiParam({ name: 'companyId' })
+  async listIntegrationKeys(
+    @Param('companyId') companyId: string,
+  ): Promise<IntegrationApiKeyListItem[]> {
+    await this.ensureCompanyExists(companyId);
+    return this.listIntegrationApiKeys.execute(
+      new ListIntegrationApiKeysQuery(companyId),
+    );
+  }
+
+  @Post(':companyId/integration-api-keys')
+  @ApiOperation({
+    summary: 'Crear API key de integración para una company',
+    description:
+      'Token server-to-server (gdr_live_ o gdr_test_). Solo se muestra en esta respuesta.',
+  })
+  @ApiParam({ name: 'companyId' })
+  @ApiValidationError()
+  async createIntegrationKey(
+    @Param('companyId') companyId: string,
+    @Body() body: PlatformCreateIntegrationApiKeyDto,
+  ): Promise<{
+    id: string;
+    name: string;
+    token: string;
+    tokenPrefix: string;
+    environment: string;
+    createdAt: Date;
+  }> {
+    await this.ensureCompanyExists(companyId);
+    const result = await this.createIntegrationApiKey.execute(
+      new CreateIntegrationApiKeyCommand(
+        companyId,
+        body.name,
+        body.environment,
+      ),
+    );
+    if (result.isErr()) {
+      throw new HttpException(
+        result.error.message || 'No se pudo crear la API key de integración',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const data = result.unwrap();
+    return {
+      id: data.id,
+      name: data.name,
+      token: data.plainToken,
+      tokenPrefix: data.tokenPrefix,
+      environment: data.environment,
+      createdAt: data.createdAt,
+    };
   }
 
   private async ensureCompanyExists(companyId: string): Promise<void> {

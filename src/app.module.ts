@@ -181,6 +181,8 @@ export class AppModule {
         __dirname +
           '/context/auth/integration-api-key/infrastructure/integration-api-key.entity{.ts,.js}',
         __dirname +
+          '/context/auth/integration-api-key/infrastructure/external-commercial-link.entity{.ts,.js}',
+        __dirname +
           '/context/auth/auth-user/infrastructure/user-account.entity{.ts,.js}',
         __dirname +
           '/context/auth/auth-user/infrastructure/persistence/entity/invite-typeorm.entity{.ts,.js}',

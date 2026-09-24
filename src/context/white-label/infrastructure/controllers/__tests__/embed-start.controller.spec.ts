@@ -3,7 +3,6 @@
  * AI-3 compliance: assertions específicas (no `toBeTruthy()` alone).
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { TestBed } from '@angular/core/testing';
 import { Response } from 'express';
 import { ok, err } from 'src/context/shared/domain/result';
 import { WhiteLabelConfig } from '../../../domain/entities/white-label-config';
@@ -67,6 +66,7 @@ function makeMockConfig(
 
 describe('EmbedStartController (unit)', () => {
   let controller: EmbedStartController;
+  let testingModule: TestingModule;
   let mockRepo: jest.Mocked<IWhiteLabelConfigRepository>;
   let cache: InMemoryTtlCache<string, WhiteLabelConfig>;
 
@@ -79,7 +79,7 @@ describe('EmbedStartController (unit)', () => {
 
     cache = new InMemoryTtlCache<string, WhiteLabelConfig>({ ttlMs: 60_000 });
 
-    const module: TestingModule = await Test.createTestingModule({
+    testingModule = await Test.createTestingModule({
       controllers: [EmbedStartController],
       providers: [
         { provide: WHITE_LABEL_CONFIG_REPOSITORY, useValue: mockRepo },
@@ -88,7 +88,7 @@ describe('EmbedStartController (unit)', () => {
       ],
     }).compile();
 
-    controller = module.get<EmbedStartController>(EmbedStartController);
+    controller = testingModule.get<EmbedStartController>(EmbedStartController);
   });
 
   describe('AC1 — HTML response', () => {
@@ -271,7 +271,7 @@ describe('EmbedStartController (unit)', () => {
 
   describe('Story 4.3 — Cache metrics', () => {
     it('debe incrementar hits cuando hay cache hit', async () => {
-      const metrics = TestBed.inject(CacheMetricsService);
+      const metrics = testingModule.get(CacheMetricsService);
       cache.set('test-company-id', makeMockConfig());
 
       const res = makeMockResponse();
@@ -281,7 +281,7 @@ describe('EmbedStartController (unit)', () => {
     });
 
     it('debe incrementar misses cuando NO hay cache', async () => {
-      const metrics = TestBed.inject(CacheMetricsService);
+      const metrics = testingModule.get(CacheMetricsService);
       mockRepo.findByCompanyId.mockResolvedValue(ok(makeMockConfig()));
 
       const res = makeMockResponse();
@@ -291,7 +291,7 @@ describe('EmbedStartController (unit)', () => {
     });
 
     it('debe incrementar sets después de un cache miss + load exitoso', async () => {
-      const metrics = TestBed.inject(CacheMetricsService);
+      const metrics = testingModule.get(CacheMetricsService);
       mockRepo.findByCompanyId.mockResolvedValue(ok(makeMockConfig()));
 
       const res = makeMockResponse();
@@ -301,7 +301,7 @@ describe('EmbedStartController (unit)', () => {
     });
 
     it('debe calcular hitRatio = 0.5 con 1 hit + 1 miss', async () => {
-      const metrics = TestBed.inject(CacheMetricsService);
+      const metrics = testingModule.get(CacheMetricsService);
       // First call: miss + set
       mockRepo.findByCompanyId.mockResolvedValue(ok(makeMockConfig()));
       await controller.start('test-company-id', makeMockResponse());
@@ -378,6 +378,41 @@ describe('EmbedStartController (unit)', () => {
       // Verify the raw payload structure is NOT present (escaped form OK)
       // Use a more specific regex to avoid false positives with </title>
       expect(html).not.toMatch(/<title>[^<]*<script>/);
+    });
+  });
+
+  describe('GET /embed/allowed-origins', () => {
+    it('debe devolver solo los orígenes cuando el embed está activo', async () => {
+      mockRepo.findByCompanyId.mockResolvedValue(
+        ok(
+          makeMockConfig({
+            embedEnabled: true,
+            embedAllowedOrigins: ['http://localhost:8090'],
+          }),
+        ),
+      );
+      const res = makeMockResponse();
+
+      await controller.allowedOrigins('test-company-id', res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        origins: ['http://localhost:8090'],
+      });
+    });
+
+    it('debe responder 404 si el embed está desactivado', async () => {
+      mockRepo.findByCompanyId.mockResolvedValue(
+        ok(makeMockConfig({ embedEnabled: false })),
+      );
+      const res = makeMockResponse();
+
+      await controller.allowedOrigins('test-company-id', res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'EMBED_DISABLED_FOR_TENANT' }),
+      );
     });
   });
 });

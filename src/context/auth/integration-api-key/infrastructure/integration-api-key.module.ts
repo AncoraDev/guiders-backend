@@ -6,6 +6,11 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CqrsModule } from '@nestjs/cqrs';
 import { IntegrationApiKeyEntity } from './integration-api-key.entity';
+import { ExternalCommercialLinkEntity } from './external-commercial-link.entity';
+import { ExternalCommercialLinkRepositoryImpl } from './external-commercial-link.repository.impl';
+import { EXTERNAL_COMMERCIAL_LINK_REPOSITORY } from '../domain/repository/external-commercial-link.repository';
+import { SyncCommercialFromExternalCommandHandler } from '../application/commands/sync-commercial-from-external.command-handler';
+import { ExternalCommercialSyncController } from './controllers/external-commercial-sync.controller';
 import { IntegrationApiKeyController } from './integration-api-key.controller';
 import { IntegrationApiKeyOrmAdapter } from './integration-api-key-orm-adapter';
 import { IntegrationApiKeyMapper } from './integration-api-key.mapper';
@@ -43,7 +48,10 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([IntegrationApiKeyEntity]),
+    TypeOrmModule.forFeature([
+      IntegrationApiKeyEntity,
+      ExternalCommercialLinkEntity,
+    ]),
     JwtModule.register({}),
     HttpModule,
     ConfigModule,
@@ -94,6 +102,11 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     ListIntegrationApiKeysQueryHandler,
     CreateEmbedTokenCommandHandler,
     RefreshEmbedTokenCommandHandler,
+    SyncCommercialFromExternalCommandHandler,
+    {
+      provide: EXTERNAL_COMMERCIAL_LINK_REPOSITORY,
+      useClass: ExternalCommercialLinkRepositoryImpl,
+    },
     // Story 2.2: audit log handlers
     PersistEmbedTokenAuthenticatedEventHandler,
     PersistEmbedTokenAuthenticationFailedEventHandler,
@@ -104,13 +117,19 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     AuthGuard,
     RolesGuard,
   ],
-  controllers: [IntegrationApiKeyController, EmbedController],
+  controllers: [
+    IntegrationApiKeyController,
+    EmbedController,
+    ExternalCommercialSyncController,
+  ],
   exports: [
     IntegrationApiKeyGuard,
     INTEGRATION_API_KEY_REPOSITORY,
     EMBED_TOKEN_SERVICE,
     EmbedTokenGuard,
     EMBED_TOKEN_AUDIT_LOG_REPOSITORY,
+    CreateIntegrationApiKeyCommandHandler,
+    ListIntegrationApiKeysQueryHandler,
   ],
 })
 export class IntegrationApiKeyModule {}

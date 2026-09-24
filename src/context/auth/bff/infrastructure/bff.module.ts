@@ -13,6 +13,7 @@ import { AuthenticateEmbedSessionCommandHandler } from '../application/commands/
 import { LogoutCommandHandler } from '../application/commands/logout.command-handler';
 import { BFF_SESSION_SERVICE } from '../domain/services/bff-session.service';
 import { RedisBffSessionService } from './services/redis-bff-session.service';
+import { ResolveEmbedSessionQueryHandler } from '../application/queries/resolve-embed-session.query-handler';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RedisBffSessionService } from './services/redis-bff-session.service';
     OidcService,
     AuthenticateEmbedSessionCommandHandler,
     LogoutCommandHandler,
+    ResolveEmbedSessionQueryHandler,
     {
       provide: BFF_SESSION_SERVICE,
       useClass: RedisBffSessionService,

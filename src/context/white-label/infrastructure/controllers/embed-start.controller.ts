@@ -129,6 +129,37 @@ export class EmbedStartController {
   }
 
   /**
+   * GET /embed/allowed-origins?companyId=
+   * Solo la lista de orígenes. El iframe de Console la pide antes del handshake.
+   */
+  @Get('allowed-origins')
+  async allowedOrigins(
+    @Query('companyId') companyId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!companyId || typeof companyId !== 'string') {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        code: 'EMBED_COMPANY_REQUIRED',
+        message: 'Query param companyId es obligatorio',
+      });
+      return;
+    }
+
+    const result = await this.repository.findByCompanyId(companyId);
+    if (result.isErr() || !result.unwrap().embedEnabled) {
+      res.status(HttpStatus.NOT_FOUND).json({
+        code: 'EMBED_DISABLED_FOR_TENANT',
+        message: 'Embed no habilitado para esta empresa',
+      });
+      return;
+    }
+
+    res.status(HttpStatus.OK).json({
+      origins: result.unwrap().embedAllowedOrigins,
+    });
+  }
+
+  /**
    * Loads white-label config with cache (60s TTL) and 1s MongoDB timeout.
    *
    * Returns:

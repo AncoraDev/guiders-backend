@@ -29,6 +29,7 @@ import {
   BffSessionServiceUnavailableError,
 } from '../../domain/errors/bff-session.errors';
 import { EmbedTokenError } from 'src/context/auth/integration-api-key/domain/errors/embed-token.errors';
+import { loadEmbedSessionPrincipal } from '../../application/queries/load-embed-session-principal';
 
 function readAuthEnv() {
   return {
@@ -391,9 +392,7 @@ export class BffController {
       this.logger.debug(
         `[BFF /me/${app}] Expected cookie name: ${cenv.sessionName}, Available cookies: ${Object.keys(req.cookies || {}).join(', ')}`,
       );
-      return res
-        .status(401)
-        .send({ error: 'unauthenticated', reason: 'no_cookie' });
+      return this.sendEmbedSessionOrUnauthenticated(req, res, app, 'no_cookie');
     }
 
     this.logger.debug(
@@ -417,9 +416,12 @@ export class BffController {
       this.logger.debug(
         `[BFF /me/${app}] Fallo en verificación JWT: ${e instanceof Error ? e.message : String(e)}`,
       );
-      return res
-        .status(401)
-        .send({ error: 'unauthenticated', reason: 'jwt_verify_failed' });
+      return this.sendEmbedSessionOrUnauthenticated(
+        req,
+        res,
+        app,
+        'jwt_verify_failed',
+      );
     }
 
     this.logger.debug(
@@ -473,6 +475,36 @@ export class BffController {
     );
 
     return res.send(response);
+  }
+
+  /**
+   * El iframe deja una cookie `access_token` opaca. Si no hay JWT de
+   * Keycloak, esa sesión autoriza el mismo `/me` que el login de Console.
+   */
+  private async sendEmbedSessionOrUnauthenticated(
+    req: Request & { cookies: Record<string, string | undefined> },
+    res: Response,
+    app: string,
+    reason: string,
+  ) {
+    const principal = await loadEmbedSessionPrincipal(
+      this.queryBus,
+      req.cookies?.access_token,
+    );
+    if (!principal) {
+      return res.status(401).send({ error: 'unauthenticated', reason });
+    }
+    this.logger.log(
+      `[BFF /me/${app}] Sesión embed: sub=${principal.sub} companyId=${principal.companyId}`,
+    );
+    return res.send({
+      sub: principal.sub,
+      email: principal.email,
+      roles: principal.roles,
+      companyId: principal.companyId,
+      app,
+      session: { exp: principal.exp },
+    });
   }
 
   @ApiOperation({

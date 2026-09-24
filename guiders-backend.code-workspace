@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../guiders-sdk"
+		},
+		{
+			"path": "../guiders-leadcars-demo"
 		}
 	],
 	"settings": {

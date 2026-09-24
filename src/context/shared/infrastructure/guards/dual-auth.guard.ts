@@ -17,6 +17,10 @@ import { UserResponseDto } from '../../../auth/auth-user/application/dtos/user-l
 import { Result } from '../../domain/result';
 import { DomainError } from '../../domain/domain.error';
 import { resolveBffAuthApp } from '../bff-app-cookie';
+import {
+  loadEmbedSessionPrincipal,
+  readCookieValue,
+} from '../../../auth/bff/application/queries/load-embed-session-principal';
 
 /**
  * Guard de autenticación dual que soporta múltiples métodos pero es OBLIGATORIO:
@@ -56,6 +60,12 @@ export class DualAuthGuard implements CanActivate {
         this.logger.debug(
           '✅ Autenticación exitosa por sesión BFF de Keycloak',
         );
+        return true;
+      }
+
+      // Cookie opaca del iframe (access_token → Redis bff:session)
+      if (await this.tryEmbedSessionAuth(request)) {
+        this.logger.debug('✅ Autenticación exitosa por sesión embed');
         return true;
       }
 
@@ -215,6 +225,45 @@ export class DualAuthGuard implements CanActivate {
       return false;
     } catch (error) {
       this.logger.debug(`BFF session auth falló: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Sesión del iframe LeadCars: cookie `access_token` con id opaco.
+   * El `sub` queda alineado con el login de Console (keycloakId si existe).
+   */
+  private async tryEmbedSessionAuth(
+    request: AuthenticatedRequest,
+  ): Promise<boolean> {
+    try {
+      const fromParser = (
+        request as AuthenticatedRequest & {
+          cookies?: Record<string, string | undefined>;
+        }
+      ).cookies?.access_token;
+      const sessionId =
+        fromParser ??
+        readCookieValue(
+          request.headers.cookie as string | undefined,
+          'access_token',
+        );
+      const principal = await loadEmbedSessionPrincipal(
+        this.queryBus,
+        sessionId,
+      );
+      if (!principal) return false;
+
+      request.user = {
+        id: principal.sub,
+        roles: principal.roles,
+        username: principal.username,
+        email: principal.email,
+        companyId: principal.companyId,
+      };
+      return true;
+    } catch (error) {
+      this.logger.debug(`Embed session auth falló: ${error}`);
       return false;
     }
   }

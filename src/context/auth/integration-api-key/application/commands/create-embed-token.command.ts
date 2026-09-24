@@ -7,5 +7,7 @@ export class CreateEmbedTokenCommand {
     public readonly ipAddress: string = '',
     public readonly userAgent: string = '',
     public readonly endpoint: string = '/v2/integration/embed/start',
+    /** Id del comercial en LeadCars. Vacío si el body trae userId de Guiders. */
+    public readonly externalUserId: string = '',
   ) {}
 }

@@ -39,10 +39,16 @@ import { EmbedTokenAuthenticatedEvent } from '../../domain/events/embed-token-au
 import { EmbedTokenAuthenticationFailedEvent } from '../../domain/events/embed-token-authentication-failed.event';
 import { EmbedAuthFailureReason } from '../../domain/events/embed-auth-failure-reason.enum';
 import { tryPublish } from 'src/context/shared/events/try-publish';
+import {
+  EXTERNAL_COMMERCIAL_LINK_REPOSITORY,
+  ExternalCommercialLinkRepository,
+} from '../../domain/repository/external-commercial-link.repository';
 
 export interface CreateEmbedTokenResult {
   token: string;
   expiresAt: string;
+  /** UUID de Guiders resuelto (userId del body o el vínculo externalUserId). */
+  userId: string;
 }
 
 @Injectable()
@@ -60,6 +66,8 @@ export class CreateEmbedTokenCommandHandler
     @Inject(EMBED_TOKEN_SERVICE)
     private readonly embedTokens: IEmbedTokenService,
     private readonly eventBus: EventBus,
+    @Inject(EXTERNAL_COMMERCIAL_LINK_REPOSITORY)
+    private readonly links: ExternalCommercialLinkRepository,
   ) {}
 
   async execute(
@@ -91,14 +99,17 @@ export class CreateEmbedTokenCommandHandler
       return err(new EmbedTokenForbiddenError('EMBED_DISABLED_FOR_TENANT'));
     }
 
-    // 2. Verify user exists and belongs to the company
-    const user = await this.userRepository.findById(command.userId);
+    // 2. Resolver Guiders userId o el id externo de LeadCars
+    const resolvedUserId = await this.resolveUserId(command);
+    if (resolvedUserId.isErr()) return err(resolvedUserId.error);
+
+    const user = await this.userRepository.findById(resolvedUserId.unwrap());
     if (!user || user.companyId.value !== command.companyId) {
       tryPublish(
         this.eventBus,
         new EmbedTokenAuthenticationFailedEvent({
           companyId: command.companyId,
-          userId: command.userId,
+          userId: resolvedUserId.unwrap(),
           origin: command.origin,
           timestamp: now(),
           ipAddress: command.ipAddress,
@@ -113,11 +124,31 @@ export class CreateEmbedTokenCommandHandler
       return err(new EmbedTokenForbiddenError('EMBED_USER_NOT_IN_TENANT'));
     }
 
+    if (!user.isActive) {
+      tryPublish(
+        this.eventBus,
+        new EmbedTokenAuthenticationFailedEvent({
+          companyId: command.companyId,
+          userId: user.id.value,
+          origin: command.origin,
+          timestamp: now(),
+          ipAddress: command.ipAddress,
+          userAgent: command.userAgent,
+          endpoint: command.endpoint,
+          failureReason: EmbedAuthFailureReason.EMBED_USER_NOT_IN_TENANT,
+          failureDetail: 'El usuario está inactivo',
+        }),
+        this.logger,
+        'create-embed-token',
+      );
+      return err(new EmbedTokenForbiddenError('EMBED_USER_INACTIVE'));
+    }
+
     // 3. Issue the token (pass user's roles to EmbedTokenService)
     const roles = user.roles.toPrimitives();
     const tokenResult = await this.embedTokens.createToken(
       command.companyId,
-      command.userId,
+      user.id.value,
       roles,
     );
     if (tokenResult.isErr()) {
@@ -134,7 +165,7 @@ export class CreateEmbedTokenCommandHandler
         this.eventBus,
         new EmbedTokenAuthenticationFailedEvent({
           companyId: command.companyId,
-          userId: command.userId,
+          userId: user.id.value,
           origin: command.origin,
           timestamp: now(),
           ipAddress: command.ipAddress,
@@ -155,7 +186,7 @@ export class CreateEmbedTokenCommandHandler
       this.eventBus,
       new EmbedTokenAuthenticatedEvent({
         companyId: command.companyId,
-        userId: command.userId,
+        userId: user.id.value,
         origin: command.origin,
         timestamp: now(),
         ipAddress: command.ipAddress,
@@ -170,6 +201,42 @@ export class CreateEmbedTokenCommandHandler
     return ok({
       token: issued.token,
       expiresAt: issued.expiresAt,
+      userId: user.id.value,
     });
+  }
+
+  /**
+   * `userId` de Guiders tiene prioridad. Si solo llega `externalUserId`,
+   * se resuelve contra el vínculo LeadCars de esa empresa.
+   */
+  private async resolveUserId(
+    command: CreateEmbedTokenCommand,
+  ): Promise<Result<string, DomainError>> {
+    const userId = command.userId.trim();
+    const externalUserId = command.externalUserId.trim();
+
+    if (!userId && !externalUserId) {
+      return err(new EmbedTokenForbiddenError('EMBED_USER_NOT_IN_TENANT'));
+    }
+
+    if (externalUserId) {
+      const link = await this.links.findByExternalUserId(
+        command.companyId,
+        externalUserId,
+      );
+      if (!link) {
+        if (!userId) {
+          return err(new EmbedTokenForbiddenError('EMBED_USER_NOT_IN_TENANT'));
+        }
+      } else if (userId && link.userAccountId !== userId) {
+        return err(
+          new EmbedTokenForbiddenError('EMBED_EXTERNAL_USER_MISMATCH'),
+        );
+      } else if (!userId) {
+        return ok(link.userAccountId);
+      }
+    }
+
+    return ok(userId);
   }
 }

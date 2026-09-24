@@ -1,6 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 import { SiteDto } from './create-company.dto';
 import { CompanySiteDto } from './get-company-sites-response.dto';
 
@@ -102,6 +110,22 @@ export class UpdateCompanyDto {
   @ValidateNested({ each: true })
   @Type(() => SiteDto)
   sites!: SiteDto[];
+}
+
+/** Body para crear una API key de integración (gdr_live_ / gdr_test_) */
+export class PlatformCreateIntegrationApiKeyDto {
+  @ApiProperty({
+    description: 'Nombre descriptivo de la key',
+    example: 'LeadCars',
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name!: string;
+
+  @ApiProperty({ enum: ['live', 'test'], example: 'live' })
+  @IsIn(['live', 'test'])
+  environment!: 'live' | 'test';
 }
 
 /** Body para crear API key widget en una company */
