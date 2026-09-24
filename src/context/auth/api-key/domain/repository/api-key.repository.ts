@@ -9,4 +9,5 @@ export interface ApiKeyRepository {
   getApiKeyByApiKey(apiKey: ApiKeyValue): Promise<ApiKey | null>;
   getAllApiKeys(): Promise<ApiKey[]>;
   getApiKeysByCompanyId(companyId: ApiKeyCompanyId): Promise<ApiKey[]>;
+  deleteByCompanyId(companyId: string): Promise<void>;
 }

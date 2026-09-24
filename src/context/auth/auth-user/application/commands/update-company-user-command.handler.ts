@@ -5,7 +5,10 @@ import {
   USER_ACCOUNT_REPOSITORY,
   UserAccountRepository,
 } from '../../domain/user-account.repository';
-import { KeycloakAdminService } from '../../infrastructure/services/keycloak-admin.service';
+import {
+  KeycloakAdminService,
+  KeycloakUserExistsError,
+} from '../../infrastructure/services/keycloak-admin.service';
 import { UserAccountEmail } from '../../domain/user-account-email';
 import { UserAccountRoles } from '../../domain/value-objects/user-account-roles';
 import { Result, err, okVoid } from 'src/context/shared/domain/result';
@@ -58,7 +61,6 @@ export class UpdateCompanyUserCommandHandler
     }
 
     let updated = user;
-    let nextEmail: string | undefined;
     if (command.email !== undefined) {
       const email = command.email.trim().toLowerCase();
       if (!email) {
@@ -83,7 +85,13 @@ export class UpdateCompanyUserCommandHandler
           return err(new CompanyUserEmailExistsError(email));
         }
 
-        nextEmail = email;
+        const kcByUsername = await this.keycloakAdmin.findByUsername(email);
+        if (kcByUsername.isErr()) return err(kcByUsername.error);
+        const kcNamed = kcByUsername.unwrap();
+        if (kcNamed && kcNamed.id !== currentKcId) {
+          return err(new CompanyUserEmailExistsError(email));
+        }
+
         updated = updated.updateEmail(email);
       }
     }
@@ -103,17 +111,20 @@ export class UpdateCompanyUserCommandHandler
         command.name !== undefined && command.name.trim()
           ? command.name.trim()
           : undefined;
-      if (nextName || nextEmail) {
-        const profile = await this.keycloakAdmin.updateUserProfile(keycloakId, {
-          ...(nextName ? { name: nextName } : {}),
-          ...(nextEmail ? { email: nextEmail } : {}),
-        });
-        if (profile.isErr()) {
-          this.logger.warn(
-            `No se pudo sincronizar perfil en KC: ${profile.error.message}`,
-          );
-          return err(profile.error);
+      // Siempre el email de Guiders: si el username de Keycloak sigue siendo
+      // el email antiguo, el PUT los alinea y libera esa dirección.
+      const profile = await this.keycloakAdmin.updateUserProfile(keycloakId, {
+        email: updated.email.getValue(),
+        ...(nextName ? { name: nextName } : {}),
+      });
+      if (profile.isErr()) {
+        this.logger.warn(
+          `No se pudo sincronizar perfil en KC: ${profile.error.message}`,
+        );
+        if (profile.error instanceof KeycloakUserExistsError) {
+          return err(new CompanyUserEmailExistsError(updated.email.getValue()));
         }
+        return err(profile.error);
       }
       if (command.roles !== undefined) {
         const roles = await this.keycloakAdmin.setRealmRoles(

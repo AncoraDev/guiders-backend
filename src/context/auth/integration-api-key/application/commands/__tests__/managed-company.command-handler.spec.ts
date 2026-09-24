@@ -26,6 +26,7 @@ describe('Clientes gestionados por la clave de integración', () => {
       save: jest.fn().mockResolvedValue(undefined),
       findByChild: jest.fn().mockResolvedValue(null),
       deleteByChild: jest.fn().mockResolvedValue(undefined),
+      deleteByProvider: jest.fn().mockResolvedValue(undefined),
     };
     commandBus = { execute: jest.fn() };
   });

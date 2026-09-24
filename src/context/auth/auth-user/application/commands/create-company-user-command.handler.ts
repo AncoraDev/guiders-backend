@@ -5,7 +5,10 @@ import {
   USER_ACCOUNT_REPOSITORY,
   UserAccountRepository,
 } from '../../domain/user-account.repository';
-import { KeycloakAdminService } from '../../infrastructure/services/keycloak-admin.service';
+import {
+  KeycloakAdminService,
+  KeycloakUserExistsError,
+} from '../../infrastructure/services/keycloak-admin.service';
 import { UserAccount } from '../../domain/user-account.aggregate';
 import { UserAccountEmail } from '../../domain/user-account-email';
 import { UserAccountName } from '../../domain/value-objects/user-account-name';
@@ -72,6 +75,12 @@ export class CreateCompanyUserCommandHandler
       return err(new CompanyUserEmailExistsError(email));
     }
 
+    const kcByUsername = await this.keycloakAdmin.findByUsername(email);
+    if (kcByUsername.isErr()) return err(kcByUsername.error);
+    if (kcByUsername.unwrap()) {
+      return err(new CompanyUserEmailExistsError(email));
+    }
+
     const displayName = `${firstName} ${lastName}`.trim();
 
     // 1. Keycloak primero (evitar huérfano en BD) — sin email; password temporal
@@ -83,7 +92,12 @@ export class CreateCompanyUserCommandHandler
       phone: command.phone?.trim() || undefined,
       enabled: true,
     });
-    if (createKc.isErr()) return err(createKc.error);
+    if (createKc.isErr()) {
+      if (createKc.error instanceof KeycloakUserExistsError) {
+        return err(new CompanyUserEmailExistsError(email));
+      }
+      return err(createKc.error);
+    }
     const keycloakId = createKc.unwrap();
 
     const rolesKc = await this.keycloakAdmin.setRealmRoles(

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
   Configura automáticamente clientes OIDC en Keycloak para entorno local:
+  - Permite editar el username y lo alinea con el email
   - Establece redirectUris y webOrigins
   - Asegura cliente público y flujo estándar habilitado
   - Soporta múltiples clientes (console, admin)
@@ -164,6 +165,82 @@ async function configureClient(clientKey, config) {
   console.log(`   - postLogoutRedirectUris: ${JSON.stringify(postLogoutRedirectUris)}`);
 }
 
+async function openRealm() {
+  const base = process.env.KEYCLOAK_URL || `http://localhost:${process.env.KEYCLOAK_PORT || '8080'}`;
+  const realm = process.env.KEYCLOAK_REALM || 'guiders';
+  const adminUser = process.env.KEYCLOAK_ADMIN_USERNAME || 'admin';
+  const adminPass = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin123';
+
+  const tokenRes = await axios.post(
+    `${base}/realms/master/protocol/openid-connect/token`,
+    new URLSearchParams({
+      grant_type: 'password',
+      client_id: 'admin-cli',
+      username: adminUser,
+      password: adminPass,
+    }),
+    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+  );
+
+  return axios.create({
+    baseURL: `${base}/admin/realms/${encodeURIComponent(realm)}`,
+    headers: { Authorization: `Bearer ${tokenRes.data.access_token}` },
+  });
+}
+
+async function allowEditingUsernames(kc) {
+  const { data } = await kc.get('');
+  if (data.editUsernameAllowed === true) {
+    console.log('El realm ya permite editar el username');
+    return;
+  }
+  await kc.put('', { ...data, editUsernameAllowed: true });
+  console.log('El realm ahora permite editar el username');
+}
+
+async function alignUsernamesToEmail(kc) {
+  let first = 0;
+  const max = 100;
+  let aligned = 0;
+  let failed = 0;
+
+  for (;;) {
+    const { data } = await kc.get('/users', { params: { first, max } });
+    const users = Array.isArray(data) ? data : [];
+    for (const user of users) {
+      const email = typeof user.email === 'string' ? user.email.trim() : '';
+      if (!email || user.username === email) continue;
+      try {
+        await kc.put(`/users/${encodeURIComponent(user.id)}`, {
+          id: user.id,
+          username: email,
+          email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          enabled: user.enabled,
+          emailVerified: true,
+          requiredActions: user.requiredActions,
+          attributes: user.attributes,
+        });
+        aligned += 1;
+      } catch (error) {
+        failed += 1;
+        const status = error.response?.status;
+        console.error(
+          `No se pudo alinear el usuario ${user.id}: ${status || error.message}`,
+        );
+      }
+    }
+    if (users.length < max) break;
+    first += users.length;
+  }
+
+  console.log(`Usernames alineados con el email: ${aligned}`);
+  if (failed > 0) {
+    console.log(`Usernames que no se pudieron alinear: ${failed}`);
+  }
+}
+
 async function main() {
   const targetClient = process.argv[2]; // clientId específico desde argumentos
   
@@ -179,6 +256,10 @@ async function main() {
   console.log(`🚀 Configurando clientes OIDC en Keycloak`);
   console.log(`   Realm: ${realm}`);
   console.log(`   Keycloak: ${base}`);
+
+  const realmClient = await openRealm();
+  await allowEditingUsernames(realmClient);
+  await alignUsernamesToEmail(realmClient);
 
   if (targetClient) {
     await configureClient(targetClient, CLIENT_CONFIGS[targetClient]);

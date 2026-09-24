@@ -60,6 +60,6 @@ import { CreateApiKeyOnCompanyCreatedEventHandler } from '../application/events/
     CreateApiKeyOnCompanyCreatedEventHandler,
   ],
   controllers: [ApiKeyController, JwksController],
-  exports: [ApiKeyService],
+  exports: [ApiKeyService, API_KEY_REPOSITORY],
 })
 export class ApiKeyModule {}

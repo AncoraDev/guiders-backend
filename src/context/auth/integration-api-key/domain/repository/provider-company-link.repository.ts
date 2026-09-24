@@ -13,4 +13,6 @@ export interface ProviderCompanyLinkRepository {
   findByChild(childCompanyId: string): Promise<ProviderCompanyLink | null>;
 
   deleteByChild(childCompanyId: string): Promise<void>;
+
+  deleteByProvider(providerCompanyId: string): Promise<void>;
 }

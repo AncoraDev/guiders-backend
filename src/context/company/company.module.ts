@@ -12,6 +12,7 @@ import { CreateCompanyCommandHandler } from './application/commands/create-compa
 import { CreateCompanyWithAdminCommandHandler } from './application/commands/create-company-with-admin-command.handler';
 import { UpdateCompanyCommandHandler } from './application/commands/update-company-command.handler';
 import { DeleteCompanyRecordCommandHandler } from './application/commands/delete-company-record.command-handler';
+import { DeletePlatformCompanyCommandHandler } from './application/commands/delete-platform-company.command-handler';
 import { FindCompanyByDomainQueryHandler } from './application/queries/find-company-by-domain.query-handler';
 import { ResolveSiteByHostQueryHandler } from './application/queries/resolve-site-by-host.query-handler';
 import { GetCompanySitesQueryHandler } from './application/queries/get-company-sites.query-handler';
@@ -66,6 +67,7 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
     CreateCompanyWithAdminCommandHandler,
     UpdateCompanyCommandHandler,
     DeleteCompanyRecordCommandHandler,
+    DeletePlatformCompanyCommandHandler,
     FindCompanyByDomainQueryHandler,
     ResolveSiteByHostQueryHandler,
     GetCompanySitesQueryHandler,

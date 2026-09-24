@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { ApiKeyDomain } from '../domain/model/api-key-domain';
 import { ApiKeyValue } from '../domain/model/api-key-value';
 import { ApiKeyCompanyId } from '../domain/model/api-key-company-id';
+import { VisitorAccountEntity } from '../../auth-visitor/infrastructure/visitor-account.entity';
 
 @Injectable()
 export class ApiKeyOrmAdapter implements ApiKeyRepository {
@@ -47,6 +48,20 @@ export class ApiKeyOrmAdapter implements ApiKeyRepository {
     return apiKeyEntities.map((apiKeyEntity) =>
       this.apiKeyMapper.toDomain(apiKeyEntity),
     );
+  }
+
+  async deleteByCompanyId(companyId: string): Promise<void> {
+    const keys = await this.apiKeyRepository.find({ where: { companyId } });
+    const apiKeyValues = keys.map((key) => key.apiKey);
+    if (apiKeyValues.length > 0) {
+      await this.apiKeyRepository.manager
+        .getRepository(VisitorAccountEntity)
+        .createQueryBuilder()
+        .delete()
+        .where('"apiKey" IN (:...apiKeyValues)', { apiKeyValues })
+        .execute();
+    }
+    await this.apiKeyRepository.delete({ companyId });
   }
 
   async getApiKeysByCompanyId(companyId: ApiKeyCompanyId): Promise<ApiKey[]> {

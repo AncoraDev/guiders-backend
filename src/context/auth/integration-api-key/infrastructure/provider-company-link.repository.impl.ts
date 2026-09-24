@@ -37,4 +37,8 @@ export class ProviderCompanyLinkRepositoryImpl
   async deleteByChild(childCompanyId: string): Promise<void> {
     await this.links.delete({ childCompanyId });
   }
+
+  async deleteByProvider(providerCompanyId: string): Promise<void> {
+    await this.links.delete({ providerCompanyId });
+  }
 }

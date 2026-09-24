@@ -147,6 +147,10 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
   exports: [
     IntegrationApiKeyGuard,
     INTEGRATION_API_KEY_REPOSITORY,
+    USER_ACCOUNT_REPOSITORY,
+    KeycloakAdminService,
+    EXTERNAL_COMMERCIAL_LINK_REPOSITORY,
+    PROVIDER_COMPANY_LINK_REPOSITORY,
     EMBED_TOKEN_SERVICE,
     EmbedTokenGuard,
     EMBED_TOKEN_AUDIT_LOG_REPOSITORY,

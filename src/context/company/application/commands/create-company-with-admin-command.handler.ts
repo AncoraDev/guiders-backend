@@ -21,6 +21,10 @@ import { CanonicalDomain } from '../../domain/value-objects/canonical-domain';
 import { DomainAliases } from '../../domain/value-objects/domain-aliases';
 import { CompanySites } from '../../domain/value-objects/company-sites';
 import { CreateCompanyUserCommand } from 'src/context/auth/auth-user/application/commands/create-company-user.command';
+import {
+  API_KEY_REPOSITORY,
+  ApiKeyRepository,
+} from 'src/context/auth/api-key/domain/repository/api-key.repository';
 import { Result, ok, err } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import {
@@ -48,14 +52,16 @@ export class CreateCompanyWithAdminCommandHandler
   constructor(
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: CompanyRepository,
+    @Inject(API_KEY_REPOSITORY)
+    private readonly apiKeys: ApiKeyRepository,
     private readonly publisher: EventPublisher,
     private readonly commandBus: CommandBus,
   ) {}
 
   /**
-   * Crea la company (API keys vía CompanyCreatedEvent) y el admin en Keycloak
-   * reutilizando CreateCompanyUserCommand. No emite CompanyCreatedWithAdminEvent
-   * (evita invite local legado y doble email).
+   * Crea la company y el admin en Keycloak. CompanyCreated (claves del widget)
+   * solo se publica si el admin queda creado. Si Keycloak rechaza el admin,
+   * se borran las claves y la empresa para que el dominio no quede pillado.
    */
   async execute(
     command: CreateCompanyWithAdminCommand,
@@ -110,7 +116,6 @@ export class CreateCompanyWithAdminCommandHandler
     if (saveResult.isErr()) {
       return err(saveResult.error);
     }
-    companyAggregate.commit();
 
     const companyIdValue = companyId.getValue();
 
@@ -134,8 +139,17 @@ export class CreateCompanyWithAdminCommandHandler
       this.logger.error(
         `Company ${companyIdValue} creada pero falló el alta del admin: ${adminResult.error.message}`,
       );
+      await this.apiKeys.deleteByCompanyId(companyIdValue);
+      const removed = await this.companyRepository.delete(companyId);
+      if (removed.isErr()) {
+        this.logger.error(
+          `No se pudo deshacer la empresa ${companyIdValue}: ${removed.error.message}`,
+        );
+      }
       return err(adminResult.error);
     }
+
+    companyAggregate.commit();
 
     return ok({
       companyId: companyIdValue,

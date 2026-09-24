@@ -9,6 +9,47 @@ export class KeycloakAdminError extends DomainError {
   }
 }
 
+/** Keycloak respondió 409: el email o el username ya están ocupados. */
+export class KeycloakUserExistsError extends KeycloakAdminError {
+  constructor() {
+    super('Ya existe un usuario con el mismo email en Keycloak');
+  }
+}
+
+/**
+ * Arma el PUT de perfil. Si el email de Guiders no coincide con el
+ * username, los dos pasan a ser ese email para liberar la dirección antigua.
+ */
+export function buildKeycloakUserPatch(
+  user: Record<string, unknown>,
+  params: { name?: string; email?: string },
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    enabled: user.enabled,
+    emailVerified: user.emailVerified,
+    requiredActions: user.requiredActions,
+    attributes: user.attributes,
+  };
+  if (params.email) {
+    patch.email = params.email;
+    patch.emailVerified = true;
+    if (user.username !== params.email) {
+      patch.username = params.email;
+    }
+  }
+  if (params.name) {
+    const parts = params.name.trim().split(/\s+/);
+    patch.firstName = parts[0] ?? params.name;
+    patch.lastName = parts.slice(1).join(' ') || '';
+  }
+  return patch;
+}
+
 interface KeycloakRole {
   id: string;
   name: string;
@@ -97,13 +138,26 @@ export class KeycloakAdminService {
   async findByEmail(
     email: string,
   ): Promise<Result<KeycloakUser | null, DomainError>> {
+    return this.findExact('email', email);
+  }
+
+  async findByUsername(
+    username: string,
+  ): Promise<Result<KeycloakUser | null, DomainError>> {
+    return this.findExact('username', username);
+  }
+
+  private async findExact(
+    field: 'email' | 'username',
+    value: string,
+  ): Promise<Result<KeycloakUser | null, DomainError>> {
     const tokenResult = await this.getAdminToken();
     if (tokenResult.isErr()) return err(tokenResult.error);
     const token = tokenResult.unwrap();
 
     try {
       const res = await fetch(
-        `${this.adminBase}/users?email=${encodeURIComponent(email)}&exact=true`,
+        `${this.adminBase}/users?${field}=${encodeURIComponent(value)}&exact=true`,
         { headers: this.headers(token) },
       );
       if (!res.ok) {
@@ -162,6 +216,9 @@ export class KeycloakAdminService {
         }),
       });
 
+      if (res.status === 409) {
+        return err(new KeycloakUserExistsError());
+      }
       if (!res.ok) {
         return err(
           new KeycloakAdminError(
@@ -416,33 +473,16 @@ export class KeycloakAdminService {
         );
       }
       const user = (await getRes.json()) as Record<string, unknown>;
-      // No reenviar el GET entero: userProfileMetadata/access y un
-      // username distinto provocan 400 (username es read-only en el realm).
-      const patch: Record<string, unknown> = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        enabled: user.enabled,
-        emailVerified: user.emailVerified,
-        requiredActions: user.requiredActions,
-        attributes: user.attributes,
-      };
-      if (params.email) {
-        patch.email = params.email;
-        patch.emailVerified = true;
-      }
-      if (params.name) {
-        const parts = params.name.trim().split(/\s+/);
-        patch.firstName = parts[0] ?? params.name;
-        patch.lastName = parts.slice(1).join(' ') || '';
-      }
+      // No reenviar el GET entero: userProfileMetadata y access provocan 400.
+      const patch = buildKeycloakUserPatch(user, params);
       const putRes = await fetch(`${this.adminBase}/users/${keycloakId}`, {
         method: 'PUT',
         headers: this.headers(token),
         body: JSON.stringify(patch),
       });
+      if (putRes.status === 409) {
+        return err(new KeycloakUserExistsError());
+      }
       if (!putRes.ok) {
         return err(
           new KeycloakAdminError(

@@ -29,6 +29,7 @@ import {
   InvalidCompanyDataError,
 } from 'src/context/company/application/errors/company-platform.errors';
 import { CompanyNotFoundError } from 'src/context/company/domain/errors/company.error';
+import { CompanyUserEmailExistsError } from 'src/context/auth/auth-user/application/errors/company-user.errors';
 import {
   IntegrationApiKeyGuard,
   IntegrationApiKeyRequest,
@@ -145,9 +146,15 @@ export class ExternalCompanyController {
         statusCode: 404,
       });
     }
-    if (error instanceof CompanyDomainTakenError) {
+    if (
+      error instanceof CompanyDomainTakenError ||
+      error instanceof CompanyUserEmailExistsError
+    ) {
       return new ConflictException({
-        code: 'COMPANY_DOMAIN_TAKEN',
+        code:
+          error instanceof CompanyUserEmailExistsError
+            ? 'COMPANY_ADMIN_EMAIL_TAKEN'
+            : 'COMPANY_DOMAIN_TAKEN',
         message: error.message,
         statusCode: 409,
       });

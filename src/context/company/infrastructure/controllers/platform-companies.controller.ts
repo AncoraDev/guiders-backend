@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   HttpException,
   HttpStatus,
   NotFoundException,
@@ -30,6 +32,7 @@ import {
 import { CreateCompanyDto } from '../../application/dtos/create-company.dto';
 import { CreateCompanyWithAdminCommand } from '../../application/commands/create-company-with-admin.command';
 import { UpdateCompanyCommand } from '../../application/commands/update-company.command';
+import { DeletePlatformCompanyCommand } from '../../application/commands/delete-platform-company.command';
 import { CreateCompanyWithAdminResult } from '../../application/commands/create-company-with-admin-command.handler';
 import { ListCompaniesQuery } from '../../application/queries/list-companies.query';
 import { GetPlatformCompanyDetailQuery } from '../../application/queries/get-platform-company-detail.query';
@@ -198,6 +201,29 @@ export class PlatformCompaniesController {
     }
 
     return this.getCompany(companyId);
+  }
+
+  @Delete(':companyId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Eliminar un cliente',
+    description:
+      'Borra la empresa, sus usuarios (incluido Keycloak), las claves y los vínculos. No borra chats, mensajes ni leads.',
+  })
+  @ApiParam({ name: 'companyId', description: 'UUID de la empresa' })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  @ApiNotFoundError('Empresa')
+  async deleteCompany(
+    @Param('companyId') companyId: string,
+  ): Promise<{ ok: true }> {
+    const result = await this.commandBus.execute<
+      DeletePlatformCompanyCommand,
+      Result<void, DomainError>
+    >(new DeletePlatformCompanyCommand(companyId));
+    if (result.isErr()) {
+      throw this.mapUpdateError(result.error);
+    }
+    return { ok: true };
   }
 
   @Get(':companyId/api-keys')
