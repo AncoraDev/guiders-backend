@@ -31,6 +31,8 @@ import { EMAIL_SENDER_SERVICE } from 'src/context/shared/domain/email/email-send
 import { ResendEmailSenderService } from 'src/context/shared/infrastructure/email/resend-email-sender.service';
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
+import { PlatformSdkReleasesController } from './infrastructure/controllers/platform-sdk-releases.controller';
+import { GithubSdkReleasesService } from './infrastructure/services/github-sdk-releases.service';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TokenVerifyService } from '../shared/infrastructure/token-verify.service';
 import { BffSessionAuthService } from '../shared/infrastructure/services/bff-session-auth.service';
@@ -52,7 +54,11 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
     ApiKeyModule,
     IntegrationApiKeyModule,
   ],
-  controllers: [CompanyController, PlatformCompaniesController],
+  controllers: [
+    CompanyController,
+    PlatformCompaniesController,
+    PlatformSdkReleasesController,
+  ],
   providers: [
     companyRepositoryProvider,
     CreateCompanyCommandHandler,
@@ -84,6 +90,7 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
       useExisting: CompanySecretCipherImpl,
     },
     CorsSiteOriginService,
+    GithubSdkReleasesService,
     // Servicios necesarios para DualAuthGuard (sin VisitorSessionAuthService para evitar dependencias complejas)
     TokenVerifyService,
     BffSessionAuthService,
