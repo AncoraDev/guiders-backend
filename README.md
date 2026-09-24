@@ -78,7 +78,7 @@ http://localhost:8095
 Ábrelo como `localhost`, no como `127.0.0.1`: el origen del embed tiene que coincidir.
 
 ```bash
-cd guiders-proveedor-demo
+cd guiders-proveedor
 cp .env.example .env     # primera vez
 npm install              # primera vez
 docker compose up -d     # Postgres en localhost:5435

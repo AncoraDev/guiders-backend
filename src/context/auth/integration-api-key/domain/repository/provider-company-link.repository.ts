@@ -15,4 +15,6 @@ export interface ProviderCompanyLinkRepository {
   deleteByChild(childCompanyId: string): Promise<void>;
 
   deleteByProvider(providerCompanyId: string): Promise<void>;
+
+  countByProvider(providerCompanyId: string): Promise<number>;
 }

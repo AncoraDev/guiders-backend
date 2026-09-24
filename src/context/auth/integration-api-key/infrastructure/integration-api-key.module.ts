@@ -155,6 +155,7 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     EmbedTokenGuard,
     EMBED_TOKEN_AUDIT_LOG_REPOSITORY,
     CreateIntegrationApiKeyCommandHandler,
+    RevokeIntegrationApiKeyCommandHandler,
     ListIntegrationApiKeysQueryHandler,
   ],
 })

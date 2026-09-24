@@ -5,6 +5,10 @@ import {
   COMPANY_REPOSITORY,
   CompanyRepository,
 } from '../../domain/company.repository';
+import {
+  PROVIDER_REPOSITORY,
+  ProviderRepository,
+} from '../../domain/provider.repository';
 import { PlatformCompanySummaryDto } from '../dtos/platform-company.dto';
 
 @QueryHandler(ListCompaniesQuery)

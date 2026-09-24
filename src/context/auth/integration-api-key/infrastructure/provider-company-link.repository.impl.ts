@@ -41,4 +41,8 @@ export class ProviderCompanyLinkRepositoryImpl
   async deleteByProvider(providerCompanyId: string): Promise<void> {
     await this.links.delete({ providerCompanyId });
   }
+
+  async countByProvider(providerCompanyId: string): Promise<number> {
+    return this.links.count({ where: { providerCompanyId } });
+  }
 }

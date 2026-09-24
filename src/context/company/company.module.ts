@@ -6,18 +6,26 @@ import { ConfigModule } from '@nestjs/config';
 import { SEARCH_PROVIDER } from 'src/context/shared/domain/search';
 import { CompanySearchProvider } from './infrastructure/search/company-search.provider';
 import { CompanyTypeOrmEntity } from './infrastructure/persistence/entity/company-typeorm.entity';
+import { ProviderEntity } from './infrastructure/persistence/entity/provider.entity';
 import { CompanySiteTypeOrmEntity } from './infrastructure/persistence/typeorm/company-site.entity';
+import { ProviderRepositoryImpl } from './infrastructure/persistence/impl/provider.repository.impl';
+import { PROVIDER_REPOSITORY } from './domain/provider.repository';
 import { companyRepositoryProvider } from './infrastructure/persistence/impl/company.repository.impl';
 import { CreateCompanyCommandHandler } from './application/commands/create-company-command.handler';
 import { CreateCompanyWithAdminCommandHandler } from './application/commands/create-company-with-admin-command.handler';
 import { UpdateCompanyCommandHandler } from './application/commands/update-company-command.handler';
 import { DeleteCompanyRecordCommandHandler } from './application/commands/delete-company-record.command-handler';
 import { DeletePlatformCompanyCommandHandler } from './application/commands/delete-platform-company.command-handler';
+import { CreateProviderCommandHandler } from './application/commands/create-provider.command-handler';
+import { RenameProviderCommandHandler } from './application/commands/rename-provider.command-handler';
+import { RegenerateProviderTokenCommandHandler } from './application/commands/regenerate-provider-token.command-handler';
+import { DeleteProviderCommandHandler } from './application/commands/delete-provider.command-handler';
 import { FindCompanyByDomainQueryHandler } from './application/queries/find-company-by-domain.query-handler';
 import { ResolveSiteByHostQueryHandler } from './application/queries/resolve-site-by-host.query-handler';
 import { GetCompanySitesQueryHandler } from './application/queries/get-company-sites.query-handler';
 import { GetCompanyByIdQueryHandler } from './application/queries/get-company-by-id.query-handler';
 import { ListCompaniesQueryHandler } from './application/queries/list-companies.query-handler';
+import { ListProvidersQueryHandler } from './application/queries/list-providers.query-handler';
 import { GetPlatformCompanyDetailQueryHandler } from './application/queries/get-platform-company-detail.query-handler';
 import { GetCompanyCannedRepliesQueryHandler } from './application/queries/get-company-canned-replies.query-handler';
 import { UpdateCompanyCannedRepliesCommandHandler } from './application/commands/update-company-canned-replies.command-handler';
@@ -33,6 +41,8 @@ import { EMAIL_SENDER_SERVICE } from 'src/context/shared/domain/email/email-send
 import { ResendEmailSenderService } from 'src/context/shared/infrastructure/email/resend-email-sender.service';
 import { CompanyController } from './infrastructure/controllers/company.controller';
 import { PlatformCompaniesController } from './infrastructure/controllers/platform-companies.controller';
+import { PlatformProvidersController } from './infrastructure/controllers/platform-providers.controller';
+import { ProviderDemoAdminController } from './infrastructure/controllers/provider-demo-admin.controller';
 import { PlatformSdkReleasesController } from './infrastructure/controllers/platform-sdk-releases.controller';
 import { GithubSdkReleasesService } from './infrastructure/services/github-sdk-releases.service';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -48,7 +58,11 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CompanyTypeOrmEntity, CompanySiteTypeOrmEntity]),
+    TypeOrmModule.forFeature([
+      CompanyTypeOrmEntity,
+      CompanySiteTypeOrmEntity,
+      ProviderEntity,
+    ]),
     CqrsModule,
     HttpModule,
     JwtModule.register({}),
@@ -59,20 +73,31 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
   controllers: [
     CompanyController,
     PlatformCompaniesController,
+    PlatformProvidersController,
+    ProviderDemoAdminController,
     PlatformSdkReleasesController,
   ],
   providers: [
     companyRepositoryProvider,
+    {
+      provide: PROVIDER_REPOSITORY,
+      useClass: ProviderRepositoryImpl,
+    },
     CreateCompanyCommandHandler,
     CreateCompanyWithAdminCommandHandler,
     UpdateCompanyCommandHandler,
     DeleteCompanyRecordCommandHandler,
     DeletePlatformCompanyCommandHandler,
+    CreateProviderCommandHandler,
+    RenameProviderCommandHandler,
+    RegenerateProviderTokenCommandHandler,
+    DeleteProviderCommandHandler,
     FindCompanyByDomainQueryHandler,
     ResolveSiteByHostQueryHandler,
     GetCompanySitesQueryHandler,
     GetCompanyByIdQueryHandler,
     ListCompaniesQueryHandler,
+    ListProvidersQueryHandler,
     GetPlatformCompanyDetailQueryHandler,
     GetCompanyCannedRepliesQueryHandler,
     UpdateCompanyCannedRepliesCommandHandler,

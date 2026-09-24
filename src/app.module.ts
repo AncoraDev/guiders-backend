@@ -193,6 +193,8 @@ export class AppModule {
         __dirname +
           '/context/company/infrastructure/persistence/entity/company-typeorm.entity{.ts,.js}',
         __dirname +
+          '/context/company/infrastructure/persistence/entity/provider.entity{.ts,.js}',
+        __dirname +
           '/context/company/infrastructure/persistence/typeorm/company-site.entity{.ts,.js}',
         __dirname +
           '/context/conversations/infrastructure/conversation.entity{.ts,.js}',
