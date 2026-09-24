@@ -20,6 +20,39 @@ export function sameSecret(left: string, right: string): boolean {
   return timingSafeEqual(a, b);
 }
 
+export interface DemoAdminSession {
+  token: string;
+  companyId: string;
+  name: string;
+}
+
+/** Abre la sesión del proveedor cuyas credenciales coinciden. */
+export function openDemoAdminSession(
+  provider: {
+    demoAdminEmail: string;
+    demoAdminPassword: string;
+    accessToken: string;
+    companyId: string;
+  } | null,
+  name: string,
+  email: string,
+  password: string,
+): DemoAdminSession | null {
+  if (!provider?.accessToken) return null;
+  const matches = providerDemoAdminMatches(
+    provider.demoAdminEmail,
+    provider.demoAdminPassword,
+    email,
+    password,
+  );
+  if (!matches) return null;
+  return {
+    token: provider.accessToken,
+    companyId: provider.companyId,
+    name,
+  };
+}
+
 export function providerDemoAdminMatches(
   storedEmail: string,
   storedPassword: string,

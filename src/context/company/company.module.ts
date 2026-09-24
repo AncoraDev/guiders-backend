@@ -45,6 +45,7 @@ import { PlatformProvidersController } from './infrastructure/controllers/platfo
 import {
   IntegrationProviderController,
   ProviderDemoAdminController,
+  ProviderDemoAdminEnterController,
 } from './infrastructure/controllers/provider-demo-admin.controller';
 import { PlatformSdkReleasesController } from './infrastructure/controllers/platform-sdk-releases.controller';
 import { GithubSdkReleasesService } from './infrastructure/services/github-sdk-releases.service';
@@ -78,6 +79,7 @@ import { CompanySecretCipherImpl } from './infrastructure/services/company-secre
     PlatformCompaniesController,
     PlatformProvidersController,
     ProviderDemoAdminController,
+    ProviderDemoAdminEnterController,
     IntegrationProviderController,
     PlatformSdkReleasesController,
   ],

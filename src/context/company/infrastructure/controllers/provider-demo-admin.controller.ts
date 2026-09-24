@@ -26,7 +26,10 @@ import {
   COMPANY_REPOSITORY,
   CompanyRepository,
 } from '../../domain/company.repository';
-import { providerDemoAdminMatches } from '../../application/providers/provider-demo-admin';
+import {
+  openDemoAdminSession,
+  providerDemoAdminMatches,
+} from '../../application/providers/provider-demo-admin';
 
 class VerifyDemoAdminDto {
   @ApiProperty({ description: 'Email del admin de la demo' })
@@ -75,6 +78,50 @@ export class ProviderDemoAdminController {
       throw new UnauthorizedException('Email o contraseña incorrectos');
     }
     return { ok: true };
+  }
+}
+
+@ApiTags('integration')
+@Controller('v2/integration/demo-admin')
+export class ProviderDemoAdminEnterController {
+  constructor(
+    @Inject(PROVIDER_REPOSITORY)
+    private readonly providers: ProviderRepository,
+    @Inject(COMPANY_REPOSITORY)
+    private readonly companies: CompanyRepository,
+  ) {}
+
+  @Post('enter')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Entrar al área del proveedor con sus credenciales',
+    description:
+      'Identifica al proveedor por el email y la contraseña de su ficha. Devuelve el token de esa cuenta.',
+  })
+  async enter(@Body() body: VerifyDemoAdminDto): Promise<{
+    token: string;
+    companyId: string;
+    name: string;
+  }> {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase();
+    const provider = await this.providers.findByDemoAdminEmail(email);
+    let name = '';
+    if (provider) {
+      const found = await this.companies.findById(new Uuid(provider.companyId));
+      if (found.isOk()) name = found.unwrap().getCompanyName().getValue();
+    }
+    const session = openDemoAdminSession(
+      provider,
+      name,
+      email,
+      body.password ?? '',
+    );
+    if (!session) {
+      throw new UnauthorizedException('Email o contraseña incorrectos');
+    }
+    return session;
   }
 }
 
