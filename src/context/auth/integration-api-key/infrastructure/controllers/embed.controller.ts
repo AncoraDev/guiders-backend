@@ -20,6 +20,7 @@ import {
   ApiCookieAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import {

@@ -308,4 +308,61 @@ describe('WhiteLabelConfig - campos embed', () => {
       ]);
     });
   });
+
+  describe('consoleTheme', () => {
+    it('debería usar grey-dark cuando el documento no trae estilo', () => {
+      const companyId = Uuid.random().value;
+      const config = WhiteLabelConfig.createDefault(
+        companyId,
+        companyId,
+        '',
+      );
+
+      expect(config.consoleTheme).toBe('grey-dark');
+      expect(config.branding.brandName).toBe('');
+    });
+
+    it('debería conservar leadcars y no pisarlo al actualizar el nombre', () => {
+      const companyId = Uuid.random().value;
+      const config = WhiteLabelConfig.createDefault(
+        companyId,
+        companyId,
+        '',
+      ).update({
+        consoleTheme: 'leadcars',
+        branding: { brandName: 'WebSeller' },
+      });
+
+      expect(config.consoleTheme).toBe('leadcars');
+      expect(config.branding.brandName).toBe('WebSeller');
+      expect(config.branding.logoUrl).toBeNull();
+    });
+
+    it('debería ignorar un estilo desconocido y volver a grey-dark', () => {
+      const companyId = Uuid.random().value;
+      const config = WhiteLabelConfig.fromPrimitives({
+        id: companyId,
+        companyId,
+        colors: {
+          primary: '#007bff',
+          secondary: '#6c757d',
+          tertiary: '#17a2b8',
+          background: '#ffffff',
+          surface: '#f8f9fa',
+          text: '#212529',
+          textMuted: '#6c757d',
+        },
+        branding: { logoUrl: null, faviconUrl: null, brandName: '' },
+        typography: {
+          fontFamily: 'Inter',
+          customFontName: null,
+          customFontFiles: [],
+        },
+        theme: 'light',
+        consoleTheme: 'no-existe',
+      });
+
+      expect(config.consoleTheme).toBe('grey-dark');
+    });
+  });
 });

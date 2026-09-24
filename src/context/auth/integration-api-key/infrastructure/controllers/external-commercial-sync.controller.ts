@@ -11,7 +11,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
   IntegrationApiKeyGuard,
   IntegrationApiKeyRequest,
@@ -25,7 +25,8 @@ import {
 import { ExternalCommercialSyncError } from '../../domain/errors/external-commercial-sync.errors';
 import { InvalidCompanyUserRolesError } from 'src/context/auth/auth-user/application/errors/company-user.errors';
 
-@ApiTags('Integration Embed')
+@ApiTags('LeadCars')
+@ApiSecurity('api-key')
 @Controller('v2/integration/commercials')
 @UseGuards(IntegrationApiKeyGuard)
 export class ExternalCommercialSyncController {

@@ -195,6 +195,7 @@ export class WhiteLabelConfigController {
       branding: dto.branding,
       typography: dto.typography,
       theme: dto.theme,
+      consoleTheme: dto.consoleTheme,
       embed:
         dto.embedEnabled !== undefined || dto.embedAllowedOrigins !== undefined
           ? {

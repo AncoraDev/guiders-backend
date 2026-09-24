@@ -34,6 +34,16 @@ class InMemoryModel {
     },
     options: { upsert?: boolean; new?: boolean },
   ): Promise<FakeDoc | null> => {
+    const overlap = Object.keys(update.$setOnInsert ?? {}).filter(
+      (key) => key in (update.$set ?? {}),
+    );
+    if (overlap.length > 0) {
+      return Promise.reject(
+        new Error(
+          `Updating the path '${overlap[0]}' would create a conflict at '${overlap[0]}'`,
+        ),
+      );
+    }
     const existing = this.docs.find((d) => d.companyId === filter.companyId);
     if (existing) {
       Object.assign(existing, update.$set);
@@ -150,6 +160,7 @@ describe('MongoWhiteLabelConfigRepositoryImpl - real path', () => {
     const config = result.unwrap();
     expect(config.embedEnabled).toBe(false);
     expect(config.embedAllowedOrigins).toEqual([]);
+    expect(config.consoleTheme).toBe('grey-dark');
   });
 
   it('findByCompanyId() — new document con embed habilitado → preserva', async () => {

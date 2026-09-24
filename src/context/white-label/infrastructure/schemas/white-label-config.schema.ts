@@ -102,6 +102,9 @@ export class WhiteLabelConfigSchema {
   @Prop({ type: String, default: 'light', enum: ['light', 'dark', 'system'] })
   theme: string;
 
+  @Prop({ type: String, default: 'grey-dark' })
+  consoleTheme: string;
+
   @Prop({ type: Boolean, default: false })
   embedEnabled: boolean;
 

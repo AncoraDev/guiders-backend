@@ -277,8 +277,12 @@ async function bootstrap() {
   const document = createOpenApiDocument(app);
   const publicDocument = createPublicOpenApiDocument(app);
 
-  // Scalar UI en /docs (reemplaza Swagger UI)
+  // Scalar UI en /docs (reemplaza Swagger UI).
+  // /docs coincide con cualquier subruta: /docs/leadcars queda cerrado.
   const { apiReference } = await import('@scalar/nestjs-api-reference');
+  app.use('/docs/leadcars', (_req, res) => {
+    res.status(404).type('text/plain').send('Not found');
+  });
   app.use(
     '/docs',
     apiReference({

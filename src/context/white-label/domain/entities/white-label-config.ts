@@ -47,6 +47,34 @@ export interface WhiteLabelTypographyPrimitives {
 export const ALLOWED_THEMES = ['light', 'dark', 'system'] as const;
 export type AllowedTheme = (typeof ALLOWED_THEMES)[number];
 
+/** Estilos de Console. Vacío o ausente equivale a grey-dark. */
+export const ALLOWED_CONSOLE_THEMES = [
+  'grey-dark',
+  'carbon',
+  'midnight',
+  'warm-dark',
+  'clean-light',
+  'daylight',
+  'fresh-light',
+  'rose-quartz',
+  'leadcars',
+] as const;
+export type ConsoleTheme = (typeof ALLOWED_CONSOLE_THEMES)[number];
+
+const DEFAULT_CONSOLE_THEME: ConsoleTheme = 'grey-dark';
+
+export function normaliseConsoleTheme(
+  value: string | null | undefined,
+): ConsoleTheme {
+  if (
+    value &&
+    (ALLOWED_CONSOLE_THEMES as readonly string[]).includes(value)
+  ) {
+    return value as ConsoleTheme;
+  }
+  return DEFAULT_CONSOLE_THEME;
+}
+
 /**
  * Primitivos de la configuración White Label
  *
@@ -62,6 +90,7 @@ export interface WhiteLabelConfigPrimitives {
   branding: WhiteLabelBrandingPrimitives;
   typography: WhiteLabelTypographyPrimitives;
   theme: AllowedTheme;
+  consoleTheme?: string | null;
   embedEnabled?: boolean;
   embedAllowedOrigins?: string[];
   createdAt?: Date;
@@ -78,6 +107,7 @@ export interface WhiteLabelConfigPrimitivesOutput {
   branding: WhiteLabelBrandingPrimitives;
   typography: WhiteLabelTypographyPrimitives;
   theme: AllowedTheme;
+  consoleTheme: ConsoleTheme;
   embedEnabled: boolean;
   embedAllowedOrigins: string[];
   createdAt: Date;
@@ -136,6 +166,7 @@ export class WhiteLabelConfig {
     private readonly _branding: WhiteLabelBrandingPrimitives,
     private readonly _typography: WhiteLabelTypographyPrimitives,
     private readonly _theme: AllowedTheme,
+    private readonly _consoleTheme: ConsoleTheme,
     private readonly _embedEnabled: boolean,
     private readonly _embedAllowedOrigins: string[],
     private readonly _createdAt: Date,
@@ -162,6 +193,7 @@ export class WhiteLabelConfig {
       },
       { ...DEFAULT_TYPOGRAPHY },
       DEFAULT_THEME,
+      DEFAULT_CONSOLE_THEME,
       false,
       [],
       now,
@@ -180,6 +212,7 @@ export class WhiteLabelConfig {
       props.branding,
       props.typography,
       props.theme || DEFAULT_THEME,
+      normaliseConsoleTheme(props.consoleTheme),
       props.embedEnabled ?? false,
       props.embedAllowedOrigins ? [...props.embedAllowedOrigins] : [],
       props.createdAt || new Date(),
@@ -208,6 +241,7 @@ export class WhiteLabelConfig {
         customFontFiles: [...this._typography.customFontFiles],
       },
       theme: this._theme,
+      consoleTheme: this._consoleTheme,
       embedEnabled: this._embedEnabled,
       embedAllowedOrigins: [...this._embedAllowedOrigins],
       createdAt: this._createdAt,
@@ -243,6 +277,10 @@ export class WhiteLabelConfig {
     return this._theme;
   }
 
+  get consoleTheme(): ConsoleTheme {
+    return this._consoleTheme;
+  }
+
   get embedEnabled(): boolean {
     return this._embedEnabled;
   }
@@ -267,6 +305,7 @@ export class WhiteLabelConfig {
     branding?: Partial<WhiteLabelBrandingPrimitives>;
     typography?: Partial<WhiteLabelTypographyPrimitives>;
     theme?: AllowedTheme;
+    consoleTheme?: string | null;
     embed?: { embedEnabled?: boolean; embedAllowedOrigins?: string[] };
   }): WhiteLabelConfig {
     return new WhiteLabelConfig(
@@ -286,6 +325,9 @@ export class WhiteLabelConfig {
           }
         : this._typography,
       updates.theme ?? this._theme,
+      updates.consoleTheme !== undefined
+        ? normaliseConsoleTheme(updates.consoleTheme)
+        : this._consoleTheme,
       updates.embed?.embedEnabled ?? this._embedEnabled,
       updates.embed?.embedAllowedOrigins
         ? [...updates.embed.embedAllowedOrigins]

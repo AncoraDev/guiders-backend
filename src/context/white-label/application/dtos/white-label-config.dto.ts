@@ -21,7 +21,11 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ALLOWED_FONT_FAMILIES } from '../../domain/entities/white-label-config';
+import {
+  ALLOWED_CONSOLE_THEMES,
+  ALLOWED_FONT_FAMILIES,
+  ConsoleTheme,
+} from '../../domain/entities/white-label-config';
 
 /**
  * Regex para validar colores hexadecimales
@@ -300,6 +304,14 @@ export class WhiteLabelConfigResponseDto {
 
   @ApiProperty({
     description:
+      'Estilo por defecto de Console. Si no hay valor, es grey-dark (Grey).',
+    example: 'grey-dark',
+    enum: ALLOWED_CONSOLE_THEMES,
+  })
+  consoleTheme: ConsoleTheme;
+
+  @ApiProperty({
+    description:
       'Habilita el embed de la consola Guiders como iframe para integradores B2B',
     example: false,
     default: false,
@@ -375,6 +387,19 @@ export class UpdateWhiteLabelConfigDto {
     message: `theme debe ser uno de: ${ALLOWED_THEMES.join(', ')}`,
   })
   theme?: AllowedTheme;
+
+  @ApiPropertyOptional({
+    description:
+      'Estilo por defecto de Console. Vacío o ausente se guarda como grey-dark.',
+    example: 'leadcars',
+    enum: ALLOWED_CONSOLE_THEMES,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(ALLOWED_CONSOLE_THEMES, {
+    message: `consoleTheme debe ser uno de: ${ALLOWED_CONSOLE_THEMES.join(', ')}`,
+  })
+  consoleTheme?: ConsoleTheme;
 
   @ApiPropertyOptional({
     description:
