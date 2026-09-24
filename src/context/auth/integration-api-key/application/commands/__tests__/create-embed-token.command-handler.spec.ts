@@ -113,6 +113,8 @@ describe('CreateEmbedTokenCommandHandler', () => {
     mockLinks = {
       findByExternalUserId: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
+      deleteByExternalUserId: jest.fn(),
+      deleteByCompanyId: jest.fn(),
     };
 
     handler = new CreateEmbedTokenCommandHandler(

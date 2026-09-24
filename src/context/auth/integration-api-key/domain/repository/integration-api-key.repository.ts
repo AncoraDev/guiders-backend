@@ -14,4 +14,6 @@ export interface IntegrationApiKeyRepository {
   findByTokenHash(
     tokenHash: IntegrationApiKeyToken,
   ): Promise<IntegrationApiKey | null>;
+
+  deleteByCompanyId(companyId: string): Promise<void>;
 }

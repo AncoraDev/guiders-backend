@@ -37,6 +37,7 @@ import { RefreshEmbedTokenCommandHandler } from '../../application/commands/refr
 import { RefreshEmbedTokenCommand } from '../../application/commands/refresh-embed-token.command';
 import { FindEmbedTokenAuditLogQuery } from '../../application/queries/find-embed-token-audit-log.query';
 import { extractAuditContext } from 'src/context/shared/utils/audit-context';
+import { ManagedCompanyAccess } from '../../application/services/managed-company-access';
 import {
   CreateEmbedTokenDto,
   CreateEmbedTokenResponseDto,
@@ -67,7 +68,25 @@ export class EmbedController {
     private readonly createEmbedTokenHandler: CreateEmbedTokenCommandHandler,
     private readonly refreshEmbedTokenHandler: RefreshEmbedTokenCommandHandler,
     private readonly queryBus: QueryBus,
+    private readonly companies: ManagedCompanyAccess,
   ) {}
+
+  private async assertCompany(
+    providerCompanyId: string,
+    targetCompanyId: string,
+  ): Promise<void> {
+    const allowed = await this.companies.allows(
+      providerCompanyId,
+      targetCompanyId,
+    );
+    if (!allowed) {
+      throw new ForbiddenException({
+        code: 'EMBED_TENANT_MISMATCH',
+        message: 'El companyId del body no coincide con el de la API Key',
+        statusCode: 403,
+      });
+    }
+  }
 
   @Post('start')
   @HttpCode(HttpStatus.OK)
@@ -106,14 +125,7 @@ export class EmbedController {
     @Body() dto: CreateEmbedTokenDto,
     @Req() req: IntegrationApiKeyRequest,
   ): Promise<CreateEmbedTokenResponseDto> {
-    // Tenant mismatch check: API key companyId === body companyId
-    if (req.integrationApiKey.companyId !== dto.companyId) {
-      throw new ForbiddenException({
-        code: 'EMBED_TENANT_MISMATCH',
-        message: 'El companyId del body no coincide con el de la API Key',
-        statusCode: 403,
-      });
-    }
+    await this.assertCompany(req.integrationApiKey.companyId, dto.companyId);
 
     if (!dto.userId && !dto.externalUserId) {
       throw new BadRequestException({
@@ -295,13 +307,7 @@ export class EmbedController {
     // Story 2.2 AC6: defense-in-depth multi-tenant — el companyId
     // del query DEBE coincidir con el de la API Key. Si no, 403
     // (prevención de cross-tenant queries, incluso dentro del mismo tenant).
-    if (req.integrationApiKey.companyId !== query.companyId) {
-      throw new ForbiddenException({
-        code: 'EMBED_TENANT_MISMATCH',
-        message: 'El companyId del query no coincide con el de la API Key',
-        statusCode: 403,
-      });
-    }
+    await this.assertCompany(req.integrationApiKey.companyId, query.companyId);
 
     const result = await this.queryBus.execute(
       FindEmbedTokenAuditLogQuery.fromDto(query),

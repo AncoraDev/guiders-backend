@@ -35,6 +35,18 @@ export class ExternalCommercialLinkRepositoryImpl
     };
   }
 
+  async deleteByExternalUserId(
+    companyId: string,
+    externalUserId: string,
+    provider: string = LEADCARS_PROVIDER,
+  ): Promise<void> {
+    await this.links.delete({ companyId, externalUserId, provider });
+  }
+
+  async deleteByCompanyId(companyId: string): Promise<void> {
+    await this.links.delete({ companyId });
+  }
+
   async save(link: ExternalCommercialLink): Promise<void> {
     await this.links.save({
       id: link.id,

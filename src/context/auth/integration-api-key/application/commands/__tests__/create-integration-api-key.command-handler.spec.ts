@@ -20,6 +20,7 @@ describe('CreateIntegrationApiKeyCommandHandler', () => {
       findById: jest.fn(),
       findByCompanyId: jest.fn(),
       findByTokenHash: jest.fn(),
+      deleteByCompanyId: jest.fn(),
     };
 
     mockGenerator = {

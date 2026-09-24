@@ -40,6 +40,10 @@ export class IntegrationApiKeyOrmAdapter
     return entities.map((e) => this.mapper.toDomain(e));
   }
 
+  async deleteByCompanyId(companyId: string): Promise<void> {
+    await this.repo.delete({ companyId });
+  }
+
   async findByTokenHash(
     tokenHash: IntegrationApiKeyToken,
   ): Promise<IntegrationApiKey | null> {

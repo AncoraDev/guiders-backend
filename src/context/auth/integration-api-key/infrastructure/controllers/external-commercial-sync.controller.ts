@@ -7,11 +7,17 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
+  NotFoundException,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   IntegrationApiKeyGuard,
   IntegrationApiKeyRequest,
@@ -24,6 +30,10 @@ import {
 } from '../../application/dtos/sync-commercial-from-external.dto';
 import { ExternalCommercialSyncError } from '../../domain/errors/external-commercial-sync.errors';
 import { InvalidCompanyUserRolesError } from 'src/context/auth/auth-user/application/errors/company-user.errors';
+import { RemoveCommercialFromExternalCommandHandler } from '../../application/commands/remove-commercial-from-external.command-handler';
+import { RemoveCommercialFromExternalCommand } from '../../application/commands/remove-commercial-from-external.command';
+import { RemoveCommercialFromExternalDto } from '../../application/dtos/remove-commercial-from-external.dto';
+import { ManagedCompanyAccess } from '../../application/services/managed-company-access';
 
 @ApiTags('LeadCars')
 @ApiSecurity('api-key')
@@ -32,7 +42,26 @@ import { InvalidCompanyUserRolesError } from 'src/context/auth/auth-user/applica
 export class ExternalCommercialSyncController {
   constructor(
     private readonly syncHandler: SyncCommercialFromExternalCommandHandler,
+    private readonly removeHandler: RemoveCommercialFromExternalCommandHandler,
+    private readonly companies: ManagedCompanyAccess,
   ) {}
+
+  private async assertCompany(
+    providerCompanyId: string,
+    targetCompanyId: string,
+  ): Promise<void> {
+    const allowed = await this.companies.allows(
+      providerCompanyId,
+      targetCompanyId,
+    );
+    if (!allowed) {
+      throw new ForbiddenException({
+        code: 'EMBED_TENANT_MISMATCH',
+        message: 'El companyId del body no coincide con el de la API Key',
+        statusCode: 403,
+      });
+    }
+  }
 
   @Post('sync')
   @HttpCode(HttpStatus.OK)
@@ -49,13 +78,7 @@ export class ExternalCommercialSyncController {
     @Body() dto: SyncCommercialFromExternalDto,
     @Req() req: IntegrationApiKeyRequest,
   ): Promise<SyncCommercialFromExternalResponseDto> {
-    if (req.integrationApiKey.companyId !== dto.companyId) {
-      throw new ForbiddenException({
-        code: 'EMBED_TENANT_MISMATCH',
-        message: 'El companyId del body no coincide con el de la API Key',
-        statusCode: 403,
-      });
-    }
+    await this.assertCompany(req.integrationApiKey.companyId, dto.companyId);
 
     const result = await this.syncHandler.execute(
       new SyncCommercialFromExternalCommand(
@@ -102,5 +125,60 @@ export class ExternalCommercialSyncController {
     }
 
     return result.unwrap();
+  }
+
+  @Post('remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Eliminar un comercial vinculado',
+    description:
+      'Borra el vínculo y la cuenta de Guiders de ese id externo. ' +
+      'No borra chats, mensajes ni leads. Si no hay vínculo, responde 404.',
+  })
+  @ApiResponse({ status: 200, description: 'Cuenta eliminada' })
+  async remove(
+    @Body() dto: RemoveCommercialFromExternalDto,
+    @Req() req: IntegrationApiKeyRequest,
+  ): Promise<{ ok: true }> {
+    await this.assertCompany(req.integrationApiKey.companyId, dto.companyId);
+
+    const result = await this.removeHandler.execute(
+      new RemoveCommercialFromExternalCommand(
+        dto.companyId,
+        dto.externalUserId,
+      ),
+    );
+    if (result.isErr()) {
+      const error = result.error;
+      if (
+        error instanceof ExternalCommercialSyncError &&
+        error.code === 'EXTERNAL_USER_NOT_FOUND'
+      ) {
+        throw new NotFoundException({
+          code: error.code,
+          message: error.message,
+          statusCode: 404,
+        });
+      }
+      if (
+        error instanceof ExternalCommercialSyncError &&
+        error.code === 'EXTERNAL_USER_OTHER_COMPANY'
+      ) {
+        throw new ConflictException({
+          code: error.code,
+          message: error.message,
+          statusCode: 409,
+        });
+      }
+      throw new BadRequestException({
+        code:
+          error instanceof ExternalCommercialSyncError
+            ? error.code
+            : 'EXTERNAL_USER_INVALID',
+        message: error.message,
+        statusCode: 400,
+      });
+    }
+    return { ok: true };
   }
 }

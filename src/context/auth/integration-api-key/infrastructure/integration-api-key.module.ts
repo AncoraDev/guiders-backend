@@ -7,9 +7,19 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CqrsModule } from '@nestjs/cqrs';
 import { IntegrationApiKeyEntity } from './integration-api-key.entity';
 import { ExternalCommercialLinkEntity } from './external-commercial-link.entity';
+import { ProviderCompanyLinkEntity } from './provider-company-link.entity';
+import { ProviderCompanyLinkRepositoryImpl } from './provider-company-link.repository.impl';
+import { PROVIDER_COMPANY_LINK_REPOSITORY } from '../domain/repository/provider-company-link.repository';
+import { ManagedCompanyAccess } from '../application/services/managed-company-access';
+import { CreateManagedCompanyCommandHandler } from '../application/commands/create-managed-company.command-handler';
+import { UpdateManagedCompanyCommandHandler } from '../application/commands/update-managed-company.command-handler';
+import { RemoveManagedCompanyCommandHandler } from '../application/commands/remove-managed-company.command-handler';
+import { ExternalCompanyController } from './controllers/external-company.controller';
+import { KeycloakAdminService } from '../../auth-user/infrastructure/services/keycloak-admin.service';
 import { ExternalCommercialLinkRepositoryImpl } from './external-commercial-link.repository.impl';
 import { EXTERNAL_COMMERCIAL_LINK_REPOSITORY } from '../domain/repository/external-commercial-link.repository';
 import { SyncCommercialFromExternalCommandHandler } from '../application/commands/sync-commercial-from-external.command-handler';
+import { RemoveCommercialFromExternalCommandHandler } from '../application/commands/remove-commercial-from-external.command-handler';
 import { ExternalCommercialSyncController } from './controllers/external-commercial-sync.controller';
 import { IntegrationApiKeyController } from './integration-api-key.controller';
 import { IntegrationApiKeyOrmAdapter } from './integration-api-key-orm-adapter';
@@ -51,6 +61,7 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     TypeOrmModule.forFeature([
       IntegrationApiKeyEntity,
       ExternalCommercialLinkEntity,
+      ProviderCompanyLinkEntity,
     ]),
     JwtModule.register({}),
     HttpModule,
@@ -103,9 +114,19 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     CreateEmbedTokenCommandHandler,
     RefreshEmbedTokenCommandHandler,
     SyncCommercialFromExternalCommandHandler,
+    RemoveCommercialFromExternalCommandHandler,
+    CreateManagedCompanyCommandHandler,
+    UpdateManagedCompanyCommandHandler,
+    RemoveManagedCompanyCommandHandler,
+    KeycloakAdminService,
+    ManagedCompanyAccess,
     {
       provide: EXTERNAL_COMMERCIAL_LINK_REPOSITORY,
       useClass: ExternalCommercialLinkRepositoryImpl,
+    },
+    {
+      provide: PROVIDER_COMPANY_LINK_REPOSITORY,
+      useClass: ProviderCompanyLinkRepositoryImpl,
     },
     // Story 2.2: audit log handlers
     PersistEmbedTokenAuthenticatedEventHandler,
@@ -121,6 +142,7 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     IntegrationApiKeyController,
     EmbedController,
     ExternalCommercialSyncController,
+    ExternalCompanyController,
   ],
   exports: [
     IntegrationApiKeyGuard,

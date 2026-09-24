@@ -37,6 +37,7 @@ describe('RevokeIntegrationApiKeyCommandHandler', () => {
       findById: jest.fn(),
       findByCompanyId: jest.fn(),
       findByTokenHash: jest.fn(),
+      deleteByCompanyId: jest.fn(),
     };
 
     handler = new RevokeIntegrationApiKeyCommandHandler(mockRepository);

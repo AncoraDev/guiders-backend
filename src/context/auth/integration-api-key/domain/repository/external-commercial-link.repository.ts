@@ -19,4 +19,12 @@ export interface ExternalCommercialLinkRepository {
   ): Promise<ExternalCommercialLink | null>;
 
   save(link: ExternalCommercialLink): Promise<void>;
+
+  deleteByExternalUserId(
+    companyId: string,
+    externalUserId: string,
+    provider?: string,
+  ): Promise<void>;
+
+  deleteByCompanyId(companyId: string): Promise<void>;
 }

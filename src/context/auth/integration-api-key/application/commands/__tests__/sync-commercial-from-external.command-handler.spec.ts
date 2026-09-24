@@ -42,6 +42,8 @@ describe('SyncCommercialFromExternalCommandHandler', () => {
     links = {
       findByExternalUserId: jest.fn().mockResolvedValue(null),
       save: jest.fn().mockResolvedValue(undefined),
+      deleteByExternalUserId: jest.fn(),
+      deleteByCompanyId: jest.fn(),
     };
     handler = new SyncCommercialFromExternalCommandHandler(users, links, {
       mergeObjectContext: (user: UserAccount) => user,
