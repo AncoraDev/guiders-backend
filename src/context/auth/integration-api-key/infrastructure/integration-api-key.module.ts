@@ -11,6 +11,7 @@ import { ProviderCompanyLinkEntity } from './provider-company-link.entity';
 import { ProviderCompanyLinkRepositoryImpl } from './provider-company-link.repository.impl';
 import { PROVIDER_COMPANY_LINK_REPOSITORY } from '../domain/repository/provider-company-link.repository';
 import { ManagedCompanyAccess } from '../application/services/managed-company-access';
+import { AllowManagedEmbed } from '../application/services/allow-managed-embed';
 import { CreateManagedCompanyCommandHandler } from '../application/commands/create-managed-company.command-handler';
 import { UpdateManagedCompanyCommandHandler } from '../application/commands/update-managed-company.command-handler';
 import { RemoveManagedCompanyCommandHandler } from '../application/commands/remove-managed-company.command-handler';
@@ -120,6 +121,7 @@ import { FindEmbedTokenAuditLogQueryHandler } from '../application/queries/find-
     RemoveManagedCompanyCommandHandler,
     KeycloakAdminService,
     ManagedCompanyAccess,
+    AllowManagedEmbed,
     {
       provide: EXTERNAL_COMMERCIAL_LINK_REPOSITORY,
       useClass: ExternalCommercialLinkRepositoryImpl,

@@ -3,6 +3,7 @@ import { AggregateRoot } from '@nestjs/cqrs';
 import { CompanyName } from './value-objects/company-name';
 import { CompanySites } from './value-objects/company-sites';
 import { CompanyCreatedEvent } from './events/company-created.event';
+import { CompanySitesUpdatedEvent } from './events/company-sites-updated.event';
 import { Uuid } from '../../shared/domain/value-objects/uuid';
 import { SitePrimitives } from './entities/site';
 import { CompanyCannedReplies } from './value-objects/company-canned-replies';
@@ -196,12 +197,13 @@ export class Company extends AggregateRoot {
   }
 
   public updateDetails(companyName: CompanyName, sites: CompanySites): Company {
-    return new Company({
+    const updatedAt = new Date();
+    const company = new Company({
       id: this.id,
       companyName,
       sites,
       createdAt: this.createdAt,
-      updatedAt: new Date(),
+      updatedAt,
       cannedReplies: this.cannedReplies,
       contactFormLegal: this.contactFormLegal,
       widgetConfig: this.widgetConfig,
@@ -209,6 +211,16 @@ export class Company extends AggregateRoot {
       leadCaptureResendFrom: this.leadCaptureResendFrom,
       leadCaptureResendApiKeyEncrypted: this.leadCaptureResendApiKeyEncrypted,
     });
+    company.apply(
+      new CompanySitesUpdatedEvent({
+        id: this.id.getValue(),
+        companyName: companyName.getValue(),
+        sites: sites.toPrimitives(),
+        createdAt: this.createdAt.toISOString(),
+        updatedAt: updatedAt.toISOString(),
+      }),
+    );
+    return company;
   }
 
   public updateCannedReplies(items: CannedReplyPrimitives[]): Company {

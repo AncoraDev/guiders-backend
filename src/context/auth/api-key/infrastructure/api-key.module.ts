@@ -26,6 +26,7 @@ import { API_KEY_ENCRYPT_PRIVATE_KEY } from '../application/services/api-key-enc
 import { API_KEY_HASHER } from '../application/services/api-key-hasher';
 import { API_KEY_GENERATE_KEYS } from '../application/services/api-key-generate-keys';
 import { CreateApiKeyOnCompanyCreatedEventHandler } from '../application/events/create-api-key-on-company-created-event.handler';
+import { CreateApiKeyOnCompanySitesUpdatedEventHandler } from '../application/events/create-api-key-on-company-sites-updated-event.handler';
 
 @Module({
   // Importamos módulos necesarios para TokenVerifyService (JWT, HTTP y Config)
@@ -58,6 +59,7 @@ import { CreateApiKeyOnCompanyCreatedEventHandler } from '../application/events/
 
     // handlers
     CreateApiKeyOnCompanyCreatedEventHandler,
+    CreateApiKeyOnCompanySitesUpdatedEventHandler,
   ],
   controllers: [ApiKeyController, JwksController],
   exports: [ApiKeyService, API_KEY_REPOSITORY],

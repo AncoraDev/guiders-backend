@@ -38,6 +38,7 @@ import { RefreshEmbedTokenCommand } from '../../application/commands/refresh-emb
 import { FindEmbedTokenAuditLogQuery } from '../../application/queries/find-embed-token-audit-log.query';
 import { extractAuditContext } from 'src/context/shared/utils/audit-context';
 import { ManagedCompanyAccess } from '../../application/services/managed-company-access';
+import { AllowManagedEmbed } from '../../application/services/allow-managed-embed';
 import {
   CreateEmbedTokenDto,
   CreateEmbedTokenResponseDto,
@@ -69,6 +70,7 @@ export class EmbedController {
     private readonly refreshEmbedTokenHandler: RefreshEmbedTokenCommandHandler,
     private readonly queryBus: QueryBus,
     private readonly companies: ManagedCompanyAccess,
+    private readonly embedAccess: AllowManagedEmbed,
   ) {}
 
   private async assertCompany(
@@ -127,6 +129,9 @@ export class EmbedController {
   ): Promise<CreateEmbedTokenResponseDto> {
     await this.assertCompany(req.integrationApiKey.companyId, dto.companyId);
 
+    const { origin, ipAddress, userAgent } = extractAuditContext(req);
+    await this.embedAccess.allow(dto.companyId, origin);
+
     if (!dto.userId && !dto.externalUserId) {
       throw new BadRequestException({
         code: 'EMBED_USER_ID_REQUIRED',
@@ -137,8 +142,6 @@ export class EmbedController {
     }
 
     // Story 2.2 + AI-4: extract audit context via shared helper (DRY)
-    const { origin, ipAddress, userAgent } = extractAuditContext(req);
-
     const result = await this.createEmbedTokenHandler.execute(
       new CreateEmbedTokenCommand(
         dto.userId ?? '',

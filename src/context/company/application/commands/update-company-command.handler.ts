@@ -1,4 +1,4 @@
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, EventPublisher, ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
 import { UpdateCompanyCommand } from './update-company.command';
 import {
@@ -30,6 +30,7 @@ export class UpdateCompanyCommandHandler
   constructor(
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: CompanyRepository,
+    private readonly publisher: EventPublisher,
   ) {}
 
   async execute(
@@ -125,7 +126,9 @@ export class UpdateCompanyCommandHandler
       }
     }
 
-    const updated = found.unwrap().updateDetails(new CompanyName(name), sites);
+    const updated = this.publisher.mergeObjectContext(
+      found.unwrap().updateDetails(new CompanyName(name), sites),
+    );
 
     const saveResult = await this.companyRepository.update(updated);
     if (saveResult.isErr()) {
@@ -135,6 +138,7 @@ export class UpdateCompanyCommandHandler
       return saveResult;
     }
 
+    updated.commit();
     return okVoid();
   }
 }

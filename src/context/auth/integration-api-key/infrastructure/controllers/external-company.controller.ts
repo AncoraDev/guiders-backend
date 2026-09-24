@@ -3,6 +3,8 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
+  Get,
   HttpCode,
   HttpException,
   HttpStatus,
@@ -13,6 +15,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
 import {
   ApiOperation,
   ApiResponse,
@@ -42,6 +45,10 @@ import { RemoveManagedCompanyCommandHandler } from '../../application/commands/r
 import { RemoveManagedCompanyCommand } from '../../application/commands/remove-managed-company.command';
 import { RemoveManagedCompanyDto } from '../../application/dtos/remove-managed-company.dto';
 import { ManagedCompanyError } from '../../domain/errors/managed-company.errors';
+import { ManagedCompanyAccess } from '../../application/services/managed-company-access';
+import { FindUsersByCompanyIdQuery } from 'src/context/auth/auth-user/application/queries/find-users-by-company-id.query';
+import { UserAccountCompanyId } from 'src/context/auth/auth-user/domain/value-objects/user-account-company-id';
+import { UserAccountPrimitives } from 'src/context/auth/auth-user/domain/user-account.aggregate';
 
 @ApiTags('Integración')
 @ApiSecurity('api-key')
@@ -52,6 +59,8 @@ export class ExternalCompanyController {
     private readonly createHandler: CreateManagedCompanyCommandHandler,
     private readonly updateHandler: UpdateManagedCompanyCommandHandler,
     private readonly removeHandler: RemoveManagedCompanyCommandHandler,
+    private readonly companies: ManagedCompanyAccess,
+    private readonly queryBus: QueryBus,
   ) {}
 
   @Post()
@@ -104,6 +113,44 @@ export class ExternalCompanyController {
     );
     if (result.isErr()) throw this.mapError(result.error);
     return { ok: true };
+  }
+
+  @Get(':companyId/console-users')
+  @ApiOperation({
+    summary: 'Usuarios que pueden abrir Console',
+    description:
+      'Cuentas activas del cliente. Sirve para abrir el iframe con su sesión.',
+  })
+  async consoleUsers(
+    @Param('companyId') companyId: string,
+    @Req() req: IntegrationApiKeyRequest,
+  ): Promise<{
+    users: { userId: string; name: string; email: string }[];
+  }> {
+    const allowed = await this.companies.allows(
+      req.integrationApiKey.companyId,
+      companyId,
+    );
+    if (!allowed) {
+      throw new ForbiddenException('Este cliente no pertenece al proveedor');
+    }
+    let users: UserAccountPrimitives[] = [];
+    try {
+      users = await this.queryBus.execute(
+        new FindUsersByCompanyIdQuery(new UserAccountCompanyId(companyId)),
+      );
+    } catch {
+      throw new BadRequestException('El cliente no es válido');
+    }
+    return {
+      users: users
+        .filter((user) => user.isActive)
+        .map((user) => ({
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+        })),
+    };
   }
 
   @Patch(':companyId')
