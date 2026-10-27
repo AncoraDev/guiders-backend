@@ -7,7 +7,9 @@ import {
 } from '../../domain/chat.repository';
 import { Chat } from '../../domain/entities/chat.aggregate';
 import { ChatMetadata } from '../../domain/value-objects/chat-metadata';
+import { ChatAttendedByOtherCommercialError } from '../../domain/errors/chat.error';
 import { Result } from 'src/context/shared/domain/result';
+import { resolveOpenChat } from './resolve-open-chat';
 
 @CommandHandler(JoinWaitingRoomCommand)
 export class JoinWaitingRoomCommandHandler
@@ -26,6 +28,20 @@ export class JoinWaitingRoomCommandHandler
   async execute(
     command: JoinWaitingRoomCommand,
   ): Promise<{ chatId: string; position: number }> {
+    const actorId = command.actorId || command.visitorId;
+    const openChat = await resolveOpenChat(
+      this.chatRepository,
+      command.visitorId,
+      actorId,
+      command.companyId,
+    );
+    if (openChat.blocked) {
+      throw new ChatAttendedByOtherCommercialError();
+    }
+    if (openChat.chat) {
+      return { chatId: openChat.chat.id.getValue(), position: 0 };
+    }
+
     const chat = Chat.createPendingChat({
       visitorId: command.visitorId,
       companyId: command.companyId,

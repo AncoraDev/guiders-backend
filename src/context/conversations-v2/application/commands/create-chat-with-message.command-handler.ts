@@ -17,7 +17,11 @@ import {
   ChatQueueConfigService,
   CHAT_QUEUE_CONFIG_SERVICE,
 } from '../../domain/services/chat-queue-config.service';
-import { ChatMissingRequiredFieldError } from '../../domain/errors/chat.error';
+import {
+  ChatAttendedByOtherCommercialError,
+  ChatMissingRequiredFieldError,
+} from '../../domain/errors/chat.error';
+import { resolveOpenChat } from './resolve-open-chat';
 
 @CommandHandler(CreateChatWithMessageCommand)
 export class CreateChatWithMessageCommandHandler
@@ -51,6 +55,21 @@ export class CreateChatWithMessageCommandHandler
     if (!command.companyId) {
       throw new ChatMissingRequiredFieldError('companyId');
     }
+
+    const actorId = command.commercialId ?? command.senderId;
+    const openChat = await resolveOpenChat(
+      this.chatRepository,
+      command.visitorId,
+      actorId,
+      command.companyId,
+    );
+    if (openChat.blocked) {
+      throw new ChatAttendedByOtherCommercialError();
+    }
+    if (openChat.chat) {
+      return this.appendMessageToOpenChat(openChat.chat, command);
+    }
+
     let chat = Chat.createPendingChat({
       visitorId: command.visitorId,
       companyId: command.companyId,
@@ -152,5 +171,75 @@ export class CreateChatWithMessageCommandHandler
       messageId: message.id.getValue(),
       position,
     };
+  }
+
+  /**
+   * El visitante ya tiene un chat abierto (pendiente o de este comercial).
+   * El mensaje entra en ese hilo. Si sigue pendiente y quien escribe es un
+   * comercial, se le asigna en lugar de crear otro chat.
+   */
+  private async appendMessageToOpenChat(
+    existing: Chat,
+    command: CreateChatWithMessageCommand,
+  ): Promise<{ chatId: string; messageId: string; position: number }> {
+    let chat = existing;
+    const assignee = chat.assignedCommercialId.isPresent()
+      ? chat.assignedCommercialId.get().getValue()
+      : null;
+
+    if (command.commercialId && !assignee && chat.status.canBeAssigned()) {
+      chat = chat.assignCommercial(command.commercialId);
+      const chatAggregate = this.publisher.mergeObjectContext(chat);
+      const chatSaveResult = await this.chatRepository.save(chatAggregate);
+      if (chatSaveResult.isErr()) {
+        throw new Error(
+          `Error al crear el chat: ${chatSaveResult.error.message}`,
+        );
+      }
+      chatAggregate.commit();
+    }
+
+    const message = this.buildFirstMessage(chat.id.getValue(), command);
+    const messageAggregate = this.publisher.mergeObjectContext(message);
+    const messageSaveResult =
+      await this.messageRepository.save(messageAggregate);
+    if (messageSaveResult.isErr()) {
+      throw new Error(
+        `Error al crear el primer mensaje: ${messageSaveResult.error.message}`,
+      );
+    }
+    messageAggregate.commit();
+
+    return {
+      chatId: chat.id.getValue(),
+      messageId: message.id.getValue(),
+      position: 0,
+    };
+  }
+
+  private buildFirstMessage(
+    chatId: string,
+    command: CreateChatWithMessageCommand,
+  ): Message {
+    if (
+      command.firstMessage.attachment &&
+      command.firstMessage.type !== 'text'
+    ) {
+      return Message.createFileMessage({
+        chatId,
+        senderId: command.senderId,
+        fileName: command.firstMessage.attachment.fileName,
+        attachment: command.firstMessage.attachment,
+        isInternal: false,
+      });
+    }
+
+    return Message.createTextMessage({
+      chatId,
+      senderId: command.senderId,
+      content: command.firstMessage.content,
+      isInternal: false,
+      isFirstResponse: false,
+    });
   }
 }

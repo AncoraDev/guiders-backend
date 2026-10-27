@@ -13,6 +13,9 @@ import {
 import { CHAT_QUEUE_CONFIG_SERVICE } from '../../../domain/services/chat-queue-config.service';
 import { ok, okVoid, err } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
+import { Chat } from '../../../domain/entities/chat.aggregate';
+import { ChatAttendedByOtherCommercialError } from '../../../domain/errors/chat.error';
 
 // Error concreto para tests
 class TestChatError extends DomainError {
@@ -43,6 +46,7 @@ describe('CreateChatWithMessageCommandHandler', () => {
     const chatRepositoryMock = {
       save: jest.fn(),
       findById: jest.fn(),
+      findByVisitorId: jest.fn().mockResolvedValue(ok([])),
       countPendingCreatedBefore: jest.fn(),
     };
 
@@ -390,6 +394,107 @@ describe('CreateChatWithMessageCommandHandler', () => {
       expect(result.messageId).toBeDefined();
       expect(typeof result.chatId).toBe('string');
       expect(typeof result.messageId).toBe('string');
+    });
+
+    it('rechaza el alta si otro comercial ya atiende al visitante', async () => {
+      const visitorId = Uuid.random().value;
+      const companyId = Uuid.random().value;
+      const otherCommercialId = Uuid.random().value;
+      const actorId = Uuid.random().value;
+      const existing = Chat.createPendingChat({
+        visitorId,
+        companyId,
+        visitorInfo: {},
+        availableCommercialIds: [],
+      }).assignCommercial(otherCommercialId);
+      chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+
+      await expect(
+        handler.execute(
+          new CreateChatWithMessageCommand(
+            visitorId,
+            actorId,
+            { content: 'Hola', type: 'text' },
+            undefined,
+            undefined,
+            actorId,
+            companyId,
+          ),
+        ),
+      ).rejects.toThrow(ChatAttendedByOtherCommercialError);
+
+      expect(chatRepository.save).not.toHaveBeenCalled();
+      expect(messageRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('añade el saludo al chat pendiente y lo asigna a ese comercial', async () => {
+      const visitorId = Uuid.random().value;
+      const companyId = Uuid.random().value;
+      const commercialId = Uuid.random().value;
+      const existing = Chat.createPendingChat({
+        visitorId,
+        companyId,
+        visitorInfo: {},
+        availableCommercialIds: [],
+      });
+      chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+      chatRepository.save.mockResolvedValue(okVoid());
+      messageRepository.save.mockResolvedValue(okVoid());
+      eventPublisher.mergeObjectContext.mockImplementation((aggregate: any) => {
+        aggregate.commit = jest.fn();
+        return aggregate;
+      });
+
+      const result = await handler.execute(
+        new CreateChatWithMessageCommand(
+          visitorId,
+          commercialId,
+          { content: 'Hola, te saludo', type: 'text' },
+          undefined,
+          undefined,
+          commercialId,
+          companyId,
+        ),
+      );
+
+      expect(result.chatId).toBe(existing.id.getValue());
+      expect(result.position).toBe(0);
+      expect(chatRepository.save).toHaveBeenCalledTimes(1);
+      expect(messageRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('añade el mensaje al chat que ya es de ese comercial', async () => {
+      const visitorId = Uuid.random().value;
+      const companyId = Uuid.random().value;
+      const commercialId = Uuid.random().value;
+      const existing = Chat.createPendingChat({
+        visitorId,
+        companyId,
+        visitorInfo: {},
+        availableCommercialIds: [],
+      }).assignCommercial(commercialId);
+      chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+      messageRepository.save.mockResolvedValue(okVoid());
+      eventPublisher.mergeObjectContext.mockImplementation((aggregate: any) => {
+        aggregate.commit = jest.fn();
+        return aggregate;
+      });
+
+      const result = await handler.execute(
+        new CreateChatWithMessageCommand(
+          visitorId,
+          commercialId,
+          { content: 'Sigo yo', type: 'text' },
+          undefined,
+          undefined,
+          commercialId,
+          companyId,
+        ),
+      );
+
+      expect(result.chatId).toBe(existing.id.getValue());
+      expect(chatRepository.save).not.toHaveBeenCalled();
+      expect(messageRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 });

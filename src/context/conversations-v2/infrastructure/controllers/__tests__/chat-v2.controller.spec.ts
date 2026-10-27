@@ -9,6 +9,8 @@ import { RolesGuard } from 'src/context/shared/infrastructure/guards/role.guard'
 import { TokenVerifyService } from 'src/context/shared/infrastructure/token-verify.service';
 import { VisitorSessionAuthService } from 'src/context/shared/infrastructure/services/visitor-session-auth.service';
 import { BffSessionAuthService } from 'src/context/shared/infrastructure/services/bff-session-auth.service';
+import { HttpException } from '@nestjs/common';
+import { ChatAttendedByOtherCommercialError } from '../../../domain/errors/chat.error';
 
 describe('ChatV2Controller', () => {
   let controller: ChatV2Controller;
@@ -124,6 +126,7 @@ describe('ChatV2Controller', () => {
           createChatDto.visitorInfo,
           createChatDto.metadata,
           'company-456',
+          'visitor-123',
         ),
       );
       expect(result).toEqual(expectedResult);
@@ -155,7 +158,13 @@ describe('ChatV2Controller', () => {
 
       // Assert
       expect(commandBus.execute).toHaveBeenCalledWith(
-        new JoinWaitingRoomCommand('visitor-123', {}, {}, 'company-456'),
+        new JoinWaitingRoomCommand(
+          'visitor-123',
+          {},
+          {},
+          'company-456',
+          'visitor-123',
+        ),
       );
       expect(result).toEqual(expectedResult);
     });
@@ -192,8 +201,53 @@ describe('ChatV2Controller', () => {
           createChatDto.visitorInfo,
           {},
           'company-456',
+          'visitor-123',
         ),
       );
+    });
+
+    it('responde 409 si otro comercial ya atiende al visitante', async () => {
+      const mockRequest = {
+        user: {
+          id: '6f1a7c18-2e8e-4d3a-9b4f-2bb2b5f8a111',
+          roles: ['commercial'],
+          username: 'comercial',
+          companyId: 'company-456',
+        },
+        headers: {},
+      } as AuthenticatedRequest;
+
+      mockCommandBus.execute.mockRejectedValue(
+        new ChatAttendedByOtherCommercialError(),
+      );
+
+      await expect(
+        controller.createChat(
+          {
+            visitorInfo: {
+              visitorId: '550e8400-e29b-41d4-a716-446655440000',
+            },
+          },
+          mockRequest,
+        ),
+      ).rejects.toBeInstanceOf(HttpException);
+
+      try {
+        await controller.createChat(
+          {
+            visitorInfo: {
+              visitorId: '550e8400-e29b-41d4-a716-446655440000',
+            },
+          },
+          mockRequest,
+        );
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        expect((error as HttpException).getStatus()).toBe(409);
+        expect((error as HttpException).message).toBe(
+          'Este visitante ya está en conversación con otro comercial',
+        );
+      }
     });
   });
 

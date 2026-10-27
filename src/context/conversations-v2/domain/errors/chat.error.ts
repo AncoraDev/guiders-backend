@@ -40,3 +40,13 @@ export class ChatInvalidIdError extends DomainError {
     this.name = 'ChatInvalidIdError';
   }
 }
+
+/**
+ * Un comercial intenta abrir chat con un visitante que ya atiende otro.
+ */
+export class ChatAttendedByOtherCommercialError extends DomainError {
+  constructor() {
+    super('Este visitante ya está en conversación con otro comercial');
+    this.name = 'ChatAttendedByOtherCommercialError';
+  }
+}

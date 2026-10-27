@@ -5,6 +5,9 @@ import { JoinWaitingRoomCommand } from '../join-waiting-room.command';
 import { IChatRepository } from '../../../domain/chat.repository';
 import { ok, err } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
+import { Chat } from '../../../domain/entities/chat.aggregate';
+import { ChatAttendedByOtherCommercialError } from '../../../domain/errors/chat.error';
 
 describe('JoinWaitingRoomCommandHandler', () => {
   let handler: JoinWaitingRoomCommandHandler;
@@ -44,6 +47,7 @@ describe('JoinWaitingRoomCommandHandler', () => {
     } as unknown as jest.Mocked<EventPublisher>;
 
     handler = new JoinWaitingRoomCommandHandler(chatRepository, publisher);
+    chatRepository.findByVisitorId.mockResolvedValue(ok([]));
   });
 
   it('crea un chat pendiente, publica eventos y devuelve posición (sumando 1)', async () => {
@@ -104,5 +108,65 @@ describe('JoinWaitingRoomCommandHandler', () => {
 
     await expect(handler.execute(command)).rejects.toBeInstanceOf(SaveError);
     expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it('reutiliza el chat pendiente del visitante y no crea otro', async () => {
+    const visitorId = Uuid.random().value;
+    const companyId = Uuid.random().value;
+    const existing = Chat.createPendingChat({
+      visitorId,
+      companyId,
+      visitorInfo: {},
+      availableCommercialIds: [],
+    });
+    chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+
+    const result = await handler.execute(
+      new JoinWaitingRoomCommand(visitorId, {}, {}, companyId, visitorId),
+    );
+
+    expect(result.chatId).toBe(existing.id.getValue());
+    expect(chatRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('rechaza el alta si otro comercial ya atiende al visitante', async () => {
+    const visitorId = Uuid.random().value;
+    const companyId = Uuid.random().value;
+    const otherCommercialId = Uuid.random().value;
+    const actorId = Uuid.random().value;
+    const existing = Chat.createPendingChat({
+      visitorId,
+      companyId,
+      visitorInfo: {},
+      availableCommercialIds: [],
+    }).assignCommercial(otherCommercialId);
+    chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+
+    await expect(
+      handler.execute(
+        new JoinWaitingRoomCommand(visitorId, {}, {}, companyId, actorId),
+      ),
+    ).rejects.toThrow(ChatAttendedByOtherCommercialError);
+    expect(chatRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('reutiliza el chat asignado cuando quien entra es el propio visitante', async () => {
+    const visitorId = Uuid.random().value;
+    const companyId = Uuid.random().value;
+    const commercialId = Uuid.random().value;
+    const existing = Chat.createPendingChat({
+      visitorId,
+      companyId,
+      visitorInfo: {},
+      availableCommercialIds: [],
+    }).assignCommercial(commercialId);
+    chatRepository.findByVisitorId.mockResolvedValue(ok([existing]));
+
+    const result = await handler.execute(
+      new JoinWaitingRoomCommand(visitorId, {}, {}, companyId, visitorId),
+    );
+
+    expect(result.chatId).toBe(existing.id.getValue());
+    expect(chatRepository.save).not.toHaveBeenCalled();
   });
 });

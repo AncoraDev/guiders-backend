@@ -46,6 +46,7 @@ import { GetVisitorPendingChatsQuery } from '../../application/queries/get-visit
 import { Result } from 'src/context/shared/domain/result';
 import { Chat } from '../../domain/entities/chat.aggregate';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import { ChatAttendedByOtherCommercialError } from '../../domain/errors/chat.error';
 import {
   GetChatsQueryDto,
   CommercialMetricsResponseDto,
@@ -227,6 +228,7 @@ export class ChatV2Controller {
         visitorInfoDto,
         metadata,
         req.user.companyId,
+        req.user.id,
       );
 
       const result = await this.commandBus.execute<
@@ -244,6 +246,10 @@ export class ChatV2Controller {
 
       if (error instanceof HttpException) {
         throw error;
+      }
+
+      if (error instanceof ChatAttendedByOtherCommercialError) {
+        throw new HttpException(error.message, HttpStatus.CONFLICT);
       }
 
       if (error instanceof DomainError) {
@@ -492,6 +498,10 @@ export class ChatV2Controller {
 
       if (error instanceof HttpException) {
         throw error;
+      }
+
+      if (error instanceof ChatAttendedByOtherCommercialError) {
+        throw new HttpException(error.message, HttpStatus.CONFLICT);
       }
 
       if (error instanceof DomainError) {
