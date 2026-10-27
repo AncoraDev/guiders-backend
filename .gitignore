@@ -33,6 +33,9 @@ lerna-debug.log*
 
 # dotenv environment variable files
 .env
+# Accesos reales del VPS. No subir a git.
+docs/ops/new-server/credenciales.md
+accesos-produccion.md
 .env.development.local
 .env.test.local
 .env.production.local
