@@ -3,12 +3,14 @@ import { NotifyMessageSentOnMessageSentEventHandler } from '../notify-message-se
 import { MessageSentEvent } from '../../../domain/events/message-sent.event';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
+import { USER_ACCOUNT_REPOSITORY } from 'src/context/auth/auth-user/domain/user-account.repository';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 
 describe('NotifyMessageSentOnMessageSentEventHandler', () => {
   let handler: NotifyMessageSentOnMessageSentEventHandler;
   let mockGateway: jest.Mocked<WebSocketGatewayBasic>;
   let mockChatRepository: { findById: jest.Mock };
+  let mockUsers: { findById: jest.Mock };
 
   beforeEach(async () => {
     // Mock del WebSocket Gateway
@@ -23,6 +25,9 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         isOk: () => false,
       }),
     };
+    mockUsers = {
+      findById: jest.fn().mockResolvedValue(null),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -34,6 +39,10 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         {
           provide: CHAT_V2_REPOSITORY,
           useValue: mockChatRepository,
+        },
+        {
+          provide: USER_ACCOUNT_REPOSITORY,
+          useValue: mockUsers,
         },
       ],
     }).compile();
@@ -48,7 +57,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
   });
 
   describe('handle', () => {
-    it('debe emitir notificación de mensaje normal a la sala del chat', () => {
+    it('debe emitir notificación de mensaje normal a la sala del chat', async () => {
       // Arrange
       const event = new MessageSentEvent({
         message: {
@@ -65,7 +74,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       });
 
       // Act
-      handler.handle(event);
+      await handler.handle(event);
 
       // Assert
       expect(mockGateway.emitToRoom).toHaveBeenCalledTimes(1);
@@ -83,7 +92,35 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       );
     });
 
-    it('debe emitir notificación de mensaje interno solo a sala de comerciales', () => {
+    it('incluye el nombre de la cuenta que escribió el mensaje', async () => {
+      mockUsers.findById.mockResolvedValue({
+        name: { getValue: () => 'Admin User' },
+      });
+
+      const event = new MessageSentEvent({
+        message: {
+          messageId: 'msg-123',
+          chatId: 'chat-456',
+          senderId: 'user-789',
+          content: 'Hola',
+          type: 'text',
+          isFirstResponse: false,
+          isInternal: false,
+          isAI: false,
+          sentAt: new Date('2025-10-03T10:00:00Z'),
+        },
+      });
+
+      await handler.handle(event);
+
+      expect(mockGateway.emitToRoom).toHaveBeenCalledWith(
+        'chat:chat-456',
+        'message:new',
+        expect.objectContaining({ senderName: 'Admin User' }),
+      );
+    });
+
+    it('debe emitir notificación de mensaje interno solo a sala de comerciales', async () => {
       // Arrange
       const event = new MessageSentEvent({
         message: {
@@ -100,7 +137,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       });
 
       // Act
-      handler.handle(event);
+      await handler.handle(event);
 
       // Assert
       expect(mockGateway.emitToRoom).toHaveBeenCalledTimes(1);
@@ -115,7 +152,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       );
     });
 
-    it('debe emitir notificación de cambio de estado cuando es primera respuesta', () => {
+    it('debe emitir notificación de cambio de estado cuando es primera respuesta', async () => {
       // Arrange
       const event = new MessageSentEvent({
         message: {
@@ -132,7 +169,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       });
 
       // Act
-      handler.handle(event);
+      await handler.handle(event);
 
       // Assert
       expect(mockGateway.emitToRoom).toHaveBeenCalledTimes(2);
@@ -159,7 +196,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       );
     });
 
-    it('debe manejar errores sin lanzar excepciones', () => {
+    it('debe manejar errores sin lanzar excepciones', async () => {
       // Arrange
       mockGateway.emitToRoom.mockImplementation(() => {
         throw new Error('Error de red simulado');
@@ -179,12 +216,11 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         },
       });
 
-      // Act & Assert - No debe lanzar error
-      expect(() => handler.handle(event)).not.toThrow();
+      await expect(handler.handle(event)).resolves.toBeUndefined();
       expect(mockGateway.emitToRoom).toHaveBeenCalled();
     });
 
-    it('debe incluir datos de attachment cuando el mensaje lo tiene', () => {
+    it('debe incluir datos de attachment cuando el mensaje lo tiene', async () => {
       // Arrange
       const event = new MessageSentEvent({
         message: {
@@ -207,7 +243,7 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       });
 
       // Act
-      handler.handle(event);
+      await handler.handle(event);
 
       // Assert
       expect(mockGateway.emitToRoom).toHaveBeenCalledWith(

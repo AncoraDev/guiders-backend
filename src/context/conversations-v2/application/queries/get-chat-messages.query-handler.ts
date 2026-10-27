@@ -14,6 +14,11 @@ import {
   MessageListResponseDto,
   MessageResponseDto,
 } from '../dtos/message-response.dto';
+import {
+  USER_ACCOUNT_REPOSITORY,
+  UserAccountRepository,
+} from 'src/context/auth/auth-user/domain/user-account.repository';
+import { senderDisplayNames } from '../sender-display-name';
 
 @QueryHandler(GetChatMessagesQuery)
 export class GetChatMessagesQueryHandler
@@ -26,6 +31,8 @@ export class GetChatMessagesQueryHandler
     private readonly messageRepository: IMessageRepository,
     @Inject(CHAT_V2_REPOSITORY)
     private readonly chatRepository: IChatRepository,
+    @Inject(USER_ACCOUNT_REPOSITORY)
+    private readonly userAccounts: UserAccountRepository,
   ) {}
 
   async execute(query: GetChatMessagesQuery): Promise<MessageListResponseDto> {
@@ -84,6 +91,10 @@ export class GetChatMessagesQueryHandler
       }
 
       const searchResult = messagesResult.unwrap();
+      const names = await senderDisplayNames(
+        this.userAccounts,
+        searchResult.messages.map((message) => message.senderId || ''),
+      );
 
       // Mapear a DTOs
       const messageDtos: MessageResponseDto[] = searchResult.messages.map(
@@ -91,6 +102,7 @@ export class GetChatMessagesQueryHandler
           id: message.id.getValue(),
           chatId: message.chatId.getValue(),
           senderId: message.senderId || '',
+          senderName: names.get(message.senderId || '') || undefined,
           content: message.content.getValue(),
           type: message.type.getValue(),
           systemData: message.systemData || undefined,

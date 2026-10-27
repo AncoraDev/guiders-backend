@@ -23,6 +23,13 @@ export class MessageResponseDto {
   senderId: string;
 
   @ApiProperty({
+    description: 'Nombre visible de quien escribió el mensaje',
+    required: false,
+    example: 'Admin User',
+  })
+  senderName?: string;
+
+  @ApiProperty({
     description: 'Contenido del mensaje',
     example: 'Hola, ¿en qué puedo ayudarte?',
   })

@@ -7,6 +7,11 @@ import {
   IChatRepository,
 } from '../../domain/chat.repository';
 import { ChatId } from '../../domain/value-objects/chat-id';
+import {
+  USER_ACCOUNT_REPOSITORY,
+  UserAccountRepository,
+} from 'src/context/auth/auth-user/domain/user-account.repository';
+import { senderDisplayNames } from '../sender-display-name';
 
 /**
  * Event handler que notifica vía WebSocket cuando se envía un mensaje.
@@ -38,6 +43,8 @@ export class NotifyMessageSentOnMessageSentEventHandler
     private readonly websocketGateway: WebSocketGatewayBasic,
     @Inject(CHAT_V2_REPOSITORY)
     private readonly chatRepository: IChatRepository,
+    @Inject(USER_ACCOUNT_REPOSITORY)
+    private readonly userAccounts: UserAccountRepository,
   ) {}
 
   async handle(event: MessageSentEvent): Promise<void> {
@@ -48,6 +55,10 @@ export class NotifyMessageSentOnMessageSentEventHandler
     try {
       const messageData = event.getMessageData();
       const chatId = event.getChatId();
+      const names = await senderDisplayNames(this.userAccounts, [
+        messageData.senderId,
+      ]);
+      const senderName = names.get(messageData.senderId);
 
       // No notificar mensajes internos a los visitantes
       // Los mensajes internos solo se notifican en la sala de comerciales
@@ -63,6 +74,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
             messageId: messageData.messageId,
             chatId: messageData.chatId,
             senderId: messageData.senderId,
+            ...(senderName ? { senderName } : {}),
             senderType: messageData.type === 'SYSTEM' ? 'SYSTEM' : undefined,
             content: messageData.content,
             type: messageData.type,
@@ -91,6 +103,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
         messageId: messageData.messageId,
         chatId: messageData.chatId,
         senderId: messageData.senderId,
+        ...(senderName ? { senderName } : {}),
         senderType: messageData.type === 'SYSTEM' ? 'SYSTEM' : undefined,
         content: messageData.content,
         type: messageData.type,
