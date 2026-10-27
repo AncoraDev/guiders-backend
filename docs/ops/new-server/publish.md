@@ -24,13 +24,17 @@ La API ejecuta `dist/`. El pull solo actualiza el código fuente; sin `npm run b
 
 Console y Admin no los sirve PM2. nginx lee `/var/www/guiders-frontend/current`. Después del pull:
 
+El build deja la web en `dist/apps/<app>/browser`. nginx busca `index.html` en `current/console` y `current/admin`. Hay que copiar el contenido de `browser`, no la carpeta padre.
+
 ```bash
 cd /var/www/guiders-frontend-src
 npm run build:prod
 REL=/var/www/guiders-frontend/releases/$(date +%Y%m%d%H%M%S)
-mkdir -p "$REL"
-cp -a dist/apps/console "$REL/console"
-cp -a dist/apps/admin "$REL/admin"
+mkdir -p "$REL/console" "$REL/admin"
+cp -a dist/apps/console/browser/. "$REL/console/"
+cp -a dist/apps/admin/browser/. "$REL/admin/"
+find "$REL" -type d -exec chmod 755 {} \;
+find "$REL" -type f -exec chmod 644 {} \;
 ln -sfn "$REL" /var/www/guiders-frontend/current
 ```
 
