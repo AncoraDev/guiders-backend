@@ -353,8 +353,9 @@ export class UserAccount extends AggregateRoot {
       this._cannedReplies,
     );
 
-    // Aplica el evento de dominio
-    this.apply(
+    // El evento va en la instancia que se guarda. Si se aplica en this,
+    // commit() de la cuenta nueva no avisa y el comercial se queda con la foto vieja.
+    updatedUser.apply(
       new UserAvatarUpdatedEvent(
         this._id.value,
         this._keycloakId?.value ?? null,

@@ -109,7 +109,7 @@ export class ConnectCommercialCommandHandler
         if (primitives.name !== realName) {
           commercial = commercial.updateName(realName);
         }
-        if (!primitives.avatarUrl && avatarUrl) {
+        if (avatarUrl && primitives.avatarUrl !== avatarUrl) {
           commercial = commercial.updateAvatar(avatarUrl);
         }
       } else {
