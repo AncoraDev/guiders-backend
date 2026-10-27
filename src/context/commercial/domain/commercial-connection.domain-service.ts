@@ -34,6 +34,15 @@ export interface CommercialConnectionDomainService {
   ): Promise<void>;
 
   /**
+   * Alarga la presencia de quien ya está en Conectado.
+   * No enciende a quien está desconectado.
+   */
+  renewOnlinePresence(
+    commercialId: CommercialId,
+    companyId?: string,
+  ): Promise<boolean>;
+
+  /**
    * Obtiene la última actividad de un comercial
    */
   getLastActivity(commercialId: CommercialId): Promise<CommercialLastActivity>;

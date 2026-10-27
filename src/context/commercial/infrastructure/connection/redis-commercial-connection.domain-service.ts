@@ -172,6 +172,39 @@ export class RedisCommercialConnectionDomainService
       .exec();
   }
 
+  /**
+   * Renueva el plazo de quien sigue en Conectado. Si la clave ya no existe
+   * o no está online, no lo vuelve a encender.
+   */
+  async renewOnlinePresence(
+    commercialId: CommercialId,
+    companyId?: string,
+  ): Promise<boolean> {
+    const status = await this.client.get(this.statusKey(commercialId));
+    if (status !== 'online') {
+      return false;
+    }
+
+    const multi = this.client.multi();
+    multi.expire(this.statusKey(commercialId), this.TTL_SECONDS);
+    multi.expire(this.activityKey(commercialId), this.TTL_SECONDS);
+    multi.sAdd(this.SET_ONLINE, commercialId.value);
+    multi.sAdd(this.SET_AVAILABLE, commercialId.value);
+    if (companyId) {
+      multi.expire(
+        `${this.PREFIX_TENANT}${commercialId.value}`,
+        this.TTL_SECONDS,
+      );
+      multi.sAdd(`${this.PREFIX_SET_ONLINE}${companyId}`, commercialId.value);
+      multi.sAdd(
+        `${this.PREFIX_SET_AVAILABLE}${companyId}`,
+        commercialId.value,
+      );
+    }
+    await multi.exec();
+    return true;
+  }
+
   async getLastActivity(
     commercialId: CommercialId,
   ): Promise<CommercialLastActivity> {

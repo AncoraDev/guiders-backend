@@ -192,16 +192,12 @@ export class WebSocketGatewayBasic
     // Marcar como OFFLINE si el usuario estaba autenticado
     if (user) {
       const isVisitor = user.roles.includes('visitor');
-      const isCommercial =
-        user.roles.includes('commercial') ||
-        user.roles.includes('admin') ||
-        user.roles.includes('owner');
 
       try {
+        // El visitante sale al cerrar la web. Comercial y admin no:
+        // solo salen del chat con el interruptor, al cerrar sesión o al cerrar la pestaña.
         if (isVisitor && this.visitorConnectionService) {
           await this.markVisitorOffline(user.userId, user.companyId);
-        } else if (isCommercial && this.commercialConnectionService) {
-          await this.markCommercialOffline(user.userId, user.companyId);
         }
       } catch (error) {
         this.logger.error(

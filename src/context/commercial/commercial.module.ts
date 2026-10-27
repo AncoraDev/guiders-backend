@@ -20,6 +20,7 @@ import { ListConnectionSessionsQueryHandler } from './application/queries/list-c
 
 // Application - Commands
 import { ConnectCommercialCommandHandler } from './application/commands/connect-commercial.command-handler';
+import { RenewCommercialPresenceCommandHandler } from './application/commands/renew-commercial-presence.command-handler';
 import { DisconnectCommercialCommandHandler } from './application/commands/disconnect-commercial.command-handler';
 import { UpdateCommercialActivityCommandHandler } from './application/commands/update-commercial-activity.command-handler';
 import { ChangeCommercialConnectionStatusCommandHandler } from './application/commands/change-commercial-connection-status.command-handler';
@@ -104,6 +105,7 @@ import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
     // Command Handlers
     ConnectCommercialCommandHandler,
+    RenewCommercialPresenceCommandHandler,
     DisconnectCommercialCommandHandler,
     UpdateCommercialActivityCommandHandler,
     ChangeCommercialConnectionStatusCommandHandler,

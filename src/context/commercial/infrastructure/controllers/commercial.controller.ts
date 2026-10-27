@@ -63,6 +63,7 @@ import { ListConnectionSessionsQuery } from '../../application/queries/list-conn
 
 // Commands
 import { ConnectCommercialCommand } from '../../application/commands/connect-commercial.command';
+import { RenewCommercialPresenceCommand } from '../../application/commands/renew-commercial-presence.command';
 import { DisconnectCommercialCommand } from '../../application/commands/disconnect-commercial.command';
 import { ChangeCommercialConnectionStatusCommand } from '../../application/commands/change-commercial-connection-status.command';
 import { RegisterCommercialFingerprintCommand } from '../../application/commands/register-commercial-fingerprint.command';
@@ -335,6 +336,24 @@ export class CommercialController {
       );
       throw new InternalServerErrorException('Error al desconectar comercial');
     }
+  }
+
+  @Post('presence')
+  @HttpCode(HttpStatus.OK)
+  @Roles(['admin', 'supervisor', 'commercial'])
+  @ApiOperation({
+    summary: 'Renovar presencia',
+    description:
+      'Alarga la presencia de quien sigue con el interruptor en Conectado. No enciende a quien está desconectado.',
+  })
+  @ApiResponse({ status: 200, description: 'Presencia renovada o sin cambios' })
+  async renewPresence(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ renewed: boolean }> {
+    const renewed = await this.commandBus.execute(
+      new RenewCommercialPresenceCommand(req.user.id, req.user.companyId),
+    );
+    return { renewed: renewed === true };
   }
 
   /**
