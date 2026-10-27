@@ -59,8 +59,7 @@ export class GetVisitorPageHistoryQueryHandler
     }
 
     const { events, totalCount } = eventsResult.unwrap();
-    const total = totalCount;
-    const pages: VisitorPageHistoryItemDto[] = events.map((event, i) => {
+    const pages: VisitorPageHistoryItemDto[] = events.map((event) => {
       const metadata = event.getMetadata().getValue() as Record<
         string,
         unknown
@@ -89,21 +88,88 @@ export class GetVisitorPageHistoryQueryHandler
 
       const title =
         typeof metadata['title'] === 'string' ? metadata['title'] : undefined;
+      const referrer = GetVisitorPageHistoryQueryHandler.readOptionalString(
+        pageMeta?.['referrer'] ?? metadata['referrer'],
+      );
+      const device = GetVisitorPageHistoryQueryHandler.asRecord(
+        metadata['device'],
+      );
+      const userAgent = GetVisitorPageHistoryQueryHandler.readOptionalString(
+        device?.['userAgent'] ?? metadata['userAgent'] ?? metadata['ua'],
+      );
 
       return {
         url: url || path || '/',
         path: path || '/',
         title,
         occurredAt: event.getOccurredAt().toISOString(),
-        // Más reciente = total, más antigua del lote = total - n + 1
-        index: total - i,
+        index: 0,
+        ...(referrer !== undefined ? { referrer } : {}),
+        ...(userAgent ? { userAgent } : {}),
       };
     });
 
+    const collapsed =
+      GetVisitorPageHistoryQueryHandler.collapseConsecutivePages(pages);
+    const fetchedAll = events.length >= totalCount;
+    const visibleTotal = fetchedAll
+      ? collapsed.length
+      : Math.max(collapsed.length, totalCount - (pages.length - collapsed.length));
+    const reindexed = collapsed.map((page, i) => ({
+      ...page,
+      index: visibleTotal - i,
+    }));
+
     return {
       visitorId: query.visitorId,
-      total,
-      pages,
+      total: visibleTotal,
+      pages: reindexed,
     };
+  }
+
+  /**
+   * Varias cargas seguidas de la misma URL son una sola visita.
+   * Se conserva la más reciente (la lista ya llega de más nueva a más antigua).
+   */
+  private static collapseConsecutivePages(
+    pages: VisitorPageHistoryItemDto[],
+  ): VisitorPageHistoryItemDto[] {
+    const collapsed: VisitorPageHistoryItemDto[] = [];
+    for (const page of pages) {
+      const previous = collapsed[collapsed.length - 1];
+      if (
+        previous &&
+        GetVisitorPageHistoryQueryHandler.pageKey(previous.url) ===
+          GetVisitorPageHistoryQueryHandler.pageKey(page.url)
+      ) {
+        continue;
+      }
+      collapsed.push(page);
+    }
+    return collapsed;
+  }
+
+  private static pageKey(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return '/';
+    try {
+      const parsed = new URL(trimmed);
+      const path =
+        parsed.pathname === '/' ? '/' : parsed.pathname.replace(/\/+$/, '') || '/';
+      return `${parsed.protocol}//${parsed.host.toLowerCase()}${path}${parsed.search}`;
+    } catch {
+      return trimmed.replace(/\/+$/, '').toLowerCase() || '/';
+    }
+  }
+
+  /** Cadena presente en el evento. Vacía = referrer explícito (entrada directa). */
+  private static readOptionalString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    return value.trim();
+  }
+
+  private static asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object') return null;
+    return value as Record<string, unknown>;
   }
 }

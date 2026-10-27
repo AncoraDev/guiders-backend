@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class VisitorPageHistoryItemDto {
   @ApiProperty({ description: 'URL completa o path visitado' })
@@ -24,6 +24,17 @@ export class VisitorPageHistoryItemDto {
       'Índice cronológico (N = más reciente, 1 = más antigua en el lote)',
   })
   index: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Página de origen (document.referrer). Cadena vacía si entró directo.',
+  })
+  referrer?: string;
+
+  @ApiPropertyOptional({
+    description: 'User agent del navegador en esa visita',
+  })
+  userAgent?: string;
 }
 
 export class GetVisitorPageHistoryResponseDto {
