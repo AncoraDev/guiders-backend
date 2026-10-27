@@ -1,28 +1,32 @@
-import { UserAccountRepository } from 'src/context/auth/auth-user/domain/user-account.repository';
+import { CommercialRepository } from 'src/context/commercial/domain/commercial.repository';
+import { CommercialId } from 'src/context/commercial/domain/value-objects/commercial-id';
 
 const ANONYMOUS_SENDERS = new Set(['system', 'ai']);
 
 /**
- * Nombre visible de quien escribió el mensaje, el mismo de su cuenta.
- * Quien no es una cuenta (sistema, visitante, IA) no aporta nombre.
+ * Nombre visible del comercial que escribió, el mismo que usa la pastilla
+ * de traslado. Sistema, IA y quien no tiene perfil comercial no aportan nombre.
  */
 export async function senderDisplayNames(
-  users: UserAccountRepository,
+  commercials: CommercialRepository,
   senderIds: string[],
 ): Promise<Map<string, string>> {
   const unique = [
     ...new Set(
       senderIds
         .map((id) => id.trim())
-        .filter((id) => id.length > 0 && !ANONYMOUS_SENDERS.has(id.toLowerCase())),
+        .filter(
+          (id) => id.length > 0 && !ANONYMOUS_SENDERS.has(id.toLowerCase()),
+        ),
     ),
   ];
 
   const pairs = await Promise.all(
     unique.map(async (id) => {
       try {
-        const user = await users.findById(id);
-        const name = user?.name.getValue()?.trim();
+        const result = await commercials.findById(new CommercialId(id));
+        if (result.isErr()) return null;
+        const name = result.unwrap()?.name.value?.trim();
         return name ? ([id, name] as const) : null;
       } catch {
         return null;

@@ -18,6 +18,7 @@ export class MessageMapper {
     schema.chatId = message.chatId.value;
     schema.type = message.type.value;
     schema.senderId = messagePrimitives.senderId;
+    schema.senderName = messagePrimitives.senderName;
     schema.senderType = this.determineSenderType(messagePrimitives.senderId);
     schema.sentAt = messagePrimitives.createdAt;
     schema.readAt = messagePrimitives.readAt;
@@ -109,6 +110,7 @@ export class MessageMapper {
       id: schema.id,
       chatId: schema.chatId,
       senderId: schema.senderId,
+      senderName: schema.senderName,
       content: schema.content.text,
       type: schema.type,
       systemData: this.mapSystemData(schema),

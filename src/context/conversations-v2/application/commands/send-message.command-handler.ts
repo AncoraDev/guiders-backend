@@ -14,6 +14,11 @@ import { ChatId } from '../../domain/value-objects/chat-id';
 import { MessageResponseDto } from '../dtos/message-response.dto';
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
+import {
+  COMMERCIAL_REPOSITORY,
+  CommercialRepository,
+} from 'src/context/commercial/domain/commercial.repository';
+import { senderDisplayNames } from '../sender-display-name';
 
 @CommandHandler(SendMessageCommand)
 export class SendMessageCommandHandler
@@ -26,6 +31,8 @@ export class SendMessageCommandHandler
     private readonly chatRepository: IChatRepository,
     @Inject(MESSAGE_V2_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
+    @Inject(COMMERCIAL_REPOSITORY)
+    private readonly commercials: CommercialRepository,
     private readonly publisher: EventPublisher,
   ) {}
 
@@ -44,6 +51,7 @@ export class SendMessageCommandHandler
 
     // Determinar si es primera respuesta del comercial
     const isFirstResponse = this.shouldMarkAsFirstResponse();
+    const senderName = await this.resolveSenderName(command.senderId);
 
     // Crear el mensaje según el tipo
     let message: Message;
@@ -53,6 +61,7 @@ export class SendMessageCommandHandler
       message = Message.createFileMessage({
         chatId: command.chatId,
         senderId: command.senderId,
+        senderName,
         fileName: command.messageData.attachment.fileName,
         attachment: command.messageData.attachment,
         isInternal: command.messageData.isInternal || false,
@@ -62,6 +71,7 @@ export class SendMessageCommandHandler
       message = Message.createTextMessage({
         chatId: command.chatId,
         senderId: command.senderId,
+        senderName,
         content: command.messageData.content,
         isInternal: command.messageData.isInternal || false,
         isFirstResponse,
@@ -91,6 +101,7 @@ export class SendMessageCommandHandler
       id: messagePrimitives.id,
       chatId: messagePrimitives.chatId,
       senderId: messagePrimitives.senderId,
+      senderName: messagePrimitives.senderName,
       content: messagePrimitives.content,
       type: messagePrimitives.type,
       systemData: messagePrimitives.systemData,
@@ -110,6 +121,13 @@ export class SendMessageCommandHandler
   /**
    * Determina si debe marcarse como primera respuesta del comercial
    */
+  private async resolveSenderName(
+    senderId: string,
+  ): Promise<string | undefined> {
+    const names = await senderDisplayNames(this.commercials, [senderId]);
+    return names.get(senderId);
+  }
+
   private shouldMarkAsFirstResponse(): boolean {
     // TODO: Implementar lógica para determinar si es primera respuesta
     // Esto requeriría verificar:

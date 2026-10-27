@@ -94,6 +94,12 @@ export class MessageSchema {
 
   @Prop({
     type: String,
+    required: false,
+  })
+  senderName?: string;
+
+  @Prop({
+    type: String,
     required: true,
     enum: ['visitor', 'commercial', 'system', 'ai'],
     index: true,

@@ -15,6 +15,7 @@ export interface MessageSentData {
   messageId: string;
   chatId: string;
   senderId: string;
+  senderName?: string;
   content: string;
   type: string;
   isFirstResponse: boolean;

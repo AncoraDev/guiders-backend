@@ -8,9 +8,9 @@ import {
 } from '../../domain/chat.repository';
 import { ChatId } from '../../domain/value-objects/chat-id';
 import {
-  USER_ACCOUNT_REPOSITORY,
-  UserAccountRepository,
-} from 'src/context/auth/auth-user/domain/user-account.repository';
+  COMMERCIAL_REPOSITORY,
+  CommercialRepository,
+} from 'src/context/commercial/domain/commercial.repository';
 import { senderDisplayNames } from '../sender-display-name';
 
 /**
@@ -43,8 +43,8 @@ export class NotifyMessageSentOnMessageSentEventHandler
     private readonly websocketGateway: WebSocketGatewayBasic,
     @Inject(CHAT_V2_REPOSITORY)
     private readonly chatRepository: IChatRepository,
-    @Inject(USER_ACCOUNT_REPOSITORY)
-    private readonly userAccounts: UserAccountRepository,
+    @Inject(COMMERCIAL_REPOSITORY)
+    private readonly commercials: CommercialRepository,
   ) {}
 
   async handle(event: MessageSentEvent): Promise<void> {
@@ -55,10 +55,11 @@ export class NotifyMessageSentOnMessageSentEventHandler
     try {
       const messageData = event.getMessageData();
       const chatId = event.getChatId();
-      const names = await senderDisplayNames(this.userAccounts, [
-        messageData.senderId,
-      ]);
-      const senderName = names.get(messageData.senderId);
+      const storedName = messageData.senderName?.trim();
+      const names = storedName
+        ? new Map<string, string>()
+        : await senderDisplayNames(this.commercials, [messageData.senderId]);
+      const senderName = storedName || names.get(messageData.senderId);
 
       // No notificar mensajes internos a los visitantes
       // Los mensajes internos solo se notifican en la sala de comerciales

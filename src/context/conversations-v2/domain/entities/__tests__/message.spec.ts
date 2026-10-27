@@ -21,12 +21,28 @@ describe('Message', () => {
       expect(message).toBeInstanceOf(Message);
       expect(message.chatId.getValue()).toBe(mockChatId);
       expect(message.senderId).toBe(mockSenderId);
+      expect(message.senderName).toBeNull();
       expect(message.content.value).toBe(mockContent);
       expect(message.type.isText()).toBe(true);
       expect(message.isInternal).toBe(false);
       expect(message.isFirstResponse).toBe(false);
       expect(message.createdAt).toBeInstanceOf(Date);
       expect(message.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('congela el nombre de quien lo escribió', () => {
+      const message = Message.createTextMessage({
+        chatId: mockChatId,
+        senderId: mockSenderId,
+        content: mockContent,
+        senderName: 'Admin User',
+      });
+
+      expect(message.senderName).toBe('Admin User');
+      expect(message.toPrimitives().senderName).toBe('Admin User');
+
+      const restored = Message.fromPrimitives(message.toPrimitives());
+      expect(restored.senderName).toBe('Admin User');
     });
 
     it('debería crear un mensaje con valores por defecto', () => {
@@ -386,6 +402,7 @@ describe('Message', () => {
       expect(primitives).toHaveProperty('id');
       expect(primitives).toHaveProperty('chatId', mockChatId);
       expect(primitives).toHaveProperty('senderId', mockSenderId);
+      expect(primitives.senderName).toBeUndefined();
       expect(primitives).toHaveProperty('content', mockContent);
       expect(primitives).toHaveProperty('isInternal', false);
       expect(primitives).toHaveProperty('isFirstResponse', true);

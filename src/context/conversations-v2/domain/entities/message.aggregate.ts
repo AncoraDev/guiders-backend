@@ -80,6 +80,8 @@ export interface MessagePrimitives {
   id: string;
   chatId: string;
   senderId: string;
+  /** Nombre visible de quien escribió, congelado al enviar. */
+  senderName?: string;
   content: string;
   type: string;
   systemData?: SystemData;
@@ -102,6 +104,7 @@ export interface MessageProperties {
   id: MessageId;
   chatId: ChatId;
   senderId: string;
+  senderName?: string;
   content: MessageContent;
   type: MessageType;
   systemData?: SystemData;
@@ -125,6 +128,7 @@ export class Message extends AggregateRoot {
     private readonly _id: MessageId,
     private readonly _chatId: ChatId,
     private readonly _senderId: string,
+    private readonly _senderName: string | null,
     private readonly _content: MessageContent,
     private readonly _type: MessageType,
     private readonly _systemData: SystemData | null,
@@ -150,6 +154,7 @@ export class Message extends AggregateRoot {
       props.id,
       props.chatId,
       props.senderId,
+      props.senderName?.trim() || null,
       props.content,
       props.type,
       props.systemData || null,
@@ -172,6 +177,7 @@ export class Message extends AggregateRoot {
           messageId: message._id.getValue(),
           chatId: message._chatId.getValue(),
           senderId: message._senderId,
+          senderName: message._senderName || undefined,
           content: message._content.value,
           type: message._type.value,
           isFirstResponse: message._isFirstResponse,
@@ -196,6 +202,7 @@ export class Message extends AggregateRoot {
       MessageId.create(params.id),
       ChatId.create(params.chatId),
       params.senderId,
+      params.senderName?.trim() || null,
       new MessageContent(params.content),
       new MessageType(params.type),
       params.systemData || null,
@@ -219,6 +226,7 @@ export class Message extends AggregateRoot {
     chatId: string;
     senderId: string;
     content: string;
+    senderName?: string;
     isInternal?: boolean;
     isFirstResponse?: boolean;
   }): Message {
@@ -228,6 +236,7 @@ export class Message extends AggregateRoot {
       id: MessageId.generate(),
       chatId: ChatId.create(params.chatId),
       senderId: params.senderId,
+      senderName: params.senderName,
       content: new MessageContent(params.content),
       type: MessageType.TEXT,
       isInternal: params.isInternal || false,
@@ -304,6 +313,7 @@ export class Message extends AggregateRoot {
     senderId: string;
     fileName: string;
     attachment: AttachmentData;
+    senderName?: string;
     isInternal?: boolean;
   }): Message {
     const now = new Date();
@@ -313,6 +323,7 @@ export class Message extends AggregateRoot {
       id: MessageId.generate(),
       chatId: ChatId.create(params.chatId),
       senderId: params.senderId,
+      senderName: params.senderName,
       content: new MessageContent(content),
       type: params.attachment.mimeType.startsWith('image/')
         ? MessageType.IMAGE
@@ -383,6 +394,7 @@ export class Message extends AggregateRoot {
       id: this._id.getValue(),
       chatId: this._chatId.getValue(),
       senderId: this._senderId,
+      senderName: this._senderName || undefined,
       content: this._content.value,
       type: this._type.value,
       systemData: this._systemData || undefined,
@@ -410,6 +422,10 @@ export class Message extends AggregateRoot {
 
   get senderId(): string {
     return this._senderId;
+  }
+
+  get senderName(): string | null {
+    return this._senderName;
   }
 
   get content(): MessageContent {

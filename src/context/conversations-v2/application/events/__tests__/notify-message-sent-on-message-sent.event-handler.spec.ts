@@ -3,14 +3,14 @@ import { NotifyMessageSentOnMessageSentEventHandler } from '../notify-message-se
 import { MessageSentEvent } from '../../../domain/events/message-sent.event';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
-import { USER_ACCOUNT_REPOSITORY } from 'src/context/auth/auth-user/domain/user-account.repository';
+import { COMMERCIAL_REPOSITORY } from 'src/context/commercial/domain/commercial.repository';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 
 describe('NotifyMessageSentOnMessageSentEventHandler', () => {
   let handler: NotifyMessageSentOnMessageSentEventHandler;
   let mockGateway: jest.Mocked<WebSocketGatewayBasic>;
   let mockChatRepository: { findById: jest.Mock };
-  let mockUsers: { findById: jest.Mock };
+  let mockCommercials: { findById: jest.Mock };
 
   beforeEach(async () => {
     // Mock del WebSocket Gateway
@@ -25,8 +25,11 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         isOk: () => false,
       }),
     };
-    mockUsers = {
-      findById: jest.fn().mockResolvedValue(null),
+    mockCommercials = {
+      findById: jest.fn().mockResolvedValue({
+        isErr: () => true,
+        isOk: () => false,
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -41,8 +44,8 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
           useValue: mockChatRepository,
         },
         {
-          provide: USER_ACCOUNT_REPOSITORY,
-          useValue: mockUsers,
+          provide: COMMERCIAL_REPOSITORY,
+          useValue: mockCommercials,
         },
       ],
     }).compile();
@@ -92,16 +95,13 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
       );
     });
 
-    it('incluye el nombre de la cuenta que escribió el mensaje', async () => {
-      mockUsers.findById.mockResolvedValue({
-        name: { getValue: () => 'Admin User' },
-      });
-
+    it('incluye el nombre guardado en el mensaje', async () => {
       const event = new MessageSentEvent({
         message: {
           messageId: 'msg-123',
           chatId: 'chat-456',
           senderId: 'user-789',
+          senderName: 'Admin User',
           content: 'Hola',
           type: 'text',
           isFirstResponse: false,
@@ -117,6 +117,38 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         'chat:chat-456',
         'message:new',
         expect.objectContaining({ senderName: 'Admin User' }),
+      );
+      expect(mockCommercials.findById).not.toHaveBeenCalled();
+    });
+
+    it('resuelve el nombre en el perfil comercial si el mensaje no lo trae', async () => {
+      const senderId = Uuid.random().value;
+      mockCommercials.findById.mockResolvedValue({
+        isErr: () => false,
+        isOk: () => true,
+        unwrap: () => ({ name: { value: 'MARIA' } }),
+      });
+
+      const event = new MessageSentEvent({
+        message: {
+          messageId: 'msg-123',
+          chatId: 'chat-456',
+          senderId,
+          content: 'Hola',
+          type: 'text',
+          isFirstResponse: false,
+          isInternal: false,
+          isAI: false,
+          sentAt: new Date('2025-10-03T10:00:00Z'),
+        },
+      });
+
+      await handler.handle(event);
+
+      expect(mockGateway.emitToRoom).toHaveBeenCalledWith(
+        'chat:chat-456',
+        'message:new',
+        expect.objectContaining({ senderName: 'MARIA' }),
       );
     });
 
