@@ -7,6 +7,11 @@ import {
   CommercialConnectionDomainService,
 } from '../../domain/commercial-connection.domain-service';
 import { CommercialId } from '../../domain/value-objects/commercial-id';
+import { listOnlineAgentFaces } from '../../application/online-agent-faces';
+import {
+  COMMERCIAL_REPOSITORY,
+  CommercialRepository,
+} from '../../domain/commercial.repository';
 
 /**
  * Event handler de infraestructura que emite el evento commercial:availability-changed
@@ -41,6 +46,8 @@ export class NotifyTenantOnCommercialPresenceChangedEventHandler
     private readonly websocketGateway: WebSocketGatewayBasic,
     @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
     private readonly connectionService: CommercialConnectionDomainService,
+    @Inject(COMMERCIAL_REPOSITORY)
+    private readonly commercialRepository: CommercialRepository,
   ) {}
 
   async handle(event: PresenceChangedEvent): Promise<void> {
@@ -74,11 +81,17 @@ export class NotifyTenantOnCommercialPresenceChangedEventHandler
       const onlineCount =
         await this.connectionService.getOnlineCountByTenant(tenantId);
       const available = onlineCount > 0;
+      const onlineAgents = await listOnlineAgentFaces(
+        this.connectionService,
+        this.commercialRepository,
+        tenantId,
+      );
 
       const tenantRoom = `tenant:${tenantId}`;
       const payload = {
         available,
         onlineCount,
+        onlineAgents,
         tenantId,
         timestamp: new Date().toISOString(),
       };

@@ -1,6 +1,7 @@
 import { NotifyTenantOnCommercialPresenceChangedEventHandler } from '../notify-tenant-on-commercial-presence-changed.event-handler';
 import { PresenceChangedEvent } from '../../../../shared/domain/events/presence-changed.event';
 import { CommercialConnectionDomainService } from '../../../domain/commercial-connection.domain-service';
+import { CommercialRepository } from '../../../domain/commercial.repository';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { Uuid } from '../../../../shared/domain/value-objects/uuid';
 
@@ -31,15 +32,19 @@ describe('NotifyTenantOnCommercialPresenceChangedEventHandler', () => {
       isTyping: jest.fn(),
       clearTyping: jest.fn(),
       getTypingInChat: jest.fn(),
+      renewOnlinePresence: jest.fn(),
     } as jest.Mocked<CommercialConnectionDomainService>;
 
     websocketGateway = {
       emitToRoom: jest.fn(),
     } as jest.Mocked<Pick<WebSocketGatewayBasic, 'emitToRoom'>>;
 
+    connectionService.getAvailableCommercials.mockResolvedValue([]);
+
     handler = new NotifyTenantOnCommercialPresenceChangedEventHandler(
       websocketGateway as unknown as WebSocketGatewayBasic,
       connectionService,
+      { findById: jest.fn() } as unknown as CommercialRepository,
     );
   });
 

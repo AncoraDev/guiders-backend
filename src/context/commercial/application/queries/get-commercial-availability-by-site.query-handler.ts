@@ -6,6 +6,11 @@ import {
   COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
   CommercialConnectionDomainService,
 } from '../../domain/commercial-connection.domain-service';
+import {
+  COMMERCIAL_REPOSITORY,
+  CommercialRepository,
+} from '../../domain/commercial.repository';
+import { facesForCommercials } from '../online-agent-faces';
 
 /**
  * Handler para la query GetCommercialAvailabilityBySiteQuery
@@ -29,6 +34,8 @@ export class GetCommercialAvailabilityBySiteQueryHandler
   constructor(
     @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
     private readonly connectionService: CommercialConnectionDomainService,
+    @Inject(COMMERCIAL_REPOSITORY)
+    private readonly commercialRepository: CommercialRepository,
   ) {}
 
   async execute(
@@ -45,6 +52,10 @@ export class GetCommercialAvailabilityBySiteQueryHandler
 
       const onlineCount = availableCommercialIds.length;
       const available = onlineCount > 0;
+      const onlineAgents = await facesForCommercials(
+        this.commercialRepository,
+        availableCommercialIds,
+      );
 
       this.logger.log(
         `Disponibilidad para siteId ${query.siteId} (tenant ${query.companyId}): ${available} (${onlineCount} comerciales online)`,
@@ -53,6 +64,7 @@ export class GetCommercialAvailabilityBySiteQueryHandler
       return {
         available,
         onlineCount,
+        onlineAgents,
         timestamp: new Date().toISOString(),
         siteId: query.siteId,
         tenantId: query.companyId,
@@ -67,6 +79,7 @@ export class GetCommercialAvailabilityBySiteQueryHandler
       return {
         available: false,
         onlineCount: 0,
+        onlineAgents: [],
         timestamp: new Date().toISOString(),
         siteId: query.siteId,
         tenantId: query.companyId,

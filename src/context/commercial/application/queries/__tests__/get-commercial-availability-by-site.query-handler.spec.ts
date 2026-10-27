@@ -1,12 +1,16 @@
 import { GetCommercialAvailabilityBySiteQueryHandler } from '../get-commercial-availability-by-site.query-handler';
 import { GetCommercialAvailabilityBySiteQuery } from '../get-commercial-availability-by-site.query';
 import { CommercialConnectionDomainService } from '../../../domain/commercial-connection.domain-service';
+import { CommercialRepository } from '../../../domain/commercial.repository';
 import { CommercialId } from '../../../domain/value-objects/commercial-id';
 import { Uuid } from '../../../../shared/domain/value-objects/uuid';
+import { err, ok } from 'src/context/shared/domain/result';
+import { DomainError } from 'src/context/shared/domain/domain.error';
 
 describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
   let handler: GetCommercialAvailabilityBySiteQueryHandler;
   let connectionService: jest.Mocked<CommercialConnectionDomainService>;
+  let commercialRepository: jest.Mocked<CommercialRepository>;
 
   const siteId = Uuid.random().value;
   const companyId = Uuid.random().value;
@@ -30,10 +34,24 @@ describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
       isTyping: jest.fn(),
       clearTyping: jest.fn(),
       getTypingInChat: jest.fn(),
+      renewOnlinePresence: jest.fn(),
     } as jest.Mocked<CommercialConnectionDomainService>;
+
+    commercialRepository = {
+      findById: jest.fn().mockResolvedValue(
+        err(
+          new (class MissingCommercial extends DomainError {
+            constructor() {
+              super('no está');
+            }
+          })(),
+        ),
+      ),
+    } as unknown as jest.Mocked<CommercialRepository>;
 
     handler = new GetCommercialAvailabilityBySiteQueryHandler(
       connectionService,
+      commercialRepository,
     );
   });
 
@@ -51,6 +69,7 @@ describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
 
       expect(result.available).toBe(true);
       expect(result.onlineCount).toBe(2);
+      expect(result.onlineAgents).toEqual([]);
       expect(result.tenantId).toBe(companyId);
       expect(result.siteId).toBe(siteId);
       expect(result.timestamp).toBeDefined();
@@ -64,6 +83,7 @@ describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
 
       expect(result.available).toBe(false);
       expect(result.onlineCount).toBe(0);
+      expect(result.onlineAgents).toEqual([]);
     });
 
     it('debe filtrar por companyId pasándolo a getAvailableCommercials', async () => {
@@ -87,6 +107,31 @@ describe('GetCommercialAvailabilityBySiteQueryHandler', () => {
 
       expect(result.available).toBe(false);
       expect(result.onlineCount).toBe(0);
+      expect(result.onlineAgents).toEqual([]);
+    });
+
+    it('incluye nombre y avatar de los comerciales online', async () => {
+      const commercialId = new CommercialId(Uuid.random().value);
+      connectionService.getAvailableCommercials.mockResolvedValue([
+        commercialId,
+      ]);
+      commercialRepository.findById.mockResolvedValue(
+        ok({
+          name: { value: 'María' },
+          avatarUrl: 'https://cdn.example.com/maria.jpg',
+        } as never),
+      );
+
+      const result = await handler.execute(
+        new GetCommercialAvailabilityBySiteQuery(siteId, companyId),
+      );
+
+      expect(result.onlineAgents).toEqual([
+        {
+          name: 'María',
+          avatarUrl: 'https://cdn.example.com/maria.jpg',
+        },
+      ]);
     });
   });
 });

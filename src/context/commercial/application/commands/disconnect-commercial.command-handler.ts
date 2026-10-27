@@ -17,6 +17,7 @@ import {
   CommercialConnectionSessionRepository,
 } from '../../domain/commercial-connection-session.repository';
 import { PresenceChangedEvent } from 'src/context/shared/domain/events/presence-changed.event';
+import { listOnlineAgentFaces } from '../online-agent-faces';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 
 @CommandHandler(DisconnectCommercialCommand)
@@ -146,9 +147,15 @@ export class DisconnectCommercialCommandHandler
     }
     const onlineCount =
       await this.connectionService.getOnlineCountByTenant(companyId);
+    const onlineAgents = await listOnlineAgentFaces(
+      this.connectionService,
+      this.commercialRepository,
+      companyId,
+    );
     const payload = {
       available: onlineCount > 0,
       onlineCount,
+      onlineAgents,
       tenantId: companyId,
       timestamp: new Date().toISOString(),
     };

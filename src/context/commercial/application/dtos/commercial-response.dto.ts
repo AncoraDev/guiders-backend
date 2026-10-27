@@ -162,4 +162,23 @@ export class CommercialAvailabilityResponseDto {
     required: false,
   })
   tenantId?: string;
+
+  @ApiProperty({
+    description:
+      'Comerciales online de este tenant, para mostrar su avatar cuando el visitante aún no tiene asignado a nadie',
+    required: false,
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'María' },
+        avatarUrl: {
+          type: 'string',
+          nullable: true,
+          example: 'https://cdn.example.com/avatars/maria.jpg',
+        },
+      },
+    },
+  })
+  onlineAgents?: Array<{ name: string; avatarUrl: string | null }>;
 }
