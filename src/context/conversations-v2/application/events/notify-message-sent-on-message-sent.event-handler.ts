@@ -11,7 +11,14 @@ import {
   COMMERCIAL_REPOSITORY,
   CommercialRepository,
 } from 'src/context/commercial/domain/commercial.repository';
+import {
+  COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
+  CommercialConnectionDomainService,
+} from 'src/context/commercial/domain/commercial-connection.domain-service';
+import { CommercialId as ServiceCommercialId } from 'src/context/commercial/domain/value-objects/commercial-id';
 import { senderDisplayNames } from '../sender-display-name';
+import { openAssigneeId } from '../absent-assignee';
+import { Chat } from '../../domain/entities/chat.aggregate';
 
 /**
  * Event handler que notifica vía WebSocket cuando se envía un mensaje.
@@ -22,6 +29,10 @@ import { senderDisplayNames } from '../sender-display-name';
  * 3. Todos los participantes del chat (visitante y comercial) reciben la notificación
  * 4. Si el chat está PENDING (cola), también emite a tenant:{companyId} para
  *    que Console muestre notificación de escritorio sin haber unido esa sala.
+ * 5. Si el chat está asignado y ese comercial no está conectado, avisa a
+ *    cada comercial online o ocupado en su sala personal (queue: ausente).
+ *    No usa la sala del tenant, para no duplicar el aviso de quien tiene
+ *    la consola abierta pero desconectado.
  *
  * Nota: el campo unreadMessagesCount ya NO se incluye aquí. El valor confirmado
  * se propaga por separado mediante UnreadCountUpdatedEvent →
@@ -45,6 +56,8 @@ export class NotifyMessageSentOnMessageSentEventHandler
     private readonly chatRepository: IChatRepository,
     @Inject(COMMERCIAL_REPOSITORY)
     private readonly commercials: CommercialRepository,
+    @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
+    private readonly connections: CommercialConnectionDomainService,
   ) {}
 
   async handle(event: MessageSentEvent): Promise<void> {
@@ -135,7 +148,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
         });
       }
 
-      await this.emitToTenantIfPendingVisitor(event, payload);
+      await this.fanOutVisitorMessage(event, payload);
     } catch (error) {
       const errorObj = error as Error;
       this.logger.error(
@@ -146,7 +159,7 @@ export class NotifyMessageSentOnMessageSentEventHandler
     }
   }
 
-  private async emitToTenantIfPendingVisitor(
+  private async fanOutVisitorMessage(
     event: MessageSentEvent,
     payload: Record<string, unknown>,
   ): Promise<void> {
@@ -158,16 +171,62 @@ export class NotifyMessageSentOnMessageSentEventHandler
     if (chatResult.isErr()) return;
 
     const chat = chatResult.unwrap();
-    if (!chat.status.isPending()) return;
+    if (chat.status.isPending()) {
+      this.websocketGateway.emitToRoom(
+        `tenant:${chat.companyId}`,
+        'message:new',
+        {
+          ...payload,
+          queue: 'pendientes',
+          senderType: payload.senderType ?? 'VISITOR',
+        },
+      );
+      return;
+    }
 
-    this.websocketGateway.emitToRoom(
-      `tenant:${chat.companyId}`,
-      'message:new',
-      {
-        ...payload,
-        queue: 'pendientes',
-        senderType: payload.senderType ?? 'VISITOR',
-      },
+    if (event.getMessageData().type === 'SYSTEM') return;
+    await this.emitToConnectedIfAssigneeAbsent(event, chat, payload);
+  }
+
+  /**
+   * El visitante escribió y su comercial no está. Avisa a quien sí está,
+   * sin tocar la sala del asignado (esa ya recibió message:new del chat).
+   */
+  private async emitToConnectedIfAssigneeAbsent(
+    event: MessageSentEvent,
+    chat: Chat,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const assigneeId = openAssigneeId(chat);
+    if (!assigneeId) return;
+    if (event.getSenderId() !== chat.visitorId.getValue()) return;
+
+    const assigneeOnline = await this.connections.isCommercialOnline(
+      new ServiceCommercialId(assigneeId),
     );
+    if (assigneeOnline) return;
+
+    const connected = await this.connections.listConnectedByCompany(
+      chat.companyId,
+    );
+    const others = connected.filter((id) => id.value !== assigneeId);
+    if (others.length === 0) return;
+
+    const names = await senderDisplayNames(this.commercials, [assigneeId]);
+    const assignedCommercialName = names.get(assigneeId) || 'un comercial';
+
+    for (const commercial of others) {
+      this.websocketGateway.emitToRoom(
+        `commercial:${commercial.value}`,
+        'message:new',
+        {
+          ...payload,
+          queue: 'ausente',
+          senderType: payload.senderType ?? 'VISITOR',
+          assignedCommercialId: assigneeId,
+          assignedCommercialName,
+        },
+      );
+    }
   }
 }

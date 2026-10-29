@@ -75,6 +75,12 @@ export interface CommercialConnectionDomainService {
   getOnlineCommercials(): Promise<CommercialId[]>;
 
   /**
+   * Comerciales online o ocupados de una empresa.
+   * Away y offline no cuentan: no pueden cubrir un chat ajeno.
+   */
+  listConnectedByCompany(companyId: string): Promise<CommercialId[]>;
+
+  /**
    * Obtiene todos los comerciales que están disponibles (online y no busy)
    * @param companyId - Si se proporciona, filtra por tenant. Sin él, devuelve todos (uso interno).
    */

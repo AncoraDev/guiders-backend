@@ -4,6 +4,7 @@ import { MessageSentEvent } from '../../../domain/events/message-sent.event';
 import { WebSocketGatewayBasic } from 'src/websocket/websocket.gateway';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
 import { COMMERCIAL_REPOSITORY } from 'src/context/commercial/domain/commercial.repository';
+import { COMMERCIAL_CONNECTION_DOMAIN_SERVICE } from 'src/context/commercial/domain/commercial-connection.domain-service';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
 
 describe('NotifyMessageSentOnMessageSentEventHandler', () => {
@@ -11,6 +12,10 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
   let mockGateway: jest.Mocked<WebSocketGatewayBasic>;
   let mockChatRepository: { findById: jest.Mock };
   let mockCommercials: { findById: jest.Mock };
+  let mockConnections: {
+    isCommercialOnline: jest.Mock;
+    listConnectedByCompany: jest.Mock;
+  };
 
   beforeEach(async () => {
     // Mock del WebSocket Gateway
@@ -31,6 +36,10 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         isOk: () => false,
       }),
     };
+    mockConnections = {
+      isCommercialOnline: jest.fn().mockResolvedValue(false),
+      listConnectedByCompany: jest.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +55,10 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
         {
           provide: COMMERCIAL_REPOSITORY,
           useValue: mockCommercials,
+        },
+        {
+          provide: COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
+          useValue: mockConnections,
         },
       ],
     }).compile();
@@ -335,6 +348,112 @@ describe('NotifyMessageSentOnMessageSentEventHandler', () => {
           senderType: 'VISITOR',
         }),
       );
+    });
+
+    it('avisa a los comerciales conectados si el asignado está ausente', async () => {
+      const chatId = Uuid.random().value;
+      const companyId = Uuid.random().value;
+      const visitorId = Uuid.random().value;
+      const assigneeId = Uuid.random().value;
+      const colleagueId = Uuid.random().value;
+
+      mockChatRepository.findById.mockResolvedValue({
+        isErr: () => false,
+        unwrap: () => ({
+          companyId,
+          status: { isPending: () => false, value: 'ASSIGNED' },
+          visitorId: { getValue: () => visitorId },
+          assignedCommercialId: {
+            isPresent: () => true,
+            get: () => ({ getValue: () => assigneeId }),
+          },
+        }),
+      });
+      mockConnections.isCommercialOnline.mockResolvedValue(false);
+      mockConnections.listConnectedByCompany.mockResolvedValue([
+        { value: assigneeId },
+        { value: colleagueId },
+      ]);
+      mockCommercials.findById.mockResolvedValue({
+        isErr: () => false,
+        unwrap: () => ({ name: { value: 'María' } }),
+      });
+
+      await handler.handle(
+        new MessageSentEvent({
+          message: {
+            messageId: Uuid.random().value,
+            chatId,
+            senderId: visitorId,
+            content: 'Hola, sigo aquí',
+            type: 'text',
+            isFirstResponse: false,
+            isInternal: false,
+            isAI: false,
+            sentAt: new Date('2025-10-03T10:00:00Z'),
+          },
+        }),
+      );
+
+      expect(mockGateway.emitToRoom).toHaveBeenCalledWith(
+        `commercial:${colleagueId}`,
+        'message:new',
+        expect.objectContaining({
+          queue: 'ausente',
+          senderType: 'VISITOR',
+          assignedCommercialId: assigneeId,
+          assignedCommercialName: 'María',
+        }),
+      );
+      expect(mockGateway.emitToRoom).not.toHaveBeenCalledWith(
+        `commercial:${assigneeId}`,
+        'message:new',
+        expect.anything(),
+      );
+      expect(mockGateway.emitToRoom).not.toHaveBeenCalledWith(
+        `tenant:${companyId}`,
+        'message:new',
+        expect.anything(),
+      );
+    });
+
+    it('no avisa al equipo si el asignado sigue conectado', async () => {
+      const chatId = Uuid.random().value;
+      const visitorId = Uuid.random().value;
+      const assigneeId = Uuid.random().value;
+
+      mockChatRepository.findById.mockResolvedValue({
+        isErr: () => false,
+        unwrap: () => ({
+          companyId: Uuid.random().value,
+          status: { isPending: () => false, value: 'ACTIVE' },
+          visitorId: { getValue: () => visitorId },
+          assignedCommercialId: {
+            isPresent: () => true,
+            get: () => ({ getValue: () => assigneeId }),
+          },
+        }),
+      });
+      mockConnections.isCommercialOnline.mockResolvedValue(true);
+
+      await handler.handle(
+        new MessageSentEvent({
+          message: {
+            messageId: Uuid.random().value,
+            chatId,
+            senderId: visitorId,
+            content: 'Hola',
+            type: 'text',
+            isFirstResponse: false,
+            isInternal: false,
+            isAI: false,
+            sentAt: new Date('2025-10-03T10:00:00Z'),
+          },
+        }),
+      );
+
+      expect(mockConnections.listConnectedByCompany).not.toHaveBeenCalled();
+      expect(mockGateway.emitToRoom).toHaveBeenCalledTimes(1);
     });
   });
 });

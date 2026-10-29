@@ -252,6 +252,30 @@ export class RedisCommercialConnectionDomainService
     return !lastActivity.isExpired(timeoutMinutes);
   }
 
+  async listConnectedByCompany(companyId: string): Promise<CommercialId[]> {
+    if (!companyId) return [];
+
+    const members = await this.client.sMembers(
+      `${this.PREFIX_SET_ONLINE}${companyId}`,
+    );
+    const connected: CommercialId[] = [];
+
+    for (const id of members) {
+      let commercialId: CommercialId;
+      try {
+        commercialId = new CommercialId(id);
+      } catch {
+        continue;
+      }
+      const status = await this.getConnectionStatus(commercialId);
+      if (status.isOnline() || status.isBusy()) {
+        connected.push(commercialId);
+      }
+    }
+
+    return connected;
+  }
+
   async getOnlineCommercials(): Promise<CommercialId[]> {
     const members = await this.client.sMembers(this.SET_ONLINE);
     const validCommercials: CommercialId[] = [];

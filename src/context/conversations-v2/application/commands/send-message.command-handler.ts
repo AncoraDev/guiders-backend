@@ -26,6 +26,13 @@ import {
   VISITOR_V2_REPOSITORY,
   VisitorV2Repository,
 } from 'src/context/visitors-v2/domain/visitor-v2.repository';
+import {
+  COMMERCIAL_CONNECTION_DOMAIN_SERVICE,
+  CommercialConnectionDomainService,
+} from 'src/context/commercial/domain/commercial-connection.domain-service';
+import { CommercialId as ServiceCommercialId } from 'src/context/commercial/domain/value-objects/commercial-id';
+import { Chat } from '../../domain/entities/chat.aggregate';
+import { openAssigneeId } from '../absent-assignee';
 
 @CommandHandler(SendMessageCommand)
 export class SendMessageCommandHandler
@@ -42,6 +49,8 @@ export class SendMessageCommandHandler
     private readonly commercials: CommercialRepository,
     @Inject(VISITOR_V2_REPOSITORY)
     private readonly visitors: VisitorV2Repository,
+    @Inject(COMMERCIAL_CONNECTION_DOMAIN_SERVICE)
+    private readonly connections: CommercialConnectionDomainService,
     private readonly publisher: EventPublisher,
   ) {}
 
@@ -72,6 +81,14 @@ export class SendMessageCommandHandler
         }
         throw error;
       }
+    }
+
+    if (this.isDomainChat(chatResult.unwrap())) {
+      await this.coverAbsentAssignee(
+        chatResult.unwrap() as Chat,
+        command.senderId,
+        command.messageData.isInternal === true,
+      );
     }
 
     // Determinar si es primera respuesta del comercial
@@ -141,6 +158,76 @@ export class SendMessageCommandHandler
       createdAt: messagePrimitives.createdAt.toISOString(),
       updatedAt: messagePrimitives.updatedAt.toISOString(),
     };
+  }
+
+  private isDomainChat(chat: unknown): chat is Chat {
+    return (
+      !!chat &&
+      typeof (chat as Chat).transferTo === 'function' &&
+      typeof (chat as Chat).visitorId?.getValue === 'function'
+    );
+  }
+
+  /**
+   * Otro comercial contesta un chat cuyo asignado no está.
+   * El mensaje visible transfiere la conversación. Una nota interna no.
+   * Si el asignado ya volvió, el envío se rechaza.
+   */
+  private async coverAbsentAssignee(
+    chat: Chat,
+    senderId: string,
+    isInternal: boolean,
+  ): Promise<void> {
+    if (senderId === chat.visitorId.getValue()) return;
+
+    const assigneeId = openAssigneeId(chat);
+    if (!assigneeId || assigneeId === senderId) return;
+
+    const assigneeOnline = await this.connections.isCommercialOnline(
+      new ServiceCommercialId(assigneeId),
+    );
+    if (assigneeOnline) {
+      throw new BadRequestException(
+        'Esta conversación la tiene otro comercial conectado',
+      );
+    }
+    if (isInternal) return;
+
+    const transferred = chat.transferTo(senderId, { transferredBy: senderId });
+    const updateResult = await this.chatRepository.update(transferred);
+    if (updateResult.isErr()) {
+      throw new BadRequestException(
+        'No se pudo quedar esta conversación. Inténtalo de nuevo.',
+      );
+    }
+
+    const names = await senderDisplayNames(this.commercials, [
+      assigneeId,
+      senderId,
+    ]);
+    const fromName = names.get(assigneeId) || 'un comercial';
+    const toName = names.get(senderId) || 'un comercial';
+    const systemMessage = Message.createSystemMessage({
+      chatId: chat.id.getValue(),
+      action: 'transferred',
+      fromUserId: assigneeId,
+      toUserId: senderId,
+      reason: 'assignee_absent',
+      content: `Transferido de ${fromName} a ${toName}`,
+      isInternal: false,
+    });
+    const saveMsg = await this.messageRepository.save(systemMessage);
+    if (saveMsg.isOk()) {
+      const messageCtx = this.publisher.mergeObjectContext(systemMessage);
+      messageCtx.commit();
+    } else {
+      this.logger.error(
+        `Chat transferido pero falló el mensaje de sistema: ${saveMsg.error.message}`,
+      );
+    }
+
+    const chatCtx = this.publisher.mergeObjectContext(transferred);
+    chatCtx.commit();
   }
 
   /**

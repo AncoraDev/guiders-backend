@@ -1044,6 +1044,55 @@ export class ChatV2Controller {
   }
 
   /**
+   * Chats asignados a un comercial que no está conectado.
+   * Quien está online los ve en Pendientes sin reclamarlos al abrir.
+   */
+  @Get('queue/absent-assignee')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
+  @ApiOperation({
+    summary: 'Chats cuyo comercial asignado no está conectado',
+    description:
+      'Lista chats ASSIGNED o ACTIVE de la empresa cuyo asignado está ausente. No incluye los del comercial que consulta.',
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Número máximo de chats a retornar',
+    required: false,
+    example: 50,
+  })
+  async getAbsentAssigneeChats(
+    @Req() req: AuthenticatedRequest,
+    @Query('limit') limit?: number,
+  ): Promise<Record<string, unknown>[]> {
+    const companyId = req.user.companyId ?? '';
+    const requesterId = req.user.id;
+    const { GetAbsentAssigneeChatsQuery } = await import(
+      '../../application/queries/get-absent-assignee-chats.query'
+    );
+    const result = await this.queryBus.execute(
+      new GetAbsentAssigneeChatsQuery(
+        companyId,
+        requesterId,
+        limit ? Number(limit) : 50,
+      ),
+    );
+    if (result?.isErr?.()) {
+      this.logger.error(
+        `Error al listar chats de ausentes: ${result.error?.message || 'Error desconocido'}`,
+      );
+      throw new HttpException(
+        'Error al listar chats de comerciales ausentes',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    return result?.value ?? [];
+  }
+
+  /**
    * Obtiene métricas de un comercial
    * Requiere autenticación y permisos de comercial, administrador o supervisor
    */
