@@ -149,6 +149,17 @@ export class VisitorSummaryDto {
   isInternal: boolean;
 
   @ApiPropertyOptional({
+    description: 'Bloqueo activo, si el visitante está bloqueado',
+  })
+  block?: {
+    blockedAt: string;
+    blockedBy: string;
+    blockedByName: string;
+    reason: string;
+    note?: string;
+  };
+
+  @ApiPropertyOptional({
     description: 'URL actual del visitante',
     example: 'https://example.com/pricing',
   })

@@ -170,6 +170,10 @@ export class SaveLeadContactDataCommandHandler
 
       const visitor = visitorResult.unwrap();
 
+      if (visitor.isBlocked()) {
+        return;
+      }
+
       if (
         !visitor.getLifecycle().isAnon() &&
         !visitor.getLifecycle().isEngaged()

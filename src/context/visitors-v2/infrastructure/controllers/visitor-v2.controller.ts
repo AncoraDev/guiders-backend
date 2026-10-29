@@ -14,6 +14,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   InternalServerErrorException,
+  ForbiddenException,
   Logger,
   Inject,
 } from '@nestjs/common';
@@ -71,6 +72,28 @@ import {
 } from '../../domain/visitor-connection.domain-service';
 import { SessionId } from '../../domain/value-objects/session-id';
 import { VisitorLastActivity } from '../../domain/value-objects/visitor-last-activity';
+import { BlockVisitorCommand } from '../../application/commands/block-visitor.command';
+import { UnblockVisitorCommand } from '../../application/commands/unblock-visitor.command';
+import { Result } from '../../../shared/domain/result';
+import { DomainError } from '../../../shared/domain/domain.error';
+import { VisitorV2NotFoundError } from '../../domain/errors/visitor-v2.error';
+import { VisitorBlockForbiddenError } from '../../domain/errors/visitor-block.error';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { VISITOR_BLOCK_REASONS } from '../../domain/value-objects/visitor-block';
+
+class BlockVisitorBodyDto {
+  @ApiProperty({ enum: VISITOR_BLOCK_REASONS })
+  @IsString()
+  @IsIn([...VISITOR_BLOCK_REASONS])
+  reason: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
 
 @ApiTags('visitors')
 @ApiAuthErrors()
@@ -569,5 +592,72 @@ export class VisitorV2Controller {
       GetVisitorSiteQuery,
       GetVisitorSiteResponseDto
     >(query);
+  }
+
+  @Post(':visitorId/block')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bloquear a un visitante de la empresa' })
+  async blockVisitor(
+    @Param('visitorId') visitorId: string,
+    @Body() body: BlockVisitorBodyDto,
+    @Req() req: ExpressRequest & {
+      user: { id: string; companyId?: string; username?: string; roles?: string[] };
+    },
+  ): Promise<{ ok: true }> {
+    const result = await this.commandBus.execute<
+      BlockVisitorCommand,
+      Result<void, DomainError>
+    >(
+      new BlockVisitorCommand(
+        visitorId,
+        req.user.companyId ?? '',
+        req.user.id,
+        req.user.username ?? '',
+        body.reason,
+        body.note,
+      ),
+    );
+    this.throwBlockResult(result);
+    return { ok: true };
+  }
+
+  @Post(':visitorId/unblock')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Desbloquear a un visitante' })
+  async unblockVisitor(
+    @Param('visitorId') visitorId: string,
+    @Req() req: ExpressRequest & {
+      user: { id: string; companyId?: string; username?: string; roles?: string[] };
+    },
+  ): Promise<{ ok: true }> {
+    const result = await this.commandBus.execute<
+      UnblockVisitorCommand,
+      Result<void, DomainError>
+    >(
+      new UnblockVisitorCommand(
+        visitorId,
+        req.user.companyId ?? '',
+        req.user.id,
+        req.user.username ?? '',
+        req.user.roles ?? [],
+      ),
+    );
+    this.throwBlockResult(result);
+    return { ok: true };
+  }
+
+  private throwBlockResult(result: Result<void, DomainError>): void {
+    if (result.isOk()) return;
+    if (result.error instanceof VisitorV2NotFoundError) {
+      throw new NotFoundException(result.error.message);
+    }
+    if (result.error instanceof VisitorBlockForbiddenError) {
+      throw new ForbiddenException(result.error.message);
+    }
+    throw new BadRequestException(result.error.message);
   }
 }

@@ -13,6 +13,7 @@ import { CompleteLeadCaptureSessionCommand } from 'src/context/lead-capture/appl
 import { RecordConsentCommand } from 'src/context/consent/application/commands/record-consent.command';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
 import { MESSAGE_V2_REPOSITORY } from '../../../domain/message.repository';
+import { VISITOR_V2_REPOSITORY } from 'src/context/visitors-v2/domain/visitor-v2.repository';
 import { SubmitLeadCaptureCommand } from '../submit-lead-capture.command';
 import { SubmitLeadCaptureCommandHandler } from '../submit-lead-capture.command-handler';
 
@@ -78,6 +79,12 @@ describe('SubmitLeadCaptureCommandHandler', () => {
         SubmitLeadCaptureCommandHandler,
         { provide: CHAT_V2_REPOSITORY, useValue: chatRepository },
         { provide: MESSAGE_V2_REPOSITORY, useValue: messageRepository },
+        {
+          provide: VISITOR_V2_REPOSITORY,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ isErr: () => true }),
+          },
+        },
         { provide: CommandBus, useValue: commandBus },
         { provide: QueryBus, useValue: queryBus },
         { provide: EMAIL_SENDER_SERVICE, useValue: emailSender },

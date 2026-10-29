@@ -149,6 +149,7 @@ describe('Visitors E2E', () => {
       findBySessionId: jest.fn(),
       save: jest.fn(),
       findById: jest.fn(),
+      findBlockedIds: jest.fn().mockResolvedValue([]),
       delete: jest.fn(),
       findAll: jest.fn(),
       findBySiteId: jest.fn(),

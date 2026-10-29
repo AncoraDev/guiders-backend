@@ -310,6 +310,7 @@ export class SearchVisitorsQueryHandler
             connectionStatus: primitives.connectionStatus || 'offline',
             hasAcceptedPrivacyPolicy: primitives.hasAcceptedPrivacyPolicy,
             isInternal: primitives.isInternal,
+            ...(primitives.block ? { block: primitives.block } : {}),
             currentUrl: primitives.currentUrl,
             createdAt: primitives.createdAt,
             updatedAt: primitives.updatedAt,
@@ -401,6 +402,7 @@ export class SearchVisitorsQueryHandler
       maxTotalSessionsCount: dto.maxTotalSessionsCount,
       ipAddress: dto.ipAddress,
       isInternal: dto.isInternal,
+      ...(dto.blocked !== undefined ? { blocked: dto.blocked } : {}),
     };
   }
 

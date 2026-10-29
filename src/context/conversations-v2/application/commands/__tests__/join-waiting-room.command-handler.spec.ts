@@ -46,7 +46,9 @@ describe('JoinWaitingRoomCommandHandler', () => {
       }),
     } as unknown as jest.Mocked<EventPublisher>;
 
-    handler = new JoinWaitingRoomCommandHandler(chatRepository, publisher);
+    handler = new JoinWaitingRoomCommandHandler(chatRepository, {
+      findById: jest.fn().mockResolvedValue({ isErr: () => true }),
+    } as never, publisher);
     chatRepository.findByVisitorId.mockResolvedValue(ok([]));
   });
 

@@ -19,6 +19,13 @@ import {
   CommercialRepository,
 } from 'src/context/commercial/domain/commercial.repository';
 import { senderDisplayNames } from '../sender-display-name';
+import { assertVisitorNotBlocked } from '../visitor-block';
+import { VisitorBlockedError } from 'src/context/visitors-v2/domain/errors/visitor-block.error';
+import { BadRequestException } from '@nestjs/common';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 
 @CommandHandler(SendMessageCommand)
 export class SendMessageCommandHandler
@@ -33,6 +40,8 @@ export class SendMessageCommandHandler
     private readonly messageRepository: IMessageRepository,
     @Inject(COMMERCIAL_REPOSITORY)
     private readonly commercials: CommercialRepository,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
     private readonly publisher: EventPublisher,
   ) {}
 
@@ -47,6 +56,22 @@ export class SendMessageCommandHandler
 
     if (chatResult.isErr()) {
       throw new Error(`Chat no encontrado: ${chatResult.error.message}`);
+    }
+
+    const chat = chatResult.unwrap() as {
+      visitorId?: { value?: string; getValue?: () => string };
+    };
+    const visitorId =
+      chat.visitorId?.value ?? chat.visitorId?.getValue?.() ?? '';
+    if (visitorId) {
+      try {
+        await assertVisitorNotBlocked(this.visitors, visitorId);
+      } catch (error) {
+        if (error instanceof VisitorBlockedError) {
+          throw new BadRequestException(error.message);
+        }
+        throw error;
+      }
     }
 
     // Determinar si es primera respuesta del comercial

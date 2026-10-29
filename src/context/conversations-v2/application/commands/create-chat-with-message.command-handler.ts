@@ -22,6 +22,11 @@ import {
   ChatMissingRequiredFieldError,
 } from '../../domain/errors/chat.error';
 import { resolveOpenChat } from './resolve-open-chat';
+import { assertVisitorNotBlocked } from '../visitor-block';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 
 @CommandHandler(CreateChatWithMessageCommand)
 export class CreateChatWithMessageCommandHandler
@@ -38,6 +43,8 @@ export class CreateChatWithMessageCommandHandler
     private readonly messageRepository: IMessageRepository,
     @Inject(CHAT_QUEUE_CONFIG_SERVICE)
     private readonly queueConfigService: ChatQueueConfigService,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
     private readonly publisher: EventPublisher,
   ) {}
 
@@ -55,6 +62,8 @@ export class CreateChatWithMessageCommandHandler
     if (!command.companyId) {
       throw new ChatMissingRequiredFieldError('companyId');
     }
+
+    await assertVisitorNotBlocked(this.visitors, command.visitorId);
 
     const actorId = command.commercialId ?? command.senderId;
     const openChat = await resolveOpenChat(

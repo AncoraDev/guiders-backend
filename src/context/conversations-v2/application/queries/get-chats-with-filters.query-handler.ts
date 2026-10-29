@@ -18,6 +18,11 @@ import { ChatListResponseDto } from '../dtos/chat-response.dto';
 import { Result } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { FindUserByIdQuery } from 'src/context/auth/auth-user/application/queries/find-user-by-id.query';
+import { withoutBlockedVisitors } from '../visitor-block';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 
 /**
  * Handler para obtener chats con filtros avanzados y paginación con cursor
@@ -34,6 +39,8 @@ export class GetChatsWithFiltersQueryHandler
     @Inject(MESSAGE_V2_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
     private readonly queryBus: QueryBus,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
   ) {}
 
   /**
@@ -262,7 +269,7 @@ export class GetChatsWithFiltersQueryHandler
         throw new Error(result.error.message);
       }
 
-      const chats = result.value;
+      const chats = await withoutBlockedVisitors(this.visitors, result.value);
       this.logger.log(`Búsqueda completada. ${chats.length} chats encontrados`);
 
       // Calcular cursor siguiente si hay más chats

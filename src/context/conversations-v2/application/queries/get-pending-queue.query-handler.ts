@@ -12,6 +12,11 @@ import {
   ChatQueueConfigService,
   CHAT_QUEUE_CONFIG_SERVICE,
 } from '../../domain/services/chat-queue-config.service';
+import { withoutBlockedVisitors } from '../visitor-block';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 
 /**
  * Error específico para el GetPendingQueueQueryHandler
@@ -37,6 +42,8 @@ export class GetPendingQueueQueryHandler
     private readonly chatRepository: IChatRepository,
     @Inject(CHAT_QUEUE_CONFIG_SERVICE)
     private readonly queueConfigService: ChatQueueConfigService,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
   ) {}
 
   async execute(
@@ -70,11 +77,15 @@ export class GetPendingQueueQueryHandler
         return result;
       }
 
+      const visible = await withoutBlockedVisitors(
+        this.visitors,
+        result.value,
+      );
       this.logger.log(
-        `Cola pendiente obtenida exitosamente. ${result.value.length} chats encontrados`,
+        `Cola pendiente obtenida exitosamente. ${visible.length} chats encontrados`,
       );
 
-      return result;
+      return ok(visible);
     } catch (error) {
       this.logger.error('Error inesperado al obtener cola pendiente:', error);
       return err(

@@ -40,6 +40,22 @@ export class VisitorV2MongoEntity extends Document {
   @Prop({ required: true, default: false })
   isInternal: boolean;
 
+  @Prop({ type: Object, default: null })
+  block: {
+    blockedAt: Date;
+    blockedBy: string;
+    blockedByName: string;
+    reason: string;
+    note?: string;
+  } | null;
+
+  @Prop({ type: Object, default: null })
+  lastUnblock: {
+    unblockedAt: Date;
+    unblockedBy: string;
+    unblockedByName: string;
+  } | null;
+
   @Prop({ required: true })
   createdAt: Date;
 

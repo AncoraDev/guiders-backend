@@ -49,6 +49,13 @@ export class IdentifyVisitorResponseDto {
   })
   allowedActions?: string[];
 
+  @ApiProperty({
+    description:
+      'El visitante está bloqueado. El widget debe ocultarse sin explicar el motivo.',
+    example: false,
+  })
+  blocked: boolean;
+
   constructor(props: {
     visitorId: string;
     tenantId: string;
@@ -57,6 +64,7 @@ export class IdentifyVisitorResponseDto {
     isNewVisitor: boolean;
     consentStatus?: string;
     allowedActions?: string[];
+    blocked?: boolean;
   }) {
     this.visitorId = props.visitorId;
     this.tenantId = props.tenantId;
@@ -65,5 +73,6 @@ export class IdentifyVisitorResponseDto {
     this.isNewVisitor = props.isNewVisitor;
     this.consentStatus = props.consentStatus;
     this.allowedActions = props.allowedActions;
+    this.blocked = props.blocked === true;
   }
 }

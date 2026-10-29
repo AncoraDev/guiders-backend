@@ -79,6 +79,7 @@ import { GetChatByIdQueryHandler } from './application/queries/get-chat-by-id.qu
 import { GetChatMessagesQueryHandler } from './application/queries/get-chat-messages.query-handler';
 import { GetApplicableAssignmentRulesQueryHandler } from './application/queries/get-applicable-assignment-rules.query-handler';
 import { GetPendingQueueQueryHandler } from './application/queries/get-pending-queue.query-handler';
+import { GetVisitorChatHistoryQueryHandler } from './application/queries/get-visitor-chat-history.query-handler';
 import { GetVisitorPendingChatsQueryHandler } from './application/queries/get-visitor-pending-chats.query-handler';
 import { GetUnreadMessagesQueryHandler } from './application/queries/get-unread-messages.query-handler';
 import { GetChatPresenceQueryHandler } from './application/queries/get-chat-presence.query-handler';
@@ -205,6 +206,7 @@ import { ChatQueueConfigServiceImpl } from './infrastructure/services/chat-queue
     GetChatMessagesQueryHandler,
     GetApplicableAssignmentRulesQueryHandler,
     GetPendingQueueQueryHandler,
+    GetVisitorChatHistoryQueryHandler,
     GetVisitorPendingChatsQueryHandler,
     GetUnreadMessagesQueryHandler,
     GetChatPresenceQueryHandler,

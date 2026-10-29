@@ -123,6 +123,20 @@ export class VisitorV2MongoRepositoryImpl implements VisitorV2Repository {
     }
   }
 
+  async findBlockedIds(visitorIds: string[]): Promise<string[]> {
+    if (visitorIds.length === 0) {
+      return [];
+    }
+    const docs = await this.visitorModel
+      .find({
+        id: { $in: visitorIds },
+        'block.blockedAt': { $ne: null },
+      })
+      .select('id')
+      .lean();
+    return docs.map((doc) => doc.id);
+  }
+
   async findById(id: VisitorId): Promise<Result<VisitorV2, DomainError>> {
     try {
       const entity = await this.visitorModel.findOne({ id: id.value });
@@ -892,6 +906,22 @@ export class VisitorV2MongoRepositoryImpl implements VisitorV2Repository {
     // Filtro por visitantes internos (comerciales/empleados)
     if (filters.isInternal !== undefined) {
       query['isInternal'] = filters.isInternal;
+    }
+
+    if (filters.blocked === true) {
+      query['block.blockedAt'] = { $ne: null };
+    } else if (filters.blocked === false) {
+      const excluded = {
+        $or: [
+          { block: { $exists: false } },
+          { block: null },
+          { 'block.blockedAt': null },
+        ],
+      };
+      const and = Array.isArray(query['$and'])
+        ? (query['$and'] as unknown[])
+        : [];
+      query['$and'] = [...and, excluded];
     }
 
     // Filtro por fecha de creación

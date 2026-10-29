@@ -26,6 +26,8 @@ export interface VisitorSearchFilters {
   minTotalSessionsCount?: number;
   maxTotalSessionsCount?: number;
   isInternal?: boolean;
+  /** true = solo bloqueados; false = excluir bloqueados */
+  blocked?: boolean;
   ipAddress?: string;
   /** Incluir solo visitantes con estos IDs (para filtros cross-collection) */
   visitorIds?: string[];
@@ -82,6 +84,11 @@ export interface VisitorV2Repository {
    * Busca un visitante por su ID
    */
   findById(id: VisitorId): Promise<Result<VisitorV2, DomainError>>;
+
+  /**
+   * De una lista de ids, devuelve los que tienen bloqueo activo.
+   */
+  findBlockedIds(visitorIds: string[]): Promise<string[]>;
 
   /**
    * Busca un visitante por su fingerprint y siteId

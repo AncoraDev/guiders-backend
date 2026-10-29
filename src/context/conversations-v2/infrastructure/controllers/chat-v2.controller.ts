@@ -43,6 +43,7 @@ import {
 import { PendingChatsResponseDto } from '../../application/dtos/pending-chats-response.dto';
 import { GetChatByIdQuery } from '../../application/queries/get-chat-by-id.query';
 import { GetVisitorPendingChatsQuery } from '../../application/queries/get-visitor-pending-chats.query';
+import { GetVisitorChatHistoryQuery } from '../../application/queries/get-visitor-chat-history.query';
 import { Result } from 'src/context/shared/domain/result';
 import { Chat } from '../../domain/entities/chat.aggregate';
 import { DomainError } from 'src/context/shared/domain/domain.error';
@@ -808,6 +809,24 @@ export class ChatV2Controller {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Get('visitor/:visitorId/history')
+  @UseGuards(DualAuthGuard, RolesGuard)
+  @Roles(['commercial', 'admin', 'supervisor'])
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Historial de chats de un visitante',
+    description:
+      'Devuelve los chats recientes del visitante en la empresa, también los cerrados.',
+  })
+  async getVisitorChatHistory(
+    @Param('visitorId') visitorId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ chats: { id: string; status: string; updatedAt: string }[] }> {
+    return this.queryBus.execute(
+      new GetVisitorChatHistoryQuery(visitorId, req.user.companyId ?? ''),
+    );
   }
 
   /**

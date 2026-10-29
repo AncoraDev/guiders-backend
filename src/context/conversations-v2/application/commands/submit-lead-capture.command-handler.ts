@@ -38,6 +38,12 @@ import {
   Message,
 } from '../../domain/entities/message.aggregate';
 import { ChatId } from '../../domain/value-objects/chat-id';
+import { assertVisitorNotBlocked } from '../visitor-block';
+import { VisitorBlockedError } from 'src/context/visitors-v2/domain/errors/visitor-block.error';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 import { MessageResponseDto } from '../dtos/message-response.dto';
 
 /** Campos que van a la ficha del lead; el resto acaba en additionalData. */
@@ -65,6 +71,8 @@ export class SubmitLeadCaptureCommandHandler
     private readonly queryBus: QueryBus,
     @Inject(EMAIL_SENDER_SERVICE)
     private readonly emailSender: EmailSenderService,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
   ) {}
 
   async execute(
@@ -82,6 +90,15 @@ export class SubmitLeadCaptureCommandHandler
     const chat = chatResult.unwrap();
     if (chat.visitorId.value !== command.visitorId) {
       throw new BadRequestException('El visitante no pertenece a este chat');
+    }
+
+    try {
+      await assertVisitorNotBlocked(this.visitors, command.visitorId);
+    } catch (error) {
+      if (error instanceof VisitorBlockedError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
     }
 
     if (command.data.acceptedPrivacyPolicy !== true) {

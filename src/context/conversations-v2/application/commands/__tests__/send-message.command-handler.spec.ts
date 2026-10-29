@@ -5,6 +5,7 @@ import { SendMessageCommand } from '../send-message.command';
 import { CHAT_V2_REPOSITORY } from '../../../domain/chat.repository';
 import { MESSAGE_V2_REPOSITORY } from '../../../domain/message.repository';
 import { COMMERCIAL_REPOSITORY } from 'src/context/commercial/domain/commercial.repository';
+import { VISITOR_V2_REPOSITORY } from 'src/context/visitors-v2/domain/visitor-v2.repository';
 import { Message } from '../../../domain/entities/message.aggregate';
 import { ok, okVoid } from 'src/context/shared/domain/result';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
@@ -40,6 +41,12 @@ describe('SendMessageCommandHandler', () => {
           },
         },
         { provide: COMMERCIAL_REPOSITORY, useValue: commercials },
+        {
+          provide: VISITOR_V2_REPOSITORY,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ isErr: () => true }),
+          },
+        },
         {
           provide: EventPublisher,
           useValue: {

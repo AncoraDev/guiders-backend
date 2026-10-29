@@ -240,6 +240,20 @@ export class VisitorFiltersDto {
 
   @ApiPropertyOptional({
     description:
+      'true = solo visitantes bloqueados; false = excluir bloqueados',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }: { value: string | boolean }): boolean => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return Boolean(value);
+  })
+  blocked?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       'Filtrar por visitantes con chats pendientes (sin asignar). true = solo con chats pendientes, false = sin chats pendientes',
     example: true,
   })

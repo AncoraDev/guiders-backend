@@ -18,6 +18,13 @@ import {
   SessionEndedEvent,
 } from './events/session.events';
 import { VisitorCurrentPageChangedEvent } from './events/visitor-current-page-changed.event';
+import { VisitorBlockedEvent } from './events/visitor-blocked.event';
+import { VisitorUnblockedEvent } from './events/visitor-unblocked.event';
+import {
+  isVisitorBlockReason,
+  VisitorBlockRecord,
+  VisitorUnblockRecord,
+} from './value-objects/visitor-block';
 
 /**
  * Primitivos para la serialización del agregado VisitorV2
@@ -34,6 +41,10 @@ export interface VisitorPrimitives {
   consentVersion: string | null;
   currentUrl?: string; // URL actual del visitante
   isInternal: boolean; // Marca si el visitante es un comercial/empleado
+  /** Bloqueo de la empresa. No cambia el ciclo de vida. */
+  block?: VisitorBlockRecord | null;
+  /** Último desbloqueo, para no perder el rastro. */
+  lastUnblock?: VisitorUnblockRecord | null;
   createdAt: string;
   updatedAt: string;
   sessions: ReturnType<Session['toPrimitives']>[];
@@ -56,6 +67,8 @@ export class VisitorV2 extends AggregateRoot {
   private consentVersion: string | null;
   private currentUrl?: string;
   private isInternal: boolean;
+  private block: VisitorBlockRecord | null;
+  private lastUnblock: VisitorUnblockRecord | null;
   private readonly createdAt: Date;
   private updatedAt: Date;
   private sessions: Session[];
@@ -72,6 +85,8 @@ export class VisitorV2 extends AggregateRoot {
     consentVersion: string | null;
     currentUrl?: string;
     isInternal: boolean;
+    block?: VisitorBlockRecord | null;
+    lastUnblock?: VisitorUnblockRecord | null;
     createdAt: Date;
     updatedAt: Date;
     sessions: Session[];
@@ -88,6 +103,8 @@ export class VisitorV2 extends AggregateRoot {
     this.consentVersion = props.consentVersion;
     this.currentUrl = props.currentUrl;
     this.isInternal = props.isInternal;
+    this.block = props.block ?? null;
+    this.lastUnblock = props.lastUnblock ?? null;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
     this.sessions = props.sessions;
@@ -167,6 +184,8 @@ export class VisitorV2 extends AggregateRoot {
       consentVersion: primitives.consentVersion,
       currentUrl: primitives.currentUrl,
       isInternal: primitives.isInternal || false,
+      block: primitives.block ?? null,
+      lastUnblock: primitives.lastUnblock ?? null,
       createdAt: new Date(primitives.createdAt),
       updatedAt: new Date(primitives.updatedAt),
       sessions: primitives.sessions.map((sessionPrimitives) =>
@@ -193,6 +212,8 @@ export class VisitorV2 extends AggregateRoot {
       consentVersion: this.consentVersion,
       currentUrl: this.currentUrl,
       isInternal: this.isInternal,
+      block: this.block,
+      lastUnblock: this.lastUnblock,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
       sessions: this.sessions.map((session) => session.toPrimitives()),
@@ -596,6 +617,85 @@ export class VisitorV2 extends AggregateRoot {
     primitives.updatedAt = new Date().toISOString();
 
     return VisitorV2.fromPrimitives(primitives);
+  }
+
+  public isBlocked(): boolean {
+    return this.block !== null;
+  }
+
+  public getBlock(): VisitorBlockRecord | null {
+    return this.block;
+  }
+
+  /**
+   * Bloquea al visitante para toda la empresa. El ciclo de vida no cambia.
+   */
+  public blockVisitor(input: {
+    blockedBy: string;
+    blockedByName: string;
+    reason: string;
+    note?: string;
+  }): void {
+    if (this.block) {
+      throw new Error('El visitante ya está bloqueado');
+    }
+    if (!isVisitorBlockReason(input.reason)) {
+      throw new Error('El motivo de bloqueo no es válido');
+    }
+    const note = input.note?.trim();
+    if (input.reason === 'other' && !note) {
+      throw new Error('El motivo «Otro» necesita una nota');
+    }
+
+    const blockedAt = new Date();
+    this.block = {
+      blockedAt: blockedAt.toISOString(),
+      blockedBy: input.blockedBy,
+      blockedByName: input.blockedByName.trim() || 'Comercial',
+      reason: input.reason,
+      ...(note ? { note } : {}),
+    };
+    this.updatedAt = blockedAt;
+    this.apply(
+      new VisitorBlockedEvent({
+        visitorId: this.id.getValue(),
+        tenantId: this.tenantId.getValue(),
+        blockedAt: this.block.blockedAt,
+        blockedBy: this.block.blockedBy,
+        blockedByName: this.block.blockedByName,
+        reason: this.block.reason,
+        note: this.block.note,
+      }),
+    );
+  }
+
+  /**
+   * Levanta el bloqueo y guarda quién lo hizo. No reabre chats.
+   */
+  public unblockVisitor(input: {
+    unblockedBy: string;
+    unblockedByName: string;
+  }): void {
+    if (!this.block) {
+      throw new Error('El visitante no está bloqueado');
+    }
+    const now = new Date();
+    this.lastUnblock = {
+      unblockedAt: now.toISOString(),
+      unblockedBy: input.unblockedBy,
+      unblockedByName: input.unblockedByName.trim() || 'Comercial',
+    };
+    this.block = null;
+    this.updatedAt = now;
+    this.apply(
+      new VisitorUnblockedEvent({
+        visitorId: this.id.getValue(),
+        tenantId: this.tenantId.getValue(),
+        unblockedAt: this.lastUnblock.unblockedAt,
+        unblockedBy: this.lastUnblock.unblockedBy,
+        unblockedByName: this.lastUnblock.unblockedByName,
+      }),
+    );
   }
 
   /**

@@ -10,6 +10,11 @@ import { ChatMetadata } from '../../domain/value-objects/chat-metadata';
 import { ChatAttendedByOtherCommercialError } from '../../domain/errors/chat.error';
 import { Result } from 'src/context/shared/domain/result';
 import { resolveOpenChat } from './resolve-open-chat';
+import { assertVisitorNotBlocked } from '../visitor-block';
+import {
+  VISITOR_V2_REPOSITORY,
+  VisitorV2Repository,
+} from 'src/context/visitors-v2/domain/visitor-v2.repository';
 
 @CommandHandler(JoinWaitingRoomCommand)
 export class JoinWaitingRoomCommandHandler
@@ -22,12 +27,16 @@ export class JoinWaitingRoomCommandHandler
   constructor(
     @Inject(CHAT_V2_REPOSITORY)
     private readonly chatRepository: IChatRepository,
+    @Inject(VISITOR_V2_REPOSITORY)
+    private readonly visitors: VisitorV2Repository,
     private readonly publisher: EventPublisher,
   ) {}
 
   async execute(
     command: JoinWaitingRoomCommand,
   ): Promise<{ chatId: string; position: number }> {
+    await assertVisitorNotBlocked(this.visitors, command.visitorId);
+
     const actorId = command.actorId || command.visitorId;
     const openChat = await resolveOpenChat(
       this.chatRepository,

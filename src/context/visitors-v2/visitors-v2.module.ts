@@ -60,6 +60,9 @@ import { ChangeVisitorToOfflineOnSessionEndedEventHandler } from './application/
 import { NotifyPageChangedOnVisitorCurrentPageChangedEventHandler } from './application/events/notify-page-changed-on-visitor-current-page-changed.event-handler';
 import { NotifyHighIntentOnVisitorBecameHighIntentEventHandler } from './application/events/notify-high-intent-on-visitor-became-high-intent.event-handler';
 import { MarkVisitorAsInternalOnCommercialFingerprintRegisteredEventHandler } from './application/events/mark-visitor-as-internal-on-fingerprint-registered.handler';
+import { BlockVisitorCommandHandler } from './application/commands/block-visitor.command-handler';
+import { UnblockVisitorCommandHandler } from './application/commands/unblock-visitor.command-handler';
+import { CloseChatsOnVisitorBlockedEventHandler } from './application/events/close-chats-on-visitor-blocked.event-handler';
 import { VISITOR_CONNECTION_DOMAIN_SERVICE } from './domain/visitor-connection.domain-service';
 import { VISITOR_CONNECTION_SERVICE_PROVIDER } from './infrastructure/connection/redis-visitor-connection.domain-service';
 import { SessionCleanupScheduler } from './application/services/session-cleanup.scheduler';
@@ -138,6 +141,9 @@ import { LeadScoringModule } from '../lead-scoring/lead-scoring.module';
     GetVisitorStatsQueryHandler,
     SaveFilterCommandHandler,
     DeleteSavedFilterCommandHandler,
+    BlockVisitorCommandHandler,
+    UnblockVisitorCommandHandler,
+    CloseChatsOnVisitorBlockedEventHandler,
     SyncConnectionOnVisitorConnectionChangedEventHandler,
     EmitPresenceChangedOnVisitorConnectionChangedEventHandler,
     ChangeVisitorToOfflineOnSessionEndedEventHandler,

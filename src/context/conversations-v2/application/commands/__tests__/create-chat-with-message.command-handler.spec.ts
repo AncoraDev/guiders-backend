@@ -11,6 +11,7 @@ import {
   IMessageRepository,
 } from '../../../domain/message.repository';
 import { CHAT_QUEUE_CONFIG_SERVICE } from '../../../domain/services/chat-queue-config.service';
+import { VISITOR_V2_REPOSITORY } from 'src/context/visitors-v2/domain/visitor-v2.repository';
 import { ok, okVoid, err } from 'src/context/shared/domain/result';
 import { DomainError } from 'src/context/shared/domain/domain.error';
 import { Uuid } from 'src/context/shared/domain/value-objects/uuid';
@@ -85,6 +86,12 @@ describe('CreateChatWithMessageCommandHandler', () => {
         {
           provide: CHAT_QUEUE_CONFIG_SERVICE,
           useValue: queueConfigServiceMock,
+        },
+        {
+          provide: VISITOR_V2_REPOSITORY,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ isErr: () => true }),
+          },
         },
         {
           provide: EventPublisher,

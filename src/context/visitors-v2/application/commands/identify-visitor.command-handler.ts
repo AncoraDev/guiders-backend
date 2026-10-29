@@ -484,21 +484,24 @@ export class IdentifyVisitorCommandHandler
         );
       }
 
-      // Marcar visitante como online automáticamente
-      // Esto notificará a los comerciales vía WebSocket que hay un nuevo visitante conectado
-      try {
-        await this.commandBus.execute(
-          new GoOnlineVisitorCommand(visitor.getId().value),
-        );
-        this.logger.log(
-          `✅ Visitante marcado como online automáticamente: ${visitor.getId().value}`,
-        );
-      } catch (error: unknown) {
-        // No fallar toda la operación si falla marcar como online
-        // El visitante puede hacerlo manualmente después
-        this.logger.warn(
-          `⚠️ Error al marcar visitante como online (no crítico): ${error instanceof Error ? error.message : String(error)}`,
-        );
+      const blocked = visitor.isBlocked();
+
+      // Un bloqueado no vuelve a la cola «En la web».
+      if (!blocked) {
+        try {
+          await this.commandBus.execute(
+            new GoOnlineVisitorCommand(visitor.getId().value),
+          );
+          this.logger.log(
+            `✅ Visitante marcado como online automáticamente: ${visitor.getId().value}`,
+          );
+        } catch (error: unknown) {
+          // No fallar toda la operación si falla marcar como online
+          // El visitante puede hacerlo manualmente después
+          this.logger.warn(
+            `⚠️ Error al marcar visitante como online (no crítico): ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
 
       // Obtener sesión activa
@@ -516,7 +519,10 @@ export class IdentifyVisitorCommandHandler
         lifecycle: visitor.getLifecycle().getValue(),
         isNewVisitor,
         consentStatus: 'granted',
-        allowedActions: ['chat', 'forms', 'tracking', 'all'],
+        blocked,
+        allowedActions: blocked
+          ? ['tracking']
+          : ['chat', 'forms', 'tracking', 'all'],
       });
     } catch (error: unknown) {
       this.logger.error(
